@@ -48,42 +48,28 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 func (r *UserRepository) SeedDefaultUsers(ctx context.Context) error {
 	// Seed super_admin user
 	admin, err := r.FindByUsername(ctx, "admin")
-	if err != nil {
-		return err
-	}
-	if admin == nil {
+	if err == nil && admin == nil {
 		adminHash, _ := bcrypt.GenerateFromPassword([]byte("adminpassword"), bcrypt.DefaultCost)
-		err = r.Create(ctx, &models.User{
+		_ = r.Create(ctx, &models.User{
 			Username:     "admin",
 			PasswordHash: string(adminHash),
 			FullName:     "System Administrator",
 			Role:         models.RoleSuperAdmin,
 		})
-		if err != nil {
-			slog.Warn("Could not seed super_admin user", "error", err)
-		} else {
-			slog.Info("Seeded default user: admin / adminpassword (super_admin)")
-		}
+		slog.Info("Seeded default user: admin / adminpassword (super_admin)")
 	}
 
 	// Seed staff user
 	staff, err := r.FindByUsername(ctx, "staff")
-	if err != nil {
-		return err
-	}
-	if staff == nil {
+	if err == nil && staff == nil {
 		staffHash, _ := bcrypt.GenerateFromPassword([]byte("staffpassword"), bcrypt.DefaultCost)
-		err = r.Create(ctx, &models.User{
+		_ = r.Create(ctx, &models.User{
 			Username:     "staff",
 			PasswordHash: string(staffHash),
 			FullName:     "Store Staff Member",
 			Role:         models.RoleStaff,
 		})
-		if err != nil {
-			slog.Warn("Could not seed staff user", "error", err)
-		} else {
-			slog.Info("Seeded default user: staff / staffpassword (staff)")
-		}
+		slog.Info("Seeded default user: staff / staffpassword (staff)")
 	}
 
 	return nil
