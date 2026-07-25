@@ -102,16 +102,16 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":"ok","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
 	})
 
-	// Protected routes
+	// Protected routes (Staff & Super Admin)
 	mux.HandleFunc("GET /{$}", middleware.RequireAuth(dashboardHandler.RenderDashboard))
 	mux.HandleFunc("GET /submit", middleware.RequireAuth(reportHandler.RenderSubmitForm))
-	mux.HandleFunc("GET /reports", middleware.RequireAuth(reportHandler.RenderReportsList))
-	mux.HandleFunc("GET /reports/detail", middleware.RequireAuth(reportHandler.RenderDetailModal))
 	mux.HandleFunc("GET /reports/expense-row", middleware.RequireAuth(reportHandler.RenderAddExpenseRow))
 	mux.HandleFunc("POST /reports/preview", middleware.RequireAuth(reportHandler.RenderCalculationPreview))
 	mux.HandleFunc("POST /reports", middleware.RequireAuth(reportHandler.HandleSubmit))
 
 	// Super Admin protected routes
+	mux.HandleFunc("GET /reports", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderReportsList))
+	mux.HandleFunc("GET /reports/detail", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderDetailModal))
 	mux.HandleFunc("GET /reports/edit", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderEditForm))
 	mux.HandleFunc("DELETE /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
 	mux.HandleFunc("POST /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))

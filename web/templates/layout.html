@@ -56,9 +56,11 @@
         <a href="/submit" class="px-3.5 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "submit"}}bg-[#00b4d8] text-[#0b1329]{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">
           Submit Report
         </a>
+        {{if .User.IsSuperAdmin}}
         <a href="/reports" class="px-3.5 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "reports"}}bg-[#00b4d8] text-[#0b1329]{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">
           Reports History
         </a>
+        {{end}}
       </nav>
       {{end}}
 
@@ -99,7 +101,9 @@
     <div class="md:hidden flex border-t border-[#1e2d4a] bg-[#060d1b] px-4 py-2 justify-around">
       <a href="/" class="text-xs font-semibold px-3 py-1 rounded {{if eq .ActiveTab "dashboard"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Dashboard</a>
       <a href="/submit" class="text-xs font-semibold px-3 py-1 rounded {{if eq .ActiveTab "submit"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Submit</a>
+      {{if .User.IsSuperAdmin}}
       <a href="/reports" class="text-xs font-semibold px-3 py-1 rounded {{if eq .ActiveTab "reports"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">History</a>
+      {{end}}
     </div>
     {{end}}
   </header>
@@ -115,7 +119,7 @@
   <!-- Footer -->
   <footer class="border-t border-[#1e2d4a] bg-[#060d1b] py-4 text-center text-xs text-slate-400">
     <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
-      <div>Wedrink Store End of Day System &bull; Go + HTMX + MongoDB Atlas</div>
+      <div>Wedrink Store End of Day System</div>
       <div class="text-[11px] text-slate-400">Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded font-mono text-cyan-300">?</kbd> for shortcuts</div>
     </div>
   </footer>
