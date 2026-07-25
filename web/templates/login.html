@@ -1,0 +1,66 @@
+{{define "content"}}
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="glass-card w-full max-w-md p-8 bg-slate-950 border border-slate-800 rounded-lg">
+
+    <div class="text-center mb-6">
+      <div class="w-12 h-12 rounded bg-indigo-600 inline-flex items-center justify-center text-white font-black text-xl mb-3">
+        W
+      </div>
+      <h1 class="text-xl font-bold text-white tracking-tight">Wedrink EOD Portal</h1>
+      <p class="text-xs text-slate-400 mt-1">Sign in to access store daily closure & report management</p>
+    </div>
+
+    <!-- Error message slot -->
+    <div id="login-error">
+      {{if .Error}}
+      <div class="p-3 bg-red-950 border border-red-800 text-red-300 text-xs font-semibold rounded mb-5 flex items-center gap-2">
+        <svg class="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>{{.Error}}</span>
+      </div>
+      {{end}}
+    </div>
+
+    <!-- Login Form -->
+    <form hx-post="/login" hx-target="#login-error" hx-swap="innerHTML" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Username</label>
+        <input type="text" name="username" id="input-username" required placeholder="Username" class="glass-input">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+        <input type="password" name="password" id="input-password" required placeholder="Password" class="glass-input">
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full py-2.5 text-xs font-bold mt-2">
+        Sign In to Portal
+      </button>
+    </form>
+
+    <!-- Quick Role Switcher Helper -->
+    <div class="mt-6 pt-5 border-t border-slate-800">
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 text-center">Quick System Sign-In</div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <button type="button" onclick="fillDemo('staff', 'staffpassword')" class="p-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded text-left transition">
+          <div class="text-xs font-bold text-purple-300">Staff / Cashier</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">Submit & View Dashboard</div>
+        </button>
+        <button type="button" onclick="fillDemo('admin', 'adminpassword')" class="p-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded text-left transition">
+          <div class="text-xs font-bold text-amber-300">Super Admin</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">Full Edit & Export</div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function fillDemo(user, pass) {
+    document.getElementById('input-username').value = user;
+    document.getElementById('input-password').value = pass;
+  }
+</script>
+{{end}}

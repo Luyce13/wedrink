@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  
+  <!-- Tailwind CSS & Professional Font -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              500: '#00b4d8',
+              600: '#0096c7',
+              700: '#0077b6',
+              900: '#0b1329',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  
+  <!-- HTMX 2.0.4 -->
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body class="h-full text-slate-100 flex flex-col bg-[#0b1329] font-sans antialiased">
+
+  <!-- Wedrink Corporate Header -->
+  <header class="sticky top-0 z-40 bg-[#060d1b] border-b border-[#1e2d4a]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <a href="/" class="flex items-center gap-2.5 text-lg font-bold tracking-tight text-white hover:opacity-90 transition">
+          <div class="w-8 h-8 rounded bg-[#00b4d8] flex items-center justify-center font-black text-[#0b1329] text-base shadow-md">
+            W
+          </div>
+          <span>Wedrink <span class="text-xs px-2 py-0.5 rounded bg-[#131f3a] text-cyan-300 font-semibold border border-[#1e2d4a]">EOD Portal</span></span>
+        </a>
+      </div>
+
+      <!-- Navigation Links -->
+      {{if .User}}
+      <nav class="hidden md:flex items-center gap-1 bg-[#0b1329] p-1 rounded-lg border border-[#1e2d4a]">
+        <a href="/" class="px-3.5 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "dashboard"}}bg-[#00b4d8] text-[#0b1329]{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">
+          Dashboard
+        </a>
+        <a href="/submit" class="px-3.5 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "submit"}}bg-[#00b4d8] text-[#0b1329]{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">
+          Submit Report
+        </a>
+        <a href="/reports" class="px-3.5 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "reports"}}bg-[#00b4d8] text-[#0b1329]{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">
+          Reports History
+        </a>
+      </nav>
+      {{end}}
+
+      <!-- User Info & Actions -->
+      <div class="flex items-center gap-3">
+        <!-- Keyboard Shortcuts Trigger -->
+        <button onclick="toggleShortcutsModal()" class="px-2.5 py-1 rounded bg-[#131f3a] border border-[#1e2d4a] text-slate-300 hover:text-cyan-300 hover:border-cyan-500/50 text-xs font-bold transition flex items-center gap-1.5" title="View Keyboard Shortcuts (?)">
+          <span class="font-mono text-cyan-400 font-black">?</span>
+          <span class="hidden sm:inline">Shortcuts</span>
+        </button>
+
+        {{if .User}}
+          <div class="flex items-center gap-2 bg-[#131f3a] px-3 py-1.5 rounded border border-[#1e2d4a]">
+            <div class="w-7 h-7 rounded bg-[#0b1329] border border-[#1e2d4a] flex items-center justify-center font-bold text-xs text-[#00b4d8]">
+              {{slice .User.Username 0 1 | printf "%s"}}
+            </div>
+            <div class="hidden sm:block text-left">
+              <div class="text-xs font-bold text-slate-200">{{.User.FullName}}</div>
+              <div class="text-[10px] font-bold tracking-wider uppercase {{if .User.IsSuperAdmin}}text-amber-400{{else}}text-purple-400{{end}}">
+                {{.User.Role}}
+              </div>
+            </div>
+          </div>
+          
+          <form action="/logout" method="POST">
+            <button type="submit" class="px-3 py-1.5 rounded text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-[#131f3a] border border-[#1e2d4a] transition">
+              Logout
+            </button>
+          </form>
+        {{else}}
+          <a href="/login" class="btn btn-primary text-xs py-1.5 px-4">Sign In</a>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Bar -->
+    {{if .User}}
+    <div class="md:hidden flex border-t border-[#1e2d4a] bg-[#060d1b] px-4 py-2 justify-around">
+      <a href="/" class="text-xs font-semibold px-3 py-1 rounded {{if eq .ActiveTab "dashboard"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Dashboard</a>
+      <a href="/submit" class="text-xs font-semibold px-3 py-1 rounded {{if eq .ActiveTab "submit"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Submit</a>
+      <a href="/reports" class="text-xs font-semibold px-3 py-1 rounded {{if eq .ActiveTab "reports"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">History</a>
+    </div>
+    {{end}}
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    {{template "content" .}}
+  </main>
+
+  <!-- Modal Container -->
+  <div id="report-modal-container"></div>
+
+  <!-- Footer -->
+  <footer class="border-t border-[#1e2d4a] bg-[#060d1b] py-4 text-center text-xs text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
+      <div>Wedrink Store End of Day System &bull; Go + HTMX + MongoDB Atlas</div>
+      <div class="text-[11px] text-slate-400">Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded font-mono text-cyan-300">?</kbd> for shortcuts</div>
+    </div>
+  </footer>
+
+</body>
+</html>

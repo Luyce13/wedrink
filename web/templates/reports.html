@@ -1,0 +1,105 @@
+{{define "content"}}
+<div class="space-y-5">
+  
+  <!-- Header & Export Toolbar -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-5 bg-slate-950 border-slate-800">
+    <div>
+      <h1 class="text-xl font-bold text-white tracking-tight">Historical EOD Reports</h1>
+      <p class="text-xs text-slate-400 mt-0.5">Filter, inspect itemized breakdowns, and export records</p>
+    </div>
+
+    <!-- Export Action Buttons -->
+    {{if .User.CanExportData}}
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="exportSelectedCSV()" class="btn btn-secondary text-xs py-1.5 px-3">
+        <span>Export Selected (CSV)</span>
+      </button>
+
+      <a href="/export/csv?month={{.Month}}" class="btn btn-secondary text-xs py-1.5 px-3">
+        <span>Export Month ({{.Month}})</span>
+      </a>
+
+      <a href="/export/csv?type=all" class="btn btn-primary text-xs py-1.5 px-3">
+        <span>Export All Records (CSV)</span>
+      </a>
+    </div>
+    {{else}}
+    <div class="text-xs text-slate-400 bg-slate-900 px-3 py-1.5 rounded border border-slate-800">
+      <span class="font-bold text-amber-400">Notice:</span> CSV Export is restricted to Super Admins.
+    </div>
+    {{end}}
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="glass-card p-4 bg-slate-950 border-slate-800">
+    <form hx-get="/reports" hx-target="#report-table-container" hx-swap="innerHTML" hx-vals='{"partial": "true"}'
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end">
+      
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">Filter by Month</label>
+        <input type="month" name="month" value="{{.Month}}" class="glass-input text-xs">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">Start Date</label>
+        <input type="date" name="startDate" value="{{.StartDate}}" class="glass-input text-xs">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">End Date</label>
+        <input type="date" name="endDate" value="{{.EndDate}}" class="glass-input text-xs">
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="submit" class="btn btn-primary text-xs py-2 px-3 flex-1">Filter</button>
+        <a href="/reports" class="btn btn-secondary text-xs py-2 px-3">Reset</a>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Monthly Aggregated Summary Widgets -->
+  {{if .MonthlySummary}}
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="glass-card p-3 text-center bg-slate-950 border-slate-800">
+      <div class="text-[10px] text-slate-400 font-bold uppercase">Monthly Sales</div>
+      <div class="text-xs font-bold text-white mt-0.5">Rs. {{printf "%.0f" .MonthlySummary.TotalSale}}</div>
+    </div>
+    <div class="glass-card p-3 text-center bg-slate-950 border-slate-800">
+      <div class="text-[10px] text-slate-400 font-bold uppercase">Card Sales</div>
+      <div class="text-xs font-bold text-blue-400 mt-0.5">Rs. {{printf "%.0f" .MonthlySummary.TotalCredit}}</div>
+    </div>
+    <div class="glass-card p-3 text-center bg-slate-950 border-slate-800">
+      <div class="text-[10px] text-slate-400 font-bold uppercase">Bank Transfers</div>
+      <div class="text-xs font-bold text-purple-400 mt-0.5">Rs. {{printf "%.0f" .MonthlySummary.TotalBank}}</div>
+    </div>
+    <div class="glass-card p-3 text-center bg-slate-950 border-slate-800">
+      <div class="text-[10px] text-slate-400 font-bold uppercase">Total Expenses</div>
+      <div class="text-xs font-bold text-amber-400 mt-0.5">Rs. {{printf "%.0f" .MonthlySummary.TotalExpenses}}</div>
+    </div>
+    <div class="glass-card p-3 text-center bg-slate-950 border-slate-800">
+      <div class="text-[10px] text-slate-400 font-bold uppercase">Total Till Cash</div>
+      <div class="text-xs font-bold text-slate-200 mt-0.5">Rs. {{printf "%.0f" .MonthlySummary.CounterCash}}</div>
+    </div>
+    <div class="glass-card p-3 text-center bg-slate-950 border-slate-800">
+      <div class="text-[10px] text-slate-400 font-bold uppercase">Net Discrepancy</div>
+      <div class="text-xs font-bold mt-0.5 {{if eq .MonthlySummary.TotalDifference 0.0}}text-emerald-400{{else if lt .MonthlySummary.TotalDifference 0.0}}text-rose-400{{else}}text-blue-400{{end}}">
+        {{if eq .MonthlySummary.TotalDifference 0.0}}
+          Rs. 0
+        {{else if lt .MonthlySummary.TotalDifference 0.0}}
+          - Rs. {{printf "%.0f" (mathAbs .MonthlySummary.TotalDifference)}}
+        {{else}}
+          + Rs. {{printf "%.0f" .MonthlySummary.TotalDifference}}
+        {{end}}
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  <!-- Reports Table Container -->
+  <div id="report-table-container" class="glass-card overflow-hidden bg-slate-950 border-slate-800">
+    {{template "report_table.html" .}}
+  </div>
+
+</div>
+{{end}}

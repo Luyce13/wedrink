@@ -1,0 +1,26 @@
+# Binaries & Executables
+/bin/
+wedrink
+*.exe
+*.exe.manifest
+*.dll
+*.so
+*.dylib
+
+# Environment variables & secrets
+.env
+.env.local
+*.env
+
+# Temporary / Session files
+cookie.txt
+*.log
+*.tmp
+*.csv
+
+# OS & IDE metadata
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

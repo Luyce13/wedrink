@@ -1,0 +1,18 @@
+<div id="form-alert" class="p-4 bg-emerald-950/90 border border-emerald-500/60 text-emerald-200 rounded-lg flex items-center justify-between gap-3 mb-5 shadow-xl">
+  <div class="flex items-center gap-3">
+    <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <div>
+      <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">Success</div>
+      <div class="text-xs text-emerald-200 mt-0.5">{{.Message}}</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="/?date={{.Report.ReportDate}}" class="btn btn-primary text-xs py-1 px-3">View on Dashboard</a>
+    <button onclick="this.parentElement.parentElement.remove()" class="text-emerald-400 hover:text-white text-sm px-2">✕</button>
+  </div>
+</div>
+<script>
+  if (window.showToast) window.showToast("✓ {{.Message}}");
+</script>

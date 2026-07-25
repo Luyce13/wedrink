@@ -1,0 +1,38 @@
+<div class="p-5 bg-indigo-950/30 border border-indigo-500/30 rounded-2xl space-y-4">
+  <div class="flex items-center justify-between text-xs font-bold text-indigo-300 uppercase tracking-wider">
+    <span>Live Calculation Preview</span>
+    <span class="text-[10px] text-indigo-400/80 font-normal">Updates automatically on input</span>
+  </div>
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-[10px] text-slate-400 font-medium">Other Payments</div>
+      <div class="text-sm font-bold text-amber-300">Rs. {{if .TotalExpenses}}{{printf "%.0f" .TotalExpenses}}{{else}}0{{end}}</div>
+    </div>
+
+    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-[10px] text-slate-400 font-medium">Expected Cash</div>
+      <div class="text-sm font-bold text-slate-200">Rs. {{if .ExpectedCash}}{{printf "%.0f" .ExpectedCash}}{{else}}0{{end}}</div>
+    </div>
+
+    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-[10px] text-slate-400 font-medium">Actual Cash</div>
+      <div class="text-sm font-bold text-white">Rs. {{if .CounterCash}}{{printf "%.0f" .CounterCash}}{{else}}0{{end}}</div>
+    </div>
+
+    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+      <div class="text-[10px] text-slate-400 font-medium">Discrepancy</div>
+      <div class="text-sm font-black {{if not .Difference}}text-emerald-400{{else if eq .Difference 0.0}}text-emerald-400{{else if lt .Difference 0.0}}text-rose-400{{else}}text-cyan-400{{end}}">
+        {{if not .Difference}}
+          Rs. 0 (Balanced)
+        {{else if eq .Difference 0.0}}
+          Rs. 0 (Balanced)
+        {{else if lt .Difference 0.0}}
+          - Rs. {{printf "%.0f" (mathAbs .Difference)}}
+        {{else}}
+          + Rs. {{printf "%.0f" .Difference}}
+        {{end}}
+      </div>
+    </div>
+  </div>
+</div>

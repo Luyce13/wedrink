@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Store End of Day Report</title>
+
+  <script>
+    (function() {
+      function syncSystemTheme() {
+        try {
+          const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      }
+      syncSystemTheme();
+      try {
+        const query = window.matchMedia('(prefers-color-scheme: dark)');
+        if (query.addEventListener) {
+          query.addEventListener('change', syncSystemTheme);
+        } else if (query.addListener) {
+          query.addListener(syncSystemTheme);
+        }
+      } catch (e) {}
+      document.addEventListener('DOMContentLoaded', syncSystemTheme);
+    })();
+  </script>
+
+  <style>
+    /* Base CSS reset */
+    *, ::before, ::after {
+      box-sizing: border-box;
+      border-width: 0;
+      border-style: solid;
+      border-color: #e2e8f0;
+    }
+    html {
+      line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+      tab-size: 4;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+    body {
+      margin: 0;
+      line-height: inherit;
+      width: 100%;
+      max-width: 100vw;
+      min-height: 100%;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, h4, h5, h6, p, figure { margin: 0; }
+    button, input, optgroup, select, textarea {
+      font-family: inherit;
+      font-size: 100%;
+      font-weight: inherit;
+      line-height: inherit;
+      color: inherit;
+      margin: 0;
+      padding: 0;
+      font-variant-numeric: tabular-nums;
+      transition: all 0.15s ease-in-out;
+    }
+    button, [type='button'], [type='reset'], [type='submit'] {
+      -webkit-appearance: button;
+      appearance: button;
+      background-color: transparent;
+      background-image: none;
+    }
+    input::placeholder, textarea::placeholder { opacity: 1; color: #94a3b8; }
+    [role="button"], button { cursor: pointer; }
+    :disabled { cursor: default; }
+
+    /* Prevent mobile browser auto-zooming on input focus (< 640px) */
+    @media (max-width: 639px) {
+      input[type="number"],
+      input[type="text"],
+      textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    /* Hide spin buttons for Chrome, Safari, Edge, Opera */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0;
+    }
+    /* Hide spin buttons for Firefox */
+    input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    /* Layout & Display Utilities */
+    .block { display: block; }
+    .inline { display: inline; }
+    .inline-block { display: inline-block; }
+    .flex { display: flex; }
+    .inline-flex { display: inline-flex; }
+    .grid { display: grid; }
+    .hidden { display: none; }
+
+    /* Flex & Grid properties */
+    .flex-col { flex-direction: column; }
+    .items-start { align-items: flex-start; }
+    .items-center { align-items: center; }
+    .justify-start { justify-content: flex-start; }
+    .justify-center { justify-content: center; }
+    .justify-between { justify-content: space-between; }
+    .justify-end { justify-content: flex-end; }
+    .flex-1 { flex: 1 1 0%; }
+    .grow, .flex-grow { flex-grow: 1; }
+    .shrink-0 { flex-shrink: 0; }
+
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .col-span-2 { grid-column: span 2 / span 2; }
+
+    .gap-1 { gap: 0.25rem; }
+    .gap-1\.5 { gap: 0.375rem; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-2\.5 { gap: 0.625rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-4 { gap: 1rem; }
+    .gap-y-0\.5 { row-gap: 0.125rem; }
+
+    /* Sizing */
+    .w-full { width: 100%; }
+    .w-24 { width: 6rem; }
+    .w-28 { width: 7rem; }
+    .w-36 { width: 9rem; }
+    .w-40 { width: 10rem; }
+    .w-4 { width: 1rem; }
+    .w-3\.5 { width: 0.875rem; }
+    .w-2\.5 { width: 0.625rem; }
+
+    .h-4 { height: 1rem; }
+    .h-3\.5 { height: 0.875rem; }
+    .h-2\.5 { height: 0.625rem; }
+    .h-10 { height: 2.5rem; }
+    .h-full { height: 100%; }
+
+    .min-h-screen { min-height: 100vh; }
+    .min-h-dvh { min-height: 100dvh; }
+    .min-h-full { min-height: 100%; }
+    .min-h-\[44px\] { min-height: 44px; }
+    .min-w-0 { min-width: 0px; }
+    .min-w-\[24px\] { min-width: 24px; }
+    .min-w-\[28px\] { min-width: 28px; }
+    .min-w-\[42px\] { min-width: 42px; }
+
+    .max-w-full { max-width: 100%; }
+    .max-w-md { max-width: 28rem; }
+    .max-w-lg { max-width: 32rem; }
+    .max-w-xs { max-width: 20rem; }
+
+    .max-h-0 { max-height: 0px; }
+    .max-h-20 { max-height: 5rem; }
+    .max-h-\[60vh\] { max-height: 60vh; }
+
+    /* Margins & Padding */
+    .m-0 { margin: 0px; }
+    .mt-0\.5 { margin-top: 0.125rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-1\.5 { margin-top: 0.375rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-2\.5 { margin-top: 0.625rem; }
+    .mt-4 { margin-top: 1rem; }
+
+    .mb-0 { margin-bottom: 0px; }
+    .mb-0\.5 { margin-bottom: 0.125rem; }
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mb-1\.5 { margin-bottom: 0.375rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 0.75rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .mb-5 { margin-bottom: 1.25rem; }
+
+    .ml-0\.5 { margin-left: 0.125rem; }
+    .ml-1 { margin-left: 0.25rem; }
+    .mr-8 { margin-right: 2rem; }
+    .mx-0\.5 { margin-left: 0.125rem; margin-right: 0.125rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .my-auto { margin-top: auto; margin-bottom: auto; }
+
+    .p-1 { padding: 0.25rem; }
+    .p-1\.5 { padding: 0.375rem; }
+    .p-2 { padding: 0.5rem; }
+    .p-2\.5 { padding: 0.625rem; }
+    .p-3 { padding: 0.75rem; }
+    .p-4 { padding: 1rem; }
+    .p-5 { padding: 1.25rem; }
+    .p-6 { padding: 1.5rem; }
+    .p-8 { padding: 2rem; }
+
+    .px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+    .px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
+    .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .px-2\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
+    .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+
+    .py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+    .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+    .py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+    .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+
+    .pt-2 { padding-top: 0.5rem; }
+    .pt-3 { padding-top: 0.75rem; }
+    .pt-3\.5 { padding-top: 0.875rem; }
+    .pb-1 { padding-bottom: 0.25rem; }
+    .pb-3 { padding-bottom: 0.75rem; }
+    .pr-0 { padding-right: 0px; }
+    .pr-1 { padding-right: 0.25rem; }
+    .pr-8 { padding-right: 2rem; }
+
+    /* Positioning & Z-Index */
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+    .fixed { position: fixed; }
+    .inset-0 { top: 0px; right: 0px; bottom: 0px; left: 0px; }
+    .top-4 { top: 1rem; }
+    .top-5 { top: 1.25rem; }
+    .right-4 { right: 1rem; }
+    .right-5 { right: 1.25rem; }
+    .z-40 { z-index: 40; }
+    .z-50 { z-index: 50; }
+
+    /* Typography */
+    .text-\[9px\] { font-size: 9px; }
+    .text-\[10px\] { font-size: 10px; }
+    .text-\[11px\] { font-size: 11px; }
+    .text-xs { font-size: 0.75rem; line-height: 1rem; }
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-base { font-size: 1rem; line-height: 1.5rem; }
+    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+
+    .font-normal { font-weight: 400; }
+    .font-medium { font-weight: 500; }
+    .font-semibold { font-weight: 600; }
+    .font-bold { font-weight: 700; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    .tracking-tight { letter-spacing: -0.025em; }
+    .tracking-wide { letter-spacing: 0.025em; }
+    .tracking-wider { letter-spacing: 0.05em; }
+    .uppercase { text-transform: uppercase; }
+
+    .text-left { text-align: left; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .leading-none { line-height: 1; }
+
+    /* Colors - Text */
+    .text-white { color: #ffffff; }
+    .text-slate-100 { color: #f8fafc; }
+    .text-slate-200 { color: #e2e8f0; }
+    .text-slate-300 { color: #cbd5e1; }
+    .text-slate-400 { color: #94a3b8; }
+    .text-slate-500 { color: #64748b; }
+    .text-slate-600 { color: #475569; }
+    .text-slate-700 { color: #334155; }
+    .text-slate-800 { color: #1e293b; }
+    .text-slate-900 { color: #0f172a; }
+    .text-slate-950 { color: #020617; }
+
+    .text-blue-400 { color: #60a5fa; }
+    .text-blue-500 { color: #3b82f6; }
+    .text-blue-600 { color: #2563eb; }
+    .text-blue-700 { color: #1d4ed8; }
+    .text-blue-800 { color: #1e40af; }
+
+    .text-emerald-400 { color: #34d399; }
+    .text-emerald-600 { color: #059669; }
+    .text-emerald-700 { color: #047857; }
+
+    .text-rose-400 { color: #fb7185; }
+    .text-rose-500 { color: #f43f5e; }
+
+    .text-red-400 { color: #f87171; }
+    .text-red-500 { color: #ef4444; }
+    .text-red-700 { color: #b91c1c; }
+
+    /* Colors - Background */
+    .bg-white { background-color: #ffffff; }
+    .bg-slate-50 { background-color: #f8fafc; }
+    .bg-slate-100 { background-color: #f1f5f9; }
+    .bg-slate-200 { background-color: #e2e8f0; }
+    .bg-slate-700 { background-color: #334155; }
+    .bg-slate-800 { background-color: #1e293b; }
+    .bg-slate-900 { background-color: #0f172a; }
+    .bg-slate-950 { background-color: #020617; }
+
+    .bg-blue-50 { background-color: #eff6ff; }
+    .bg-blue-50\/50 { background-color: rgba(239, 246, 255, 0.5); }
+    .bg-emerald-50 { background-color: #ecfdf5; }
+    .bg-red-50 { background-color: #fef2f2; }
+
+    .bg-slate-900\/60 { background-color: rgba(15, 23, 42, 0.6); }
+    .bg-slate-950\/80 { background-color: rgba(2, 6, 23, 0.8); }
+    .bg-blue-950\/20 { background-color: rgba(23, 37, 84, 0.2); }
+    .bg-emerald-950\/40 { background-color: rgba(6, 78, 59, 0.4); }
+    .bg-red-950\/40 { background-color: rgba(127, 29, 29, 0.4); }
+    .bg-slate-800\/80 { background-color: rgba(30, 41, 59, 0.8); }
+    .bg-slate-800\/60 { background-color: rgba(30, 41, 59, 0.6); }
+    .bg-slate-800\/40 { background-color: rgba(30, 41, 59, 0.4); }
+
+    /* Borders & Shadows */
+    .border { border-width: 1px; }
+    .border-t { border-top-width: 1px; }
+    .border-b { border-bottom-width: 1px; }
+    .border-0 { border-width: 0px; }
+
+    .border-slate-100 { border-color: #f1f5f9; }
+    .border-slate-200 { border-color: #e2e8f0; }
+    .border-slate-200\/80 { border-color: rgba(226, 232, 240, 0.8); }
+    .border-slate-600 { border-color: #475569; }
+    .border-slate-700 { border-color: #334155; }
+    .border-slate-800 { border-color: #1e293b; }
+
+    .border-blue-100 { border-color: #dbeafe; }
+    .border-blue-500 { border-color: #3b82f6; }
+    .border-emerald-100 { border-color: #d1fae5; }
+    .border-red-100 { border-color: #fee2e2; }
+
+    .rounded { border-radius: 0.25rem; }
+    .rounded-md { border-radius: 0.375rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-xl { border-radius: 0.75rem; }
+    .rounded-2xl { border-radius: 1rem; }
+
+    .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+
+    .backdrop-blur-sm { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .overflow-hidden { overflow: hidden; }
+    .overflow-y-auto { overflow-y: auto; }
+    .resize-none { resize: none; }
+    .select-none { user-select: none; }
+    .outline-none { outline: 2px solid transparent; outline-offset: 2px; }
+
+    /* Focus, Hover, Active States */
+    .hover\:bg-slate-50:hover { background-color: #f8fafc; }
+    .hover\:bg-slate-100:hover { background-color: #f1f5f9; }
+    .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
+    .hover\:bg-slate-800:hover { background-color: #1e293b; }
+    .hover\:text-slate-600:hover { color: #475569; }
+    .hover\:text-slate-700:hover { color: #334155; }
+    .hover\:text-blue-800:hover { color: #1e40af; }
+    .hover\:text-red-500:hover { color: #ef4444; }
+    .hover\:opacity-80:hover { opacity: 0.8; }
+
+    .active\:scale-\[0\.99\]:active { transform: scale(0.99); }
+
+    .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
+    .focus\:ring-2:focus { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
+    .focus\:ring-slate-300:focus { box-shadow: 0 0 0 2px #cbd5e1; }
+    .focus\:ring-blue-500:focus { box-shadow: 0 0 0 2px #3b82f6; }
+
+    /* Transitions & Opacity */
+    .transition { transition-property: color, background-color, border-color, opacity, box-shadow, transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+    .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+    .duration-150 { transition-duration: 150ms; }
+    .duration-200 { transition-duration: 200ms; }
+    .duration-300 { transition-duration: 300ms; }
+    .duration-400 { transition-duration: 400ms; }
+
+    .opacity-0 { opacity: 0; }
+    .opacity-75 { opacity: 0.75; }
+    .opacity-100 { opacity: 1; }
+
+    /* Responsive Media Queries (sm: >= 640px) */
+    @media (min-width: 640px) {
+      .sm\:flex { display: flex; }
+      .sm\:inline { display: inline; }
+      .sm\:inline-block { display: inline-block; }
+      .sm\:hidden { display: none; }
+
+      .sm\:items-center { align-items: center; }
+      .sm\:justify-center { justify-content: center; }
+
+      .sm\:w-36 { width: 9rem; }
+      .sm\:w-24 { width: 6rem; }
+      .sm\:w-\[248px\] { width: 248px; }
+      .sm\:h-auto { height: auto; }
+
+      .sm\:min-h-0 { min-height: 0px; }
+      .sm\:min-h-dvh { min-height: 100dvh; }
+      .sm\:min-w-\[42px\] { min-width: 42px; }
+
+      .sm\:max-w-md { max-width: 28rem; }
+
+      .sm\:space-y-3\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.875rem; }
+      .sm\:space-y-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
+
+      .sm\:gap-4 { gap: 1rem; }
+      .sm\:gap-1\.5 { gap: 0.375rem; }
+
+      .sm\:p-2\.5 { padding: 0.625rem; }
+      .sm\:p-4 { padding: 1rem; }
+      .sm\:p-5 { padding: 1.25rem; }
+      .sm\:p-6 { padding: 1.5rem; }
+      .sm\:px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
+      .sm\:px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+      .sm\:px-2\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
+
+      .sm\:py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+      .sm\:py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+      .sm\:py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+      .sm\:py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+      .sm\:pt-2 { padding-top: 0.5rem; }
+      .sm\:pt-3 { padding-top: 0.75rem; }
+      .sm\:pr-8 { padding-right: 2rem; }
+
+      .sm\:mb-1\.5 { margin-bottom: 0.375rem; }
+      .sm\:mb-5 { margin-bottom: 1.25rem; }
+      .sm\:mt-2 { margin-top: 0.5rem; }
+
+      .sm\:text-\[9px\] { font-size: 9px; }
+      .sm\:text-\[10px\] { font-size: 10px; }
+      .sm\:text-\[11px\] { font-size: 11px; }
+      .sm\:text-xs { font-size: 0.75rem; line-height: 1rem; }
+      .sm\:text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+      .sm\:text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+
+      .sm\:rounded-md { border-radius: 0.375rem; }
+      .sm\:rounded-xl { border-radius: 0.75rem; }
+      .sm\:shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    }
+
+    @media (min-width: 768px) {
+      .md\:max-w-lg { max-width: 32rem; }
+      .md\:p-8 { padding: 2rem; }
+    }
+
+    /* Responsive Dark Mode Utilities */
+    @media (prefers-color-scheme: dark) {
+      .dark\:bg-slate-100 { background-color: #f1f5f9 !important; }
+      .dark\:bg-slate-700 { background-color: #334155; }
+      .dark\:bg-slate-800 { background-color: #1e293b; }
+      .dark\:bg-slate-900 { background-color: #0f172a; }
+      .dark\:bg-slate-950 { background-color: #020617; }
+      .dark\:bg-white { background-color: #ffffff !important; }
+      .dark\:bg-blue-600 { background-color: #2563eb !important; }
+      .dark\:bg-blue-700 { background-color: #1d4ed8 !important; }
+
+      .dark\:bg-blue-950\/20 { background-color: rgba(23, 37, 84, 0.2); }
+      .dark\:bg-emerald-950\/40 { background-color: rgba(6, 78, 59, 0.4); }
+      .dark\:bg-red-950\/40 { background-color: rgba(127, 29, 29, 0.4); }
+      .dark\:bg-slate-800\/80 { background-color: rgba(30, 41, 59, 0.8); }
+      .dark\:bg-slate-800\/40 { background-color: rgba(30, 41, 59, 0.4); }
+
+      .dark\:text-white { color: #ffffff !important; }
+      .dark\:text-slate-100 { color: #f8fafc; }
+      .dark\:text-slate-200 { color: #e2e8f0; }
+      .dark\:text-slate-300 { color: #cbd5e1; }
+      .dark\:text-slate-400 { color: #94a3b8; }
+      .dark\:text-slate-500 { color: #64748b; }
+      .dark\:text-slate-900 { color: #0f172a !important; }
+      .dark\:text-slate-950 { color: #020617 !important; }
+
+      .dark\:text-blue-300 { color: #93c5fd; }
+      .dark\:text-blue-400 { color: #60a5fa; }
+      .dark\:text-emerald-400 { color: #34d399; }
+      .dark\:text-red-400 { color: #f87171; }
+      .dark\:text-rose-400 { color: #fb7185; }
+
+      .dark\:border-slate-600 { border-color: #475569; }
+      .dark\:border-slate-700 { border-color: #334155; }
+      .dark\:border-slate-800 { border-color: #1e293b; }
+      .dark\:border-blue-900\/30 { border-color: rgba(30, 58, 138, 0.3); }
+      .dark\:border-emerald-900\/40 { border-color: rgba(6, 78, 59, 0.4); }
+      .dark\:border-red-900\/40 { border-color: rgba(127, 29, 29, 0.4); }
+
+      .dark\:hover\:bg-blue-500:hover { background-color: #3b82f6 !important; }
+      .dark\:hover\:bg-blue-700:hover { background-color: #1d4ed8 !important; }
+      .dark\:hover\:bg-slate-200:hover { background-color: #e2e8f0 !important; }
+      .dark\:hover\:bg-slate-700:hover { background-color: #334155; }
+      .dark\:hover\:bg-slate-800\/60:hover { background-color: rgba(30, 41, 59, 0.6); }
+      .dark\:hover\:text-slate-200:hover { color: #e2e8f0; }
+      .dark\:hover\:text-slate-300:hover { color: #cbd5e1; }
+      .dark\:hover\:text-blue-300:hover { color: #93c5fd; }
+
+      .dark\:focus\:ring-slate-700:focus { box-shadow: 0 0 0 2px #334155; }
+    }
+
+    /* Space-y utilities */
+    .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+    .space-y-3\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.875rem; }
+    .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+
+    /* Dynamic filled state styling */
+    .is-filled {
+      color: #0f172a !important;
+      font-weight: 700 !important;
+      border-color: #475569 !important;
+      background-color: #f1f5f9 !important;
+    }
+    @media (prefers-color-scheme: dark) {
+      .is-filled {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+        border-color: #94a3b8 !important;
+        background-color: #1e293b !important;
+      }
+    }
+
+    /* Scrollbar removal helper class */
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Custom date picker styles */
+    .hidden-panel {
+      display: none !important;
+    }
+    #datePanel {
+      position: absolute;
+      z-index: 50;
+      top: calc(100% + 6px);
+      right: 0;
+      transform-origin: top right;
+      width: 272px;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 0.75rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      #datePanel {
+        background-color: #1e293b;
+        border-color: #334155;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      }
+    }
+    @media (max-width: 639px) {
+      #datePanel {
+        right: 0;
+        left: auto;
+        max-width: calc(100vw - 1.5rem);
+      }
+    }
+    #calMonthLabel, #spinnerLabelBtn {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #0f172a;
+      background-color: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    #calMonthLabel:hover, #spinnerLabelBtn:hover {
+      background-color: #e2e8f0;
+    }
+    @media (prefers-color-scheme: dark) {
+      #calMonthLabel, #spinnerLabelBtn {
+        color: #f8fafc;
+        background-color: #334155;
+        border-color: #475569;
+      }
+      #calMonthLabel:hover, #spinnerLabelBtn:hover {
+        background-color: #475569;
+      }
+    }
+    .cal-nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      color: #64748b;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .cal-nav-btn:hover {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    @media (prefers-color-scheme: dark) {
+      .cal-nav-btn {
+        color: #94a3b8;
+      }
+      .cal-nav-btn:hover {
+        background-color: #334155;
+        color: #f8fafc;
+      }
+    }
+    .cal-day-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 28px;
+      border-radius: 7px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0 auto;
+      touch-action: manipulation;
+      transition: all 0.15s ease;
+    }
+    @media (prefers-color-scheme: dark) {
+      .cal-day-btn { color: #f8fafc; }
+    }
+    .cal-day-btn:hover:not(.cal-day-selected) {
+      background-color: #f1f5f9;
+    }
+    @media (prefers-color-scheme: dark) {
+      .cal-day-btn:hover:not(.cal-day-selected) { background-color: #334155; }
+    }
+    .cal-day-weekend { color: #e11d48; }
+    @media (prefers-color-scheme: dark) {
+      .cal-day-weekend { color: #fb7185; }
+    }
+    .cal-day-outside { color: #94a3b8; }
+    @media (prefers-color-scheme: dark) {
+      .cal-day-outside { color: #64748b; }
+    }
+    .cal-day-today {
+      border: 1.5px solid #2563eb;
+      color: #2563eb;
+      font-weight: 700;
+    }
+    @media (prefers-color-scheme: dark) {
+      .cal-day-today {
+        border: 1.5px solid #60a5fa;
+        color: #60a5fa;
+      }
+    }
+    .cal-day-selected {
+      background-color: #2563eb !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      border-radius: 7px;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.4);
+    }
+
+    .cal-day-focused {
+      outline: 1.5px solid #60a5fa !important;
+      outline-offset: -1.5px;
+      border-radius: 7px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .cal-day-focused {
+        outline: 1.5px solid #60a5fa !important;
+        outline-offset: -1.5px;
+        border-radius: 7px;
+      }
+    }
+
+    /* Scrollable wheel spinner CSS styles */
+    .spinner-col {
+      position: relative;
+      width: 64px;
+      height: 160px;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      padding: 64px 0;
+      box-sizing: border-box;
+      cursor: grab;
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 32%, black 68%, transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, black 32%, black 68%, transparent 100%);
+      transition: background-color 0.15s, box-shadow 0.15s;
+    }
+    .spinner-col::-webkit-scrollbar { display: none; }
+    .spinner-col.grabbing { cursor: grabbing; scroll-snap-type: none; }
+
+    .spinner-col.focused-col {
+      background-color: rgba(241, 245, 249, 0.4);
+      box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.4);
+      border-radius: 8px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .spinner-col.focused-col {
+        background-color: rgba(30, 41, 59, 0.4);
+        box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.6);
+      }
+    }
+
+    .spinner-highlight {
+      position: absolute;
+      left: 2px;
+      right: 2px;
+      top: 64px;
+      height: 32px;
+      border-radius: 6px;
+      background-color: rgba(34, 211, 238, 0.16);
+      border-top: 1.5px solid #22d3ee;
+      border-bottom: 1.5px solid #22d3ee;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .spinner-item {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      scroll-snap-align: center;
+      user-select: none;
+      transition: color 0.1s ease-out;
+    }
+    @media (prefers-color-scheme: dark) {
+      .spinner-item { color: #64748b; }
+    }
+    .spinner-item-active {
+      color: #0f172a !important;
+      font-weight: 700 !important;
+    }
+    @media (prefers-color-scheme: dark) {
+      .spinner-item-active { color: #f8fafc !important; }
+    }
+
+    /* System & Class-Based Dark Mode Styles */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #020617 !important;
+        color: #f8fafc !important;
+      }
+      .bg-white {
+        background-color: #0f172a !important;
+      }
+      .bg-slate-50 {
+        background-color: #020617 !important;
+      }
+      .text-slate-900, .text-slate-800, .text-slate-700 {
+        color: #f8fafc !important;
+      }
+      .text-slate-600, .text-slate-500 {
+        color: #94a3b8 !important;
+      }
+      .border-slate-200, .border-slate-100 {
+        border-color: #1e293b !important;
+      }
+      input, textarea, select {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border-color: #334155 !important;
+      }
+      .bg-slate-100 {
+        background-color: #1e293b !important;
+      }
+    }
+
+    .dark body {
+      background-color: #020617 !important;
+      color: #f8fafc !important;
+    }
+    .dark .bg-white {
+      background-color: #0f172a !important;
+    }
+    .dark .bg-slate-50 {
+      background-color: #020617 !important;
+    }
+    .dark .text-slate-900, .dark .text-slate-800, .dark .text-slate-700 {
+      color: #f8fafc !important;
+    }
+    .dark .text-slate-600, .dark .text-slate-500 {
+      color: #94a3b8 !important;
+    }
+    .dark .border-slate-200, .dark .border-slate-100 {
+      border-color: #1e293b !important;
+    }
+    .dark input, .dark textarea, .dark select {
+      background-color: #1e293b !important;
+      color: #f8fafc !important;
+      border-color: #334155 !important;
+    }
+    .dark .bg-slate-100 {
+      background-color: #1e293b !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen sm:min-h-dvh flex flex-col items-center justify-start sm:justify-center p-3 sm:p-5 md:p-8 bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
+
+  <!-- Main interactive form card -->
+  <div class="w-full max-w-full sm:max-w-md md:max-w-lg bg-white dark:bg-slate-900 rounded-2xl sm:rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 shadow-sm sm:shadow-md relative mx-auto my-auto">
+
+    <!-- Keyboard Shortcuts Help Button (Desktop only) -->
+    <button type="button" onclick="toggleGlobalShortcutsModal()"
+      class="hidden sm:flex absolute top-5 right-5 p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all cursor-pointer"
+      title="Keyboard Shortcuts Guide (Press '?')">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+    </button>
+
+    <!-- Self-dismissing Status Alert -->
+    <div id="statusToast" class="max-h-0 opacity-0 overflow-hidden mb-0 rounded-lg text-center font-semibold text-xs sm:text-xs transition-all duration-400"></div>
+
+    <!-- Header details -->
+    <div class="mb-4 sm:mb-5 pr-0 sm:pr-8">
+      <h1 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">End of Day Reporting</h1>
+      <p class="text-xs sm:text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Submit performance figures and physical balance reconciliation.</p>
+    </div>
+
+    <!-- Main Submission Form -->
+    <form id="eodForm" onsubmit="handleFormSubmit(event)" class="space-y-4 sm:space-y-3.5">
+
+      <!-- 1. Reporting Date (Inline, custom picker) -->
+      <div class="flex items-center justify-between gap-3 sm:gap-4 relative">
+        <label for="reportDateDisplay" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+          Reporting Date <span class="shortcut-hint hidden sm:inline text-[10px] text-slate-400 font-normal ml-0.5">[Alt+D]</span>
+        </label>
+
+        <div class="relative">
+          <button type="button" id="reportDateDisplay" onclick="toggleDatePanel()"
+            class="w-40 sm:w-36 px-3 sm:px-2.5 py-2 sm:py-1.5 text-sm sm:text-xs rounded-lg sm:rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all duration-150 font-medium text-right flex items-center justify-end gap-1.5 h-10 sm:h-auto">
+            <span id="reportDateLabel"></span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4 sm:w-3.5 sm:h-3.5 text-slate-400 dark:text-slate-500 shrink-0">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </button>
+          <input type="hidden" id="reportDate" name="reportDate" required>
+
+          <!-- Calendar dropdown panel -->
+          <div id="datePanel" class="hidden-panel">
+
+            <!-- GRID VIEW -->
+            <div id="calGridView">
+              <div class="flex items-center justify-between mb-4 pb-0.5 gap-1">
+                <button type="button" onclick="stepMonth(-1)" class="cal-nav-btn" aria-label="Previous month">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <button type="button" onclick="openSpinner()" id="calMonthLabel">
+                  <span></span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-2.5 h-2.5">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                <button type="button" onclick="stepMonth(1)" class="cal-nav-btn" aria-label="Next month">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-7 gap-y-1 mb-1">
+                <!-- weekday headers injected by JS -->
+              </div>
+              <div id="calGrid" class="grid grid-cols-7 gap-y-1"></div>
+
+              <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/70">
+                <button type="button" onclick="clearDate()" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">Clear</button>
+                <button type="button" onclick="goToday()" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">Today</button>
+              </div>
+            </div>
+
+            <!-- SPINNER VIEW (month / year picker) -->
+            <div id="calSpinnerView" class="hidden-panel">
+              <div class="flex justify-center mb-3.5">
+                <button type="button" onclick="closeSpinner()" id="spinnerLabelBtn">
+                  <span id="spinnerLabel"></span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-2.5 h-2.5">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+              </div>
+              <div class="flex items-start justify-center gap-3 pb-1">
+                <div class="spinner-col" id="monthSpinnerCol">
+                  <div class="spinner-highlight"></div>
+                  <div id="monthSpinnerTrack"></div>
+                </div>
+                <div class="spinner-col" id="yearSpinnerCol">
+                  <div class="spinner-highlight"></div>
+                  <div id="yearSpinnerTrack"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Total Sales (Inline) -->
+      <div class="flex items-center justify-between gap-3 sm:gap-4">
+        <label for="totalSale" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+          Total Sales (Rs.) <span class="shortcut-hint hidden sm:inline text-[10px] text-slate-400 font-normal ml-0.5">[Alt+S]</span>
+        </label>
+        <input type="number" id="totalSale" name="totalSale" min="0" required placeholder="0"
+          class="auto-expand w-40 sm:w-36 px-3 sm:px-2.5 py-2 sm:py-1.5 text-sm sm:text-xs rounded-lg sm:rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all duration-150 font-medium text-right h-10 sm:h-auto">
+      </div>
+
+      <!-- 3. Credit Card Sales (Inline) -->
+      <div class="flex items-center justify-between gap-3 sm:gap-4">
+        <label for="creditSale" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+          Credit Card Sales (Rs.) <span class="shortcut-hint hidden sm:inline text-[10px] text-slate-400 font-normal ml-0.5">[Alt+C]</span>
+        </label>
+        <input type="number" id="creditSale" name="creditSale" min="0" required placeholder="0"
+          class="auto-expand w-40 sm:w-36 px-3 sm:px-2.5 py-2 sm:py-1.5 text-sm sm:text-xs rounded-lg sm:rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all duration-150 font-medium text-right h-10 sm:h-auto">
+      </div>
+
+      <!-- 4. Bank Transfer (Inline) -->
+      <div class="flex items-center justify-between gap-3 sm:gap-4">
+        <label for="bankTransfer" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+          Bank Transfer (Rs.) <span class="shortcut-hint hidden sm:inline text-[10px] text-slate-400 font-normal ml-0.5">[Alt+B]</span>
+        </label>
+        <input type="number" id="bankTransfer" name="bankTransfer" min="0" required placeholder="0"
+          class="auto-expand w-40 sm:w-36 px-3 sm:px-2.5 py-2 sm:py-1.5 text-sm sm:text-xs rounded-lg sm:rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all duration-150 font-medium text-right h-10 sm:h-auto">
+      </div>
+
+      <!-- 5. Other Payments Segment -->
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-3.5 sm:pt-3">
+        <div class="flex justify-between items-center mb-2 sm:mb-1.5">
+          <label class="block text-xs sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            Other Payments
+          </label>
+          <span class="shortcut-hint hidden sm:inline text-[9px] text-slate-400 font-normal">[Alt+A to Add Row]</span>
+        </div>
+
+        <div id="expensesContainer" class="space-y-2 sm:space-y-1.5 w-full">
+          <!-- Dynamic Row Content populated by javascript -->
+        </div>
+
+        <!-- Right-aligned row adder trigger -->
+        <div class="flex justify-end mt-2.5 sm:mt-2">
+          <button id="addExpenseRowBtn" type="button" onclick="addNewExpenseRow()"
+            class="text-xs sm:text-[11px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition duration-150 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 sm:px-1.5 sm:py-0.5">
+            + Add Row
+          </button>
+        </div>
+      </div>
+
+      <!-- 6. Physical Reconciliation (Inline) -->
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-3.5 sm:pt-3 flex items-center justify-between gap-3 sm:gap-4">
+        <label for="counterCash" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+          Counter Cash (Rs.) <span class="shortcut-hint hidden sm:inline text-[10px] text-slate-400 font-normal ml-0.5">[Alt+K]</span>
+        </label>
+        <input type="number" id="counterCash" name="counterCash" min="0" required placeholder="0"
+          class="auto-expand w-40 sm:w-36 px-3 sm:px-2.5 py-2 sm:py-1.5 text-sm sm:text-xs rounded-lg sm:rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all duration-150 font-medium text-right h-10 sm:h-auto">
+      </div>
+
+      <!-- Submit Action Button -->
+      <div class="pt-3 sm:pt-2">
+        <button type="submit" id="submitBtn"
+          class="w-full py-3 sm:py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-950 font-bold text-sm sm:text-xs rounded-lg sm:rounded-md transition duration-150 transform active:scale-[0.99] shadow-sm flex items-center justify-center min-h-[44px] sm:min-h-[38px]">
+          Submit Report <span class="shortcut-hint hidden sm:inline text-[10px] opacity-80 font-normal ml-1">[Alt+Enter]</span>
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div id="globalShortcutsModal" class="hidden-panel fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-2xl relative overflow-hidden transition-all duration-200">
+
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Keyboard Shortcuts Guide</h3>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Work quickly with key combinations (Nav with Arrow Keys / PgUp / PgDn).</p>
+        </div>
+        <button type="button" onclick="toggleGlobalShortcutsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-lg leading-none p-1">&times;</button>
+      </div>
+
+      <!-- Key Mapping Content (Scrollbar hidden via .no-scrollbar) -->
+      <div id="shortcutsModalContent" class="space-y-4 max-h-[60vh] overflow-y-auto pr-1 text-xs no-scrollbar">
+
+        <!-- Scrolling Guide Help -->
+        <div class="p-2 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-lg">
+          <h4 class="font-bold text-[10px] uppercase text-blue-700 dark:text-blue-300 tracking-wider mb-1.5">Scrolling This Guide</h4>
+          <div class="grid grid-cols-2 gap-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+            <div><kbd class="px-1 py-0.5 bg-white dark:bg-slate-800 border rounded font-mono shadow-sm">↓</kbd> / <kbd class="px-1 py-0.5 bg-white dark:bg-slate-800 border rounded font-mono shadow-sm">↑</kbd> Scroll step</div>
+            <div><kbd class="px-1 py-0.5 bg-white dark:bg-slate-800 border rounded font-mono shadow-sm">PgDn</kbd> / <kbd class="px-1 py-0.5 bg-white dark:bg-slate-800 border rounded font-mono shadow-sm">PgUp</kbd> Fast scroll</div>
+            <div class="col-span-2"><kbd class="px-1 py-0.5 bg-white dark:bg-slate-800 border rounded font-mono shadow-sm">Home</kbd> / <kbd class="px-1 py-0.5 bg-white dark:bg-slate-800 border rounded font-mono shadow-sm">End</kbd> Jump to extremes</div>
+          </div>
+        </div>
+
+        <!-- Section 1: Form-Level Navigation -->
+        <div>
+          <h4 class="font-bold text-[10px] uppercase text-blue-600 dark:text-blue-400 tracking-wider mb-2">Form-wide Shortcuts</h4>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Open Keyboard Help Guide</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">?</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Close open calendar/modal/unfocus</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">Esc</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Focus Reporting Date</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">D</kbd>
+              </div>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Focus Total Sales</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">S</kbd>
+              </div>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Focus Credit Card Sales</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">C</kbd>
+              </div>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Focus Bank Transfer</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">B</kbd>
+              </div>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Add Expense Row</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">A</kbd>
+              </div>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Focus Counter Cash</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">K</kbd>
+              </div>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Submit Report</span>
+              <div class="flex gap-1 items-center font-bold">
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Alt</kbd>
+                <span>+</span>
+                <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">Enter</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Dynamic Row Controls -->
+        <div>
+          <h4 class="font-bold text-[10px] uppercase text-emerald-600 dark:text-emerald-400 tracking-wider mb-2">Dynamic Payment Row Controls (Any Row #1 - #100+)</h4>
+          <div class="space-y-2 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+            <div class="flex justify-between items-start py-0.5 gap-2">
+              <span class="text-slate-600 dark:text-slate-300 font-medium">Delete Active Row in Focus</span>
+              <div class="text-right">
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold font-mono">Shift+Backspace</kbd>
+                <div class="text-[9px] text-slate-400 dark:text-slate-500 mt-1">Deletes whichever row currently has focus</div>
+              </div>
+            </div>
+            <div class="flex justify-between items-start py-0.5 gap-2">
+              <span class="text-slate-600 dark:text-slate-300 font-medium">Prompt to Delete Row #</span>
+              <div class="text-right">
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold font-mono">Alt+Delete</kbd>
+                <div class="text-[9px] text-slate-400 dark:text-slate-500 mt-1">Opens prompt to enter any row number to delete</div>
+              </div>
+            </div>
+            <div class="flex justify-between items-start py-0.5 gap-2">
+              <span class="text-slate-600 dark:text-slate-300 font-medium">Prompt to Focus Row #</span>
+              <div class="text-right">
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold font-mono">Alt+J</kbd>
+                <div class="text-[9px] text-slate-400 dark:text-slate-500 mt-1">Opens prompt to enter any row number to focus</div>
+              </div>
+            </div>
+            <div class="flex justify-between items-start py-0.5 gap-2">
+              <span class="text-slate-600 dark:text-slate-300 font-medium">Add Next Row & Continue</span>
+              <div class="text-right">
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold font-mono">Enter (in Amount field)</kbd>
+                <div class="text-[9px] text-slate-400 dark:text-slate-500 mt-1">Creates new row and focuses description immediately</div>
+              </div>
+            </div>
+            <div class="flex justify-between items-start py-0.5 gap-2">
+              <span class="text-slate-600 dark:text-slate-300 font-medium">Row Badge Actions</span>
+              <div class="text-right">
+                <div class="text-[10px] font-bold text-slate-700 dark:text-slate-300">Click to focus | Shift-Click to delete</div>
+                <div class="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Badges display #1, #2, #10, #101 cleanly</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Calendar Shortcuts -->
+        <div>
+          <h4 class="font-bold text-[10px] uppercase text-blue-600 dark:text-blue-400 tracking-wider mb-2">Calendar Navigation (When Open)</h4>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Navigate Calendar Day Grid</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">← / ↑ / → / ↓</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Confirm/Select Focused Day</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">Enter</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Previous / Next Month</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">PageUp / PageDown</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Open Month / Year Wheel</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">M</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Select Today's Date</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">T</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Clear Date Picker Field</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">C</kbd>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Spinner Wheel Keyboard Navigation -->
+        <div>
+          <h4 class="font-bold text-[10px] uppercase text-blue-600 dark:text-blue-400 tracking-wider mb-2">Month/Year Spinner Navigation</h4>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Switch Column Focus (Month / Year)</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">Tab (or Left / Right)</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Scroll Active Wheel Column</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">↑ / ↓ Arrow Keys</kbd>
+            </div>
+            <div class="flex justify-between items-center py-0.5">
+              <span class="text-slate-600 dark:text-slate-300">Save Selected Wheel Selection</span>
+              <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] font-bold shadow-sm font-mono text-slate-700 dark:text-slate-300">Enter / Esc</kbd>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Button -->
+      <div class="text-center pt-3 border-t border-slate-100 dark:border-slate-800 mt-4">
+        <button type="button" onclick="toggleGlobalShortcutsModal()" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] rounded-lg transition shadow-sm">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Theme-Matching Dynamic Row Action Prompt Modal -->
+  <div id="rowPromptModal" class="hidden-panel fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-xs sm:max-w-sm rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-2xl relative overflow-hidden transition-all duration-200">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 mb-3.5">
+        <h3 id="rowPromptTitle" class="text-sm font-bold text-slate-900 dark:text-white">Row Operation</h3>
+        <button type="button" onclick="closeRowPromptModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-lg leading-none p-1">&times;</button>
+      </div>
+
+      <p id="rowPromptDesc" class="text-xs text-slate-500 dark:text-slate-400 mb-3">Enter the row number below:</p>
+
+      <form id="rowPromptForm" onsubmit="submitRowPromptModal(event)">
+        <div class="mb-4">
+          <input type="text" id="rowPromptInput" required placeholder=""
+            class="w-full px-3 py-2 text-center text-sm font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick="closeRowPromptModal()" class="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition">Cancel</button>
+          <button type="submit" id="rowPromptConfirmBtn" class="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-lg shadow-sm transition">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Safeguard window.google for standalone testing or browser preview interactions
+    if (typeof google === 'undefined') {
+      window.google = {
+        script: {
+          run: {
+            withSuccessHandler: function(successFn) {
+              return {
+                withFailureHandler: function(failureFn) {
+                  return {
+                    processForm: function(formElement) {
+                      setTimeout(() => {
+                        successFn("EOD Report Processed Successfully (MOCKED LOCAL SUBMISSION)");
+                      }, 1000);
+                    }
+                  };
+                }
+              };
+            }
+          }
+        }
+      };
+    }
+
+    let toastTimeout;
+
+    const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const MONTH_LABELS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    let selectedDate = null;
+    let viewYear, viewMonth;
+
+    let focusedDate = null;
+    let activeSpinnerCol = 'month';
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function toISO(d) {
+      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+
+    function toDisplay(d) {
+      return `${pad2(d.getMonth() + 1)} / ${pad2(d.getDate())} / ${d.getFullYear()}`;
+    }
+
+    function isSameDate(a, b) {
+      return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    }
+
+    function buildWeekdayHeader() {
+      const row = document.querySelector('#datePanel .grid.grid-cols-7');
+      row.innerHTML = WEEKDAY_LABELS.map((w, i) => `
+        <div class="text-center text-[10px] font-bold uppercase tracking-wider ${ (i === 0 || i === 6) ? 'text-rose-500 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400' }">${w}</div>
+      `).join('');
+    }
+
+    function renderCalendar() {
+      document.getElementById('calMonthLabel').querySelector('span').innerText = `${MONTH_LABELS[viewMonth]} ${viewYear}`;
+
+      const grid = document.getElementById('calGrid');
+      const firstOfMonth = new Date(viewYear, viewMonth, 1);
+      const startOffset = firstOfMonth.getDay();
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+      const today = new Date();
+
+      const cells = [];
+
+      for (let i = startOffset - 1; i >= 0; i--) {
+        cells.push({ day: daysInPrevMonth - i, outside: true, y: viewMonth === 0 ? viewYear - 1 : viewYear, m: viewMonth === 0 ? 11 : viewMonth - 1 });
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        cells.push({ day: d, outside: false, y: viewYear, m: viewMonth });
+      }
+      let next = 1;
+      while (cells.length % 7 !== 0) {
+        cells.push({ day: next, outside: true, y: viewMonth === 11 ? viewYear + 1 : viewYear, m: viewMonth === 11 ? 0 : viewMonth + 1 });
+        next++;
+      }
+
+      grid.innerHTML = cells.map(c => {
+        const cellDate = new Date(c.y, c.m, c.day);
+        const dow = cellDate.getDay();
+        const isWeekend = dow === 0 || dow === 6;
+        const isToday = isSameDate(cellDate, today);
+        const isSelected = isSameDate(cellDate, selectedDate);
+        const isFocused = isSameDate(cellDate, focusedDate);
+
+        let classes = 'cal-day-btn';
+        if (c.outside) classes += ' cal-day-outside';
+        else if (isWeekend) classes += ' cal-day-weekend';
+        if (isToday && !isSelected) classes += ' cal-day-today';
+        if (isSelected) classes += ' cal-day-selected';
+        if (isFocused) classes += ' cal-day-focused';
+
+        return `<button type="button" class="${classes}" onclick="selectDate(${c.y}, ${c.m}, ${c.day})">${c.day}</button>`;
+      }).join('');
+    }
+
+    function toggleDatePanel() {
+      const panel = document.getElementById('datePanel');
+      const willOpen = panel.classList.contains('hidden-panel');
+      panel.classList.toggle('hidden-panel');
+      if (willOpen) {
+        if (selectedDate) {
+          viewYear = selectedDate.getFullYear();
+          viewMonth = selectedDate.getMonth();
+          focusedDate = new Date(selectedDate);
+        } else {
+          const defaultDate = new Date();
+          defaultDate.setDate(defaultDate.getDate() - 1);
+          viewYear = defaultDate.getFullYear();
+          viewMonth = defaultDate.getMonth();
+          focusedDate = defaultDate;
+        }
+        showGridView();
+        renderCalendar();
+      }
+    }
+
+    function closeDatePanel() {
+      document.getElementById('datePanel').classList.add('hidden-panel');
+      showGridView();
+    }
+
+    function showGridView() {
+      document.getElementById('calGridView').classList.remove('hidden-panel');
+      document.getElementById('calSpinnerView').classList.add('hidden-panel');
+    }
+
+    const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const ITEM_H = 32;
+    const CURRENT_YEAR = new Date().getFullYear();
+    const YEAR_ITEMS = [];
+    for (let y = CURRENT_YEAR - 60; y <= CURRENT_YEAR + 60; y++) YEAR_ITEMS.push(y);
+
+    let monthActiveIdx = 0;
+    let yearActiveIdx = 0;
+
+    function buildSpinnerColumn(trackId, labels) {
+      const track = document.getElementById(trackId);
+      track.innerHTML = labels.map((label, i) => `<div class="spinner-item" data-index="${i}">${label}</div>`).join('');
+    }
+
+    function wireSpinnerColumn(colId, itemCount, onIndexChange) {
+      const col = document.getElementById(colId);
+      let isDragging = false;
+      let dragStartY = 0;
+      let dragStartScroll = 0;
+      let lastActiveIdx = -1;
+
+      function currentIndex() {
+        const idx = Math.round(col.scrollTop / ITEM_H);
+        return Math.max(0, Math.min(itemCount - 1, idx));
+      }
+
+      function reportIndex() {
+        const idx = currentIndex();
+        if (idx !== lastActiveIdx) {
+          lastActiveIdx = idx;
+          const items = col.querySelectorAll('.spinner-item');
+          items.forEach(el => el.classList.remove('spinner-item-active'));
+          const activeEl = col.querySelector(`.spinner-item[data-index="${idx}"]`);
+          if (activeEl) activeEl.classList.add('spinner-item-active');
+          onIndexChange(idx);
+        }
+      }
+
+      col.addEventListener('scroll', () => {
+        window.requestAnimationFrame(reportIndex);
+      }, { passive: true });
+
+      col.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        dragStartY = e.clientY;
+        dragStartScroll = col.scrollTop;
+        col.classList.add('grabbing');
+        e.preventDefault();
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        col.scrollTop = dragStartScroll - (e.clientY - dragStartY);
+      });
+      window.addEventListener('mouseup', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        col.classList.remove('grabbing');
+        col.scrollTo({ top: currentIndex() * ITEM_H, behavior: 'smooth' });
+      });
+
+      col.addEventListener('click', (e) => {
+        if (isDragging) return;
+        const item = e.target.closest('.spinner-item');
+        if (!item) return;
+        col.scrollTo({ top: parseInt(item.dataset.index, 10) * ITEM_H, behavior: 'smooth' });
+      });
+
+      return {
+        scrollToIndex(idx, smooth) {
+          col.scrollTo({ top: idx * ITEM_H, behavior: smooth ? 'smooth' : 'auto' });
+          lastActiveIdx = -1;
+          reportIndex();
+        },
+        getCurrentIndex() {
+          return currentIndex();
+        }
+      };
+    }
+
+    let monthSpinnerApi, yearSpinnerApi;
+
+    function initSpinners() {
+      buildSpinnerColumn('monthSpinnerTrack', MONTH_SHORT);
+      buildSpinnerColumn('yearSpinnerTrack', YEAR_ITEMS);
+
+      monthSpinnerApi = wireSpinnerColumn('monthSpinnerCol', MONTH_SHORT.length, (idx) => {
+        monthActiveIdx = idx;
+        updateSpinnerLabel();
+      });
+      yearSpinnerApi = wireSpinnerColumn('yearSpinnerCol', YEAR_ITEMS.length, (idx) => {
+        yearActiveIdx = idx;
+        updateSpinnerLabel();
+      });
+    }
+
+    function updateSpinnerLabel() {
+      document.getElementById('spinnerLabel').innerText = `${MONTH_LABELS[monthActiveIdx]} ${YEAR_ITEMS[yearActiveIdx]}`;
+    }
+
+    function openSpinner() {
+      document.getElementById('calGridView').classList.add('hidden-panel');
+      document.getElementById('calSpinnerView').classList.remove('hidden-panel');
+
+      const yearIdx = Math.max(0, YEAR_ITEMS.indexOf(viewYear));
+      monthSpinnerApi.scrollToIndex(viewMonth, false);
+      yearSpinnerApi.scrollToIndex(yearIdx, false);
+      monthActiveIdx = viewMonth;
+      yearActiveIdx = yearIdx;
+      updateSpinnerLabel();
+
+      activeSpinnerCol = 'month';
+      updateSpinnerColumnFocusHighlight();
+    }
+
+    function closeSpinner() {
+      viewMonth = monthActiveIdx;
+      viewYear = YEAR_ITEMS[yearActiveIdx];
+
+      if (focusedDate) {
+        focusedDate.setFullYear(viewYear);
+        focusedDate.setMonth(viewMonth);
+      }
+
+      showGridView();
+      renderCalendar();
+    }
+
+    function updateSpinnerColumnFocusHighlight() {
+      const mCol = document.getElementById('monthSpinnerCol');
+      const yCol = document.getElementById('yearSpinnerCol');
+      if (activeSpinnerCol === 'month') {
+        mCol.classList.add('focused-col');
+        yCol.classList.remove('focused-col');
+      } else {
+        mCol.classList.remove('focused-col');
+        yCol.classList.add('focused-col');
+      }
+    }
+
+    function stepMonth(delta) {
+      viewMonth += delta;
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+
+      if (focusedDate) {
+        focusedDate.setFullYear(viewYear);
+        focusedDate.setMonth(viewMonth);
+      }
+
+      renderCalendar();
+    }
+
+    function selectDate(y, m, d) {
+      selectedDate = new Date(y, m, d);
+      focusedDate = new Date(selectedDate);
+      viewYear = y;
+      viewMonth = m;
+      commitSelectedDate();
+      closeDatePanel();
+    }
+
+    function clearDate() {
+      selectedDate = null;
+      focusedDate = new Date();
+      commitSelectedDate();
+      closeDatePanel();
+    }
+
+    function goToday() {
+      const today = new Date();
+      selectedDate = today;
+      focusedDate = new Date(today);
+      viewYear = today.getFullYear();
+      viewMonth = today.getMonth();
+      commitSelectedDate();
+      renderCalendar();
+    }
+
+    function commitSelectedDate() {
+      const hidden = document.getElementById('reportDate');
+      const displayLabel = document.getElementById('reportDateLabel');
+      const displayBtn = document.getElementById('reportDateDisplay');
+
+      if (selectedDate) {
+        hidden.value = toISO(selectedDate);
+        displayLabel.innerText = toDisplay(selectedDate);
+        displayBtn.classList.add('is-filled');
+      } else {
+        hidden.value = '';
+        displayLabel.innerText = 'Select date';
+        displayBtn.classList.remove('is-filled');
+      }
+    }
+
+    function setDefaultDateToYesterday() {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() - 1);
+      selectedDate = targetDate;
+      focusedDate = new Date(targetDate);
+      viewYear = targetDate.getFullYear();
+      viewMonth = targetDate.getMonth();
+      commitSelectedDate();
+    }
+
+    document.addEventListener('click', (e) => {
+      const panel = document.getElementById('datePanel');
+      const trigger = document.getElementById('reportDateDisplay');
+      if (!panel.contains(e.target) && !trigger.contains(e.target)) {
+        closeDatePanel();
+      }
+    });
+
+    function toggleGlobalShortcutsModal() {
+      const modal = document.getElementById('globalShortcutsModal');
+      modal.classList.toggle('hidden-panel');
+    }
+
+    function closeAllModals() {
+      document.getElementById('globalShortcutsModal').classList.add('hidden-panel');
+      closeRowPromptModal();
+      closeDatePanel();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const isTyping = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+
+      if (e.key === 'Escape') {
+        closeAllModals();
+        e.preventDefault();
+        return;
+      }
+
+      // Help Modal Scroll Binding
+      const guideModal = document.getElementById('globalShortcutsModal');
+      if (guideModal && !guideModal.classList.contains('hidden-panel')) {
+        const contentArea = document.getElementById('shortcutsModalContent');
+        if (contentArea) {
+          let scrolled = true;
+          switch (e.key) {
+            case 'ArrowDown':
+              contentArea.scrollBy({ top: 40, behavior: 'smooth' });
+              break;
+            case 'ArrowUp':
+              contentArea.scrollBy({ top: -40, behavior: 'smooth' });
+              break;
+            case 'PageDown':
+              contentArea.scrollBy({ top: 200, behavior: 'smooth' });
+              break;
+            case 'PageUp':
+              contentArea.scrollBy({ top: -200, behavior: 'smooth' });
+              break;
+            case 'Home':
+              contentArea.scrollTo({ top: 0, behavior: 'smooth' });
+              break;
+            case 'End':
+              contentArea.scrollTo({ top: contentArea.scrollHeight, behavior: 'smooth' });
+              break;
+            default:
+              scrolled = false;
+          }
+          if (scrolled) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
+      // Modal trigger anywhere
+      if (e.key === '?' && !isTyping) {
+        e.preventDefault();
+        toggleGlobalShortcutsModal();
+        return;
+      }
+
+      // Date Picker Interactions
+      const datePanel = document.getElementById('datePanel');
+      if (!datePanel.classList.contains('hidden-panel')) {
+        const isSpinnerActive = !document.getElementById('calSpinnerView').classList.contains('hidden-panel');
+        if (isSpinnerActive) {
+          handleSpinnerKeyboardNavigation(e);
+        } else {
+          handleGridKeyboardNavigation(e);
+        }
+        return;
+      }
+
+      // Contextual row deletion for currently focused row (Shift + Backspace)
+      if (e.key === 'Backspace' && e.shiftKey) {
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.closest('#expensesContainer')) {
+          e.preventDefault();
+          const currentRow = activeEl.closest('#expensesContainer > div');
+          if (currentRow) {
+            const nextToFocus = currentRow.nextElementSibling || currentRow.previousElementSibling || document.getElementById('addExpenseRowBtn') || document.getElementById('counterCash');
+            removeExpenseRow(currentRow.id);
+            if (nextToFocus) {
+              const targetField = nextToFocus.querySelector('textarea, input') || nextToFocus;
+              if (targetField) targetField.focus();
+            }
+          }
+          return;
+        }
+      }
+
+      // Alt + Delete -> Opens theme-matched prompt modal to delete a row #
+      if (e.key === 'Delete' && e.altKey) {
+        e.preventDefault();
+        openRowPromptModal('delete');
+        return;
+      }
+
+      // Global Alt + Navigation Bindings
+      if (e.altKey) {
+        let handled = true;
+        switch(e.key.toLowerCase()) {
+          case 'd':
+            e.preventDefault();
+            toggleDatePanel();
+            break;
+          case 's':
+            e.preventDefault();
+            document.getElementById('totalSale').focus();
+            break;
+          case 'c':
+            e.preventDefault();
+            document.getElementById('creditSale').focus();
+            break;
+          case 'b':
+            e.preventDefault();
+            document.getElementById('bankTransfer').focus();
+            break;
+          case 'a':
+            e.preventDefault();
+            addNewExpenseRow();
+            break;
+          case 'j':
+          case 'g':
+            e.preventDefault();
+            openRowPromptModal('focus');
+            break;
+          case 'k':
+            e.preventDefault();
+            document.getElementById('counterCash').focus();
+            break;
+          case 'enter':
+            e.preventDefault();
+            document.getElementById('eodForm').requestSubmit();
+            break;
+          default:
+            handled = false;
+        }
+        if (handled) return;
+      }
+    });
+
+    function handleGridKeyboardNavigation(e) {
+      if (!focusedDate) {
+        focusedDate = new Date(selectedDate || new Date());
+      }
+
+      let handled = true;
+
+      switch(e.key) {
+        case 'ArrowLeft':
+          focusedDate.setDate(focusedDate.getDate() - 1);
+          syncCalendarViewToFocusedDate();
+          break;
+        case 'ArrowRight':
+          focusedDate.setDate(focusedDate.getDate() + 1);
+          syncCalendarViewToFocusedDate();
+          break;
+        case 'ArrowUp':
+          focusedDate.setDate(focusedDate.getDate() - 7);
+          syncCalendarViewToFocusedDate();
+          break;
+        case 'ArrowDown':
+          focusedDate.setDate(focusedDate.getDate() + 7);
+          syncCalendarViewToFocusedDate();
+          break;
+        case 'PageUp':
+          stepMonth(-1);
+          break;
+        case 'PageDown':
+          stepMonth(1);
+          break;
+        case 'Enter':
+          selectDate(focusedDate.getFullYear(), focusedDate.getMonth(), focusedDate.getDate());
+          break;
+        case 't':
+        case 'T':
+          goToday();
+          break;
+        case 'c':
+        case 'C':
+          clearDate();
+          break;
+        case 'm':
+        case 'M':
+          openSpinner();
+          break;
+        default:
+          handled = false;
+      }
+
+      if (handled) {
+        e.preventDefault();
+      }
+    }
+
+    function handleSpinnerKeyboardNavigation(e) {
+      let handled = true;
+
+      switch(e.key) {
+        case 'Tab':
+          activeSpinnerCol = activeSpinnerCol === 'month' ? 'year' : 'month';
+          updateSpinnerColumnFocusHighlight();
+          break;
+        case 'ArrowLeft':
+          activeSpinnerCol = 'month';
+          updateSpinnerColumnFocusHighlight();
+          break;
+        case 'ArrowRight':
+          activeSpinnerCol = 'year';
+          updateSpinnerColumnFocusHighlight();
+          break;
+        case 'ArrowUp':
+          if (activeSpinnerCol === 'month') {
+            const nextMonthIdx = Math.max(0, monthSpinnerApi.getCurrentIndex() - 1);
+            monthSpinnerApi.scrollToIndex(nextMonthIdx, true);
+          } else {
+            const nextYearIdx = Math.max(0, yearSpinnerApi.getCurrentIndex() - 1);
+            yearSpinnerApi.scrollToIndex(nextYearIdx, true);
+          }
+          break;
+        case 'ArrowDown':
+          if (activeSpinnerCol === 'month') {
+            const nextMonthIdx = Math.min(MONTH_SHORT.length - 1, monthSpinnerApi.getCurrentIndex() + 1);
+            monthSpinnerApi.scrollToIndex(nextMonthIdx, true);
+          } else {
+            const nextYearIdx = Math.min(YEAR_ITEMS.length - 1, yearSpinnerApi.getCurrentIndex() + 1);
+            yearSpinnerApi.scrollToIndex(nextYearIdx, true);
+          }
+          break;
+        case 'Enter':
+          closeSpinner();
+          break;
+        default:
+          handled = false;
+      }
+
+      if (handled) {
+        e.preventDefault();
+      }
+    }
+
+    function syncCalendarViewToFocusedDate() {
+      viewYear = focusedDate.getFullYear();
+      viewMonth = focusedDate.getMonth();
+      renderCalendar();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      buildWeekdayHeader();
+      initSpinners();
+      setDefaultDateToYesterday();
+      setupStandardExpansion();
+    });
+
+    window.addEventListener('resize', () => {
+      const inputs = document.querySelectorAll('input:not(#reportDate)');
+      inputs.forEach(input => {
+        if (input.classList.contains('auto-expand')) {
+          expandStandardInput(input);
+        }
+      });
+    });
+
+    function getTextWidth(text, font) {
+      const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+      const context = canvas.getContext("2d");
+      context.font = font;
+      const metrics = context.measureText(text);
+      return metrics.width;
+    }
+
+    function expandStandardInput(input) {
+      const value = input.value || input.placeholder || '';
+      const fontSpec = window.getComputedStyle(input).font;
+      const textWidth = getTextWidth(value, fontSpec);
+      const isMobile = window.innerWidth < 640;
+      const minW = isMobile ? 140 : 144;
+      const maxW = isMobile ? Math.min(180, Math.floor(window.innerWidth * 0.45)) : 240;
+      const newWidth = Math.min(maxW, Math.max(minW, Math.ceil(textWidth + 36)));
+      input.style.width = `${newWidth}px`;
+    }
+
+    function updateInputFillState(input) {
+      if (input.value && input.value.trim() !== '') {
+        input.classList.add('is-filled');
+      } else {
+        input.classList.remove('is-filled');
+      }
+    }
+
+    function setupStandardExpansion() {
+      const inputs = document.querySelectorAll('input:not(#reportDate)');
+      inputs.forEach(input => {
+        const handleInteraction = () => {
+          if (input.classList.contains('auto-expand')) {
+            expandStandardInput(input);
+          }
+          updateInputFillState(input);
+        };
+        input.addEventListener('input', handleInteraction);
+        input.addEventListener('change', handleInteraction);
+        handleInteraction();
+      });
+    }
+
+    let currentPromptAction = null; // 'focus' or 'delete'
+
+    function parseRowIndexExpression(inputStr) {
+      if (!inputStr || !inputStr.trim()) return [];
+      const parts = inputStr.split(',');
+      const numbersSet = new Set();
+
+      parts.forEach(part => {
+        const token = part.trim();
+        if (!token) return;
+
+        if (token.includes('-')) {
+          const rangeParts = token.split('-');
+          if (rangeParts.length === 2) {
+            const start = parseInt(rangeParts[0].trim(), 10);
+            const end = parseInt(rangeParts[1].trim(), 10);
+            if (!isNaN(start) && !isNaN(end)) {
+              const min = Math.min(start, end);
+              const max = Math.max(start, end);
+              for (let i = min; i <= max; i++) {
+                if (i >= 1) numbersSet.add(i);
+              }
+            }
+          }
+        } else {
+          const num = parseInt(token, 10);
+          if (!isNaN(num) && num >= 1) {
+            numbersSet.add(num);
+          }
+        }
+      });
+
+      return Array.from(numbersSet);
+    }
+
+    function openRowPromptModal(action) {
+      currentPromptAction = action;
+      const modal = document.getElementById('rowPromptModal');
+      const title = document.getElementById('rowPromptTitle');
+      const desc = document.getElementById('rowPromptDesc');
+      const confirmBtn = document.getElementById('rowPromptConfirmBtn');
+      const input = document.getElementById('rowPromptInput');
+
+      input.value = '';
+
+      if (action === 'delete') {
+        title.innerText = 'Delete Payment Rows';
+        desc.innerText = 'Enter row numbers/ranges:';
+        input.placeholder = '';
+        confirmBtn.innerText = 'Delete Rows';
+        confirmBtn.className = 'px-4 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500 rounded-lg shadow-sm transition';
+      } else {
+        title.innerText = 'Jump to Payment Row';
+        desc.innerText = 'Enter row number to focus:';
+        input.placeholder = '';
+        confirmBtn.innerText = 'Focus Row';
+        confirmBtn.className = 'px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-lg shadow-sm transition';
+      }
+
+      modal.classList.remove('hidden-panel');
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function closeRowPromptModal() {
+      document.getElementById('rowPromptModal').classList.add('hidden-panel');
+      currentPromptAction = null;
+    }
+
+    function submitRowPromptModal(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('rowPromptInput');
+      const rawVal = input.value.trim();
+
+      const targetNumbers = parseRowIndexExpression(rawVal);
+      if (targetNumbers.length === 0) {
+        showStatusToast("Please enter valid row numbers or ranges", false);
+        return;
+      }
+
+      const rows = document.querySelectorAll('#expensesContainer > div');
+
+      if (currentPromptAction === 'delete') {
+        // Sort target row numbers in DESCENDING order so higher index deletions don't shift lower indices!
+        targetNumbers.sort((a, b) => b - a);
+
+        let deletedCount = 0;
+        targetNumbers.forEach(num => {
+          const idx = num - 1;
+          const currentRows = document.querySelectorAll('#expensesContainer > div');
+          if (currentRows[idx]) {
+            currentRows[idx].remove();
+            deletedCount++;
+          }
+        });
+
+        if (deletedCount > 0) {
+          updateExpenseRowIndices();
+          showStatusToast(`Successfully removed ${deletedCount} row(s) [${rawVal}]`, true);
+          closeRowPromptModal();
+        } else {
+          showStatusToast(`None of specified rows (${rawVal}) exist. Currently ${rows.length} row(s) exist.`, false);
+        }
+      } else {
+        const firstNum = targetNumbers[0];
+        const idx = firstNum - 1;
+        if (rows[idx]) {
+          const descInput = rows[idx].querySelector('textarea[name="expenseDesc"]');
+          if (descInput) descInput.focus();
+          closeRowPromptModal();
+        } else {
+          showStatusToast(`Row #${firstNum} does not exist. Currently ${rows.length} row(s) exist.`, false);
+        }
+      }
+    }
+
+    function updateExpenseRowIndices() {
+      const container = document.getElementById('expensesContainer');
+      const rows = container.querySelectorAll(':scope > div');
+      rows.forEach((row, idx) => {
+        const indexVal = idx + 1;
+        const badge = row.querySelector('.row-index-pill');
+        if (badge) {
+          badge.innerHTML = `#${indexVal}`;
+          badge.title = `Row #${indexVal}: Click to focus | Shift-Click to delete`;
+          badge.onclick = (e) => {
+            if (e.shiftKey) {
+              removeExpenseRow(row.id);
+              showStatusToast(`Removed payment row #${indexVal}`, true);
+            } else {
+              const descInput = row.querySelector('textarea[name="expenseDesc"]');
+              if (descInput) descInput.focus();
+            }
+          };
+        }
+      });
+    }
+
+    function addNewExpenseRow() {
+      const container = document.getElementById('expensesContainer');
+
+      if (container.children.length >= 99) {
+        showStatusToast("Maximum limit of 99 payment rows reached.", false);
+        return;
+      }
+
+      const isMobile = window.innerWidth < 640;
+      const rowHeight = isMobile ? '36px' : '26px';
+
+      const rowId = 'row_' + Date.now() + Math.random().toString(36).substr(2, 4);
+      const expRow = document.createElement('div');
+      expRow.id = rowId;
+      expRow.className = "flex gap-1.5 sm:gap-1.5 items-start w-full relative group";
+
+      expRow.innerHTML = `
+        <span class="row-index-pill text-[10px] sm:text-[9px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded px-1.5 sm:px-1.5 py-1 min-w-[28px] sm:min-w-[32px] text-center select-none shrink-0 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+          style="height: ${rowHeight}; display: inline-flex; align-items: center; justify-content: center;"
+          title="Click to focus | Shift-Click to delete">
+          #1
+        </span>
+        <textarea name="expenseDesc" placeholder="Description" rows="1" required
+          class="desc-expand flex-grow px-2.5 sm:px-2 py-2 sm:py-1 text-sm sm:text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-150 resize-none overflow-hidden"
+          style="min-height: ${rowHeight}; height: ${rowHeight}; line-height: 1.25;"></textarea>
+        <input type="number" name="expenseAmount" min="0" placeholder="Amount" required
+          class="amount-expand w-28 sm:w-24 px-2.5 sm:px-2 py-2 sm:py-1 text-sm sm:text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-150 text-right"
+          style="height: ${rowHeight};">
+        <button type="button" onclick="removeExpenseRow('${rowId}')"
+          class="text-slate-400 hover:text-red-500 px-1 text-base sm:text-sm font-bold transition flex items-center justify-center min-w-[24px]" style="height: ${rowHeight}" title="Delete Row">
+          &times;
+        </button>
+      `;
+
+      container.appendChild(expRow);
+      updateExpenseRowIndices();
+
+      const descInput = expRow.querySelector('.desc-expand');
+      descInput.focus();
+
+      const minHInt = isMobile ? 36 : 26;
+      descInput.addEventListener('input', () => {
+        descInput.style.height = 'auto';
+        descInput.style.height = `${Math.max(minHInt, descInput.scrollHeight)}px`;
+        updateInputFillState(descInput);
+      });
+      descInput.addEventListener('change', () => updateInputFillState(descInput));
+
+      const amtInput = expRow.querySelector('.amount-expand');
+      amtInput.addEventListener('input', () => updateInputFillState(amtInput));
+      amtInput.addEventListener('change', () => updateInputFillState(amtInput));
+
+      // Keydown handlers inside dynamic row for rapid navigation
+      const handleArrowNav = (e) => {
+        if (e.key === 'ArrowUp') {
+          const prevRow = expRow.previousElementSibling;
+          if (prevRow) {
+            e.preventDefault();
+            const target = prevRow.querySelector(e.target.tagName.toLowerCase() === 'textarea' ? 'textarea' : 'input[name="expenseAmount"]');
+            if (target) target.focus();
+          }
+        } else if (e.key === 'ArrowDown') {
+          const nextRow = expRow.nextElementSibling;
+          if (nextRow) {
+            e.preventDefault();
+            const target = nextRow.querySelector(e.target.tagName.toLowerCase() === 'textarea' ? 'textarea' : 'input[name="expenseAmount"]');
+            if (target) target.focus();
+          }
+        }
+      };
+      descInput.addEventListener('keydown', handleArrowNav);
+      amtInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
+          e.preventDefault();
+          addNewExpenseRow();
+        } else {
+          handleArrowNav(e);
+        }
+      });
+    }
+
+    function removeExpenseRow(id) {
+      const rowToRemove = document.getElementById(id);
+      if (rowToRemove) {
+        rowToRemove.remove();
+        updateExpenseRowIndices();
+      }
+    }
+
+    function showStatusToast(message, isSuccess) {
+      const statusToast = document.getElementById('statusToast');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+
+      statusToast.innerText = message;
+      statusToast.className = `p-2.5 mb-3 rounded-md text-center font-bold text-xs block transition-all duration-300 max-h-20 opacity-100 ${
+        isSuccess
+          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40"
+          : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-900/40"
+      }`;
+
+      toastTimeout = setTimeout(() => {
+        statusToast.className = "max-h-0 opacity-0 overflow-hidden mb-0 rounded-lg text-center font-semibold text-xs transition-all duration-300";
+      }, isSuccess ? 2000 : 5000);
+    }
+
+    function handleFormSubmit(event) {
+      event.preventDefault();
+
+      if (!document.getElementById('reportDate').value) {
+        showStatusToast('Please select a reporting date.', false);
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "Submitting Report...";
+
+      google.script.run
+        .withSuccessHandler((msg) => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Submit Report <span class="shortcut-hint hidden sm:inline text-[10px] opacity-80 font-normal ml-1">[Alt+Enter]</span>';
+
+          showStatusToast(msg, true);
+
+          document.getElementById('eodForm').reset();
+          setDefaultDateToYesterday();
+
+          document.getElementById('expensesContainer').innerHTML = '';
+
+          const inputs = document.querySelectorAll('input:not(#reportDate)');
+          inputs.forEach(input => {
+            if (input.classList.contains('auto-expand')) {
+              expandStandardInput(input);
+            }
+            updateInputFillState(input);
+          });
+        })
+        .withFailureHandler((error) => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Submit Report <span class="shortcut-hint hidden sm:inline text-[10px] opacity-80 font-normal ml-1">[Alt+Enter]</span>';
+          showStatusToast(error.message, false);
+        })
+        .processForm(document.getElementById('eodForm'));
+    }
+  </script>
+</body>
+</html>
