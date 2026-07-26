@@ -14,71 +14,88 @@
   --gold:  #fef08a;
 }
 
-/* ═══════════════════════════════════════════
-   LIGHT THEME HIGH CONTRAST OVERRIDES
-   ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME — SINGLE COMPREHENSIVE BLOCK
+   All overrides live here. Dark mode keeps component defaults.
+   ═══════════════════════════════════════════════════════════════ */
 html.theme-light {
-  --bg-main:    #f1f5f9;
-  --bg-card:    #ffffff;
-  --bg-header:  #ffffff;
-  --bg-deep:    #ffffff;
-  --border:     #cbd5e1;
-  --border-mid: #94a3b8;
+  --bg-main:      #f1f5f9;
+  --bg-card:      #ffffff;
+  --bg-header:    #ffffff;
+  --bg-deep:      #ffffff;
+  --border:       #cbd5e1;
+  --border-mid:   #94a3b8;
   --text-primary: #0f172a;
   --text-muted:   #334155;
-  --cyan:  #007C77;
-  --gold:  #b45309;
+  --cyan:         #007C77;
+  --gold:         #b45309;
 }
 
-html.theme-light body {
-  background-color: var(--bg-main);
-  color: #0f172a;
-}
-
+/* ── Body & layout ── */
+html.theme-light body { background-color: #f1f5f9; color: #0f172a; }
 html.theme-light header,
-html.theme-light footer {
-  background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
-}
+html.theme-light footer { background-color: #ffffff !important; border-color: #cbd5e1 !important; }
 
+/* ── Cards ── */
 html.theme-light .glass-card {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
 }
 
-html.theme-light .glass-input {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
-}
-html.theme-light .glass-input::placeholder {
-  color: #94a3b8 !important;
-}
+/* ── Tailwind bg utility overrides ── */
+html.theme-light .bg-\[\#0b1329\]      { background-color: #f1f5f9 !important; }
+html.theme-light .bg-\[\#131f3a\]      { background-color: #ffffff !important; border-color: #cbd5e1 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; }
+html.theme-light .bg-\[\#060d1b\]      { background-color: #ffffff !important; border-color: #cbd5e1 !important; }
+html.theme-light .bg-\[\#080e1e\]      { background-color: #f8fafc !important; }
+html.theme-light .bg-slate-950         { background-color: #ffffff !important; }
+html.theme-light .bg-slate-900         { background-color: #f8fafc !important; }
+html.theme-light .bg-slate-800         { background-color: #f1f5f9 !important; }
+html.theme-light .bg-\[\#080e1e\]\/30,
+html.theme-light .bg-\[\#080e1e\]\/20,
+html.theme-light .bg-\[\#080e1e\]\/40,
+html.theme-light .bg-slate-900\/20,
+html.theme-light .bg-slate-900\/30     { background-color: #ffffff !important; }
+html.theme-light .bg-\[\#080e1e\]\/50,
+html.theme-light .bg-\[\#080e1e\]\/60,
+html.theme-light .bg-\[\#080e1e\]\/80,
+html.theme-light .bg-slate-900\/50     { background-color: #f8fafc !important; }
+html.theme-light .bg-\[\#1e2d4a\]\/50,
+html.theme-light .bg-\[\#1e2d4a\]\/60  { background-color: #e2e8f0 !important; }
 
-/* Light theme background overrides */
-html.theme-light .bg-\[\#0b1329\] { background-color: var(--bg-main) !important; }
-html.theme-light .bg-\[\#131f3a\] { background-color: #ffffff !important; border-color: #cbd5e1 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; }
-html.theme-light .bg-\[\#060d1b\] { background-color: #ffffff !important; border-color: #cbd5e1 !important; }
-html.theme-light .bg-\[\#080e1e\] { background-color: #f8fafc !important; }
-html.theme-light .bg-slate-950 { background-color: #ffffff !important; }
-html.theme-light .bg-slate-900 { background-color: #f8fafc !important; }
-html.theme-light .bg-slate-800 { background-color: #f1f5f9 !important; }
+/* ── Borders ── */
+html.theme-light .border-\[\#1e2d4a\],
+html.theme-light .border-\[\#1e2d4a\]\/60 { border-color: #e2e8f0 !important; }
+html.theme-light .border-\[\#2b3d63\]      { border-color: #cbd5e1 !important; }
+html.theme-light .border-slate-800,
+html.theme-light .border-slate-800\/60    { border-color: #e2e8f0 !important; }
+html.theme-light .border-slate-700        { border-color: #cbd5e1 !important; }
 
-/* Dashboard header bars (Summary Statistics, Physical Reconciliation, Other Payments) */
-.dash-card-header {
-  background-color: #1e2d4a;
-  color: #cbd5e1;
-}
+/* ── Text utilities ── */
+html.theme-light .text-white       { color: #0f172a !important; }
+html.theme-light .text-slate-100   { color: #0f172a !important; font-weight: 700 !important; }
+html.theme-light .text-slate-200   { color: #0f172a !important; font-weight: 700 !important; }
+html.theme-light .text-slate-300   { color: #1e293b !important; font-weight: 700 !important; }
+html.theme-light .text-slate-400   { color: #334155 !important; font-weight: 600 !important; }
+html.theme-light .text-slate-500   { color: #475569 !important; font-weight: 600 !important; }
+
+/* ── Dashboard panel text ── */
+html.theme-light .dash-panels .text-white,
+html.theme-light .dash-panels .text-slate-100,
+html.theme-light .dash-panels .text-slate-200 { color: #0f172a !important; font-weight: 700 !important; }
+html.theme-light .dash-panels .text-slate-300  { color: #1e293b !important; font-weight: 700 !important; }
+html.theme-light .dash-panels .text-slate-400,
+html.theme-light .dash-panels .text-slate-500  { color: #334155 !important; font-weight: 600 !important; }
+html.theme-light .dash-panels .text-sky-400,
+html.theme-light .dash-panels .text-cyan-400   { color: #0284c7 !important; font-weight: 800 !important; }
+html.theme-light .dash-panels .text-emerald-400 { color: #047857 !important; font-weight: 800 !important; }
+html.theme-light .dash-panels .text-rose-400    { color: #b91c1c !important; font-weight: 800 !important; }
+
+/* ── Dashboard section headers ── */
 html.theme-light .dash-card-header {
   background-color: #f1f5f9 !important;
   color: #0f172a !important;
   border-bottom: 1px solid #cbd5e1 !important;
-}
-
-.dash-sub-header {
-  background-color: #007C77;
-  color: #ffffff;
 }
 html.theme-light .dash-sub-header {
   background-color: #e2e8f0 !important;
@@ -86,113 +103,36 @@ html.theme-light .dash-sub-header {
   border-bottom: 1px solid #cbd5e1 !important;
 }
 
-/* Dashboard row backgrounds in light mode — clean alternating white & soft slate */
-html.theme-light .bg-\[\#080e1e\]\/30,
-html.theme-light .bg-\[\#080e1e\]\/20,
-html.theme-light .bg-\[\#080e1e\]\/40,
-html.theme-light .bg-slate-900\/20,
-html.theme-light .bg-slate-900\/30 {
+/* ── All inputs, selects, textareas ── */
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea,
+html.theme-light .glass-input {
   background-color: #ffffff !important;
-}
-
-html.theme-light .bg-\[\#080e1e\]\/50,
-html.theme-light .bg-\[\#080e1e\]\/60,
-html.theme-light .bg-\[\#080e1e\]\/80,
-html.theme-light .bg-slate-900\/50 {
-  background-color: #f8fafc !important;
-}
-
-html.theme-light .bg-\[\#1e2d4a\]\/50,
-html.theme-light .bg-\[\#1e2d4a\]\/60 {
-  background-color: #e2e8f0 !important;
-}
-
-/* Border overrides */
-html.theme-light .border-\[\#1e2d4a\],
-html.theme-light .border-\[\#1e2d4a\]\/60 { border-color: #e2e8f0 !important; }
-html.theme-light .border-\[\#2b3d63\] { border-color: #cbd5e1 !important; }
-html.theme-light .border-slate-800,
-html.theme-light .border-slate-800\/60 { border-color: #e2e8f0 !important; }
-html.theme-light .border-slate-700 { border-color: #cbd5e1 !important; }
-
-/* Text colors in light mode — 100% dark & high contrast */
-html.theme-light .text-white { color: #0f172a !important; }
-html.theme-light .text-slate-100 { color: #0f172a !important; font-weight: 700 !important; }
-html.theme-light .text-slate-200 { color: #0f172a !important; font-weight: 700 !important; }
-html.theme-light .text-slate-300 { color: #1e293b !important; font-weight: 700 !important; }
-html.theme-light .text-slate-400 { color: #334155 !important; font-weight: 600 !important; }
-html.theme-light .text-slate-500 { color: #475569 !important; font-weight: 600 !important; }
-
-/* Dashboard panel text overrides in light mode */
-html.theme-light .dash-panels .text-white,
-html.theme-light .dash-panels .text-slate-100,
-html.theme-light .dash-panels .text-slate-200 {
   color: #0f172a !important;
-  font-weight: 700 !important;
-}
-
-html.theme-light .dash-panels .text-slate-300 {
-  color: #1e293b !important;
-  font-weight: 700 !important;
-}
-
-html.theme-light .dash-panels .text-slate-400,
-html.theme-light .dash-panels .text-slate-500 {
-  color: #334155 !important;
+  border-color: #cbd5e1 !important;
   font-weight: 600 !important;
 }
-
-html.theme-light .dash-panels .text-sky-400,
-html.theme-light .dash-panels .text-cyan-400 {
-  color: #0284c7 !important;
-  font-weight: 800 !important;
+html.theme-light select option  { background-color: #ffffff !important; color: #0f172a !important; }
+html.theme-light .glass-input::placeholder,
+html.theme-light input::placeholder,
+html.theme-light textarea::placeholder { color: #94a3b8 !important; }
+html.theme-light .glass-input:focus,
+html.theme-light input:focus,
+html.theme-light textarea:focus {
+  border-color: #007C77 !important;
+  box-shadow: 0 0 0 2px rgba(0,124,119,0.2) !important;
 }
 
-html.theme-light .dash-panels .text-emerald-400 {
-  color: #047857 !important;
-  font-weight: 800 !important;
-}
-
-html.theme-light .dash-panels .text-rose-400 {
-  color: #b91c1c !important;
-  font-weight: 800 !important;
-}
-
-/* Input controls in light mode */
-html.theme-light input, 
-html.theme-light select, 
-html.theme-light textarea {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
-}
-html.theme-light select option {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-}
-
-/* Expense row badge & buttons */
-html.theme-light .expense-row .row-badge {
+/* ── Keyboard hint badges ── */
+html.theme-light .kbd-hint { color: #64748b !important; font-weight: 500 !important; }
+html.theme-light kbd {
   background-color: #f1f5f9 !important;
-  color: #0f172a !important;
+  color: #b45309 !important;
   border-color: #cbd5e1 !important;
 }
-html.theme-light .expense-row .del-btn {
-  color: #64748b !important;
-}
 
-/* Table sticky header high contrast */
-.sticky-thead th {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 30 !important;
-  color: #cbd5e1 !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.05em !important;
-  background-color: #060d1b !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
-}
-
+/* ── Sticky table header ── */
 html.theme-light .sticky-thead th {
   position: sticky !important;
   top: 0 !important;
@@ -201,119 +141,140 @@ html.theme-light .sticky-thead th {
   font-weight: 800 !important;
   background-color: #e2e8f0 !important;
   border-bottom: 2px solid #cbd5e1 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
 }
 
-/* ═══════════════════════════════════════════
-   SUBMIT FORM LIGHT THEME CONTRAST OVERRIDES
-   ═══════════════════════════════════════════ */
-html.theme-light form {
-  background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-}
+/* ── Report table rows ── */
+html.theme-light #report-table-body tr { background-color: #ffffff !important; }
+html.theme-light #report-table-body tr:nth-child(even) { background-color: #f8fafc !important; }
+html.theme-light #report-table-body td { color: #0f172a !important; border-color: #e2e8f0 !important; }
+html.theme-light #report-table-body .text-slate-100,
+html.theme-light #report-table-body .text-slate-200,
+html.theme-light #report-table-body .font-bold { color: #0f172a !important; }
 
-html.theme-light .form-row label {
-  color: #0f172a !important;
-  font-weight: 700 !important;
-  font-size: 0.875rem !important;
-}
+/* ── Badges (ok/surplus/deficit) ── */
+html.theme-light .badge-success { background-color: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
+html.theme-light .badge-danger  { background-color: #fee2e2 !important; color: #991b1b !important; border-color: #fca5a5 !important; }
+html.theme-light .badge-info    { background-color: #e0f2fe !important; color: #075985 !important; border-color: #7dd3fc !important; }
 
-html.theme-light .kbd-hint {
-  color: #475569 !important;
-  font-weight: 600 !important;
-}
+/* ── Submit form container & borders ── */
+html.theme-light form .border-t { border-color: #e2e8f0 !important; }
+html.theme-light form .sticky   { background-color: #ffffff !important; border-color: #cbd5e1 !important; }
 
-html.theme-light form .border-t {
-  border-color: #e2e8f0 !important;
-}
+/* ── Form labels ── */
+html.theme-light .form-row label { color: #0f172a !important; font-weight: 700 !important; }
 
-/* Overwrite box in submit form */
-html.theme-light label.hover\:border-amber-500\/40,
-html.theme-light form .bg-\[\#080e1e\] {
+/* ── Overwrite toggle box ── */
+html.theme-light label.hover\:border-amber-500\/40 {
   background-color: #fefce8 !important;
   border-color: #fde047 !important;
 }
-
 html.theme-light form .text-amber-300,
-html.theme-light form .text-amber-400 {
-  color: #b45309 !important;
-  font-weight: 800 !important;
-}
+html.theme-light form .text-amber-400 { color: #b45309 !important; font-weight: 800 !important; }
 
-/* Expense Row container */
+/* ── Expense rows ── */
 html.theme-light .expense-row {
   background-color: #f8fafc !important;
   border-color: #cbd5e1 !important;
 }
-
 html.theme-light .expense-row:focus-within {
   border-color: #007C77 !important;
   background-color: #ffffff !important;
 }
-
 html.theme-light .expense-row .row-badge {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
   font-weight: 800 !important;
 }
+html.theme-light .expense-row .del-btn       { color: #64748b !important; }
+html.theme-light .expense-row .del-btn:hover { color: #e11d48 !important; }
 
-html.theme-light .expense-row .del-btn {
-  color: #64748b !important;
-}
+/* ── Calc strip ── */
+html.theme-light .calc-strip    { background-color: #f8fafc !important; border-color: #cbd5e1 !important; }
+html.theme-light .calc-divider  { background-color: #cbd5e1 !important; }
+html.theme-light .ci-label      { color: #334155 !important; font-weight: 700 !important; }
+html.theme-light .ci-value      { color: #0f172a !important; font-weight: 800 !important; }
 
-html.theme-light .expense-row .del-btn:hover {
-  color: #e11d48 !important;
-}
+/* ══════════════════════════════════════════
+   DATE PICKER — LIGHT THEME
+   ══════════════════════════════════════════ */
 
-/* Inputs, Select, Textarea */
-html.theme-light .glass-input,
-html.theme-light input,
-html.theme-light textarea {
+/* Trigger button */
+html.theme-light .date-trigger {
   background-color: #ffffff !important;
-  color: #0f172a !important;
   border-color: #cbd5e1 !important;
-  font-weight: 700 !important;
+  color: #0f172a !important;
 }
-
-html.theme-light .glass-input:focus,
-html.theme-light input:focus,
-html.theme-light textarea:focus {
+html.theme-light .date-trigger:focus {
   border-color: #007C77 !important;
-  box-shadow: 0 0 0 2px rgba(0, 124, 119, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(0,124,119,0.2) !important;
 }
+html.theme-light .date-trigger .dt-icon { color: #64748b !important; }
 
-/* Sticky live calc strip + submit bar at bottom of submit form */
-html.theme-light form .sticky {
+/* Dropdown panel */
+html.theme-light .date-panel {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
 }
 
-html.theme-light .calc-strip {
-  background-color: #f8fafc !important;
+/* Nav arrows */
+html.theme-light .cal-nav { color: #475569 !important; }
+html.theme-light .cal-nav:hover { background-color: #e2e8f0 !important; color: #0f172a !important; }
+
+/* Month/year label chip */
+html.theme-light .cal-month-label {
+  background-color: #e2e8f0 !important;
   border-color: #cbd5e1 !important;
+  color: #0f172a !important;
 }
+html.theme-light .cal-month-label:hover { background-color: #cbd5e1 !important; }
 
-html.theme-light .calc-item .ci-label {
-  color: #334155 !important;
+/* Weekday header labels */
+html.theme-light .cal-weekday         { color: #64748b !important; }
+html.theme-light .cal-weekday.weekend { color: #dc2626 !important; }
+
+/* Day cells */
+html.theme-light .cal-day {
+  color: #0f172a !important;
+  background: transparent !important;
+}
+html.theme-light .cal-day:hover:not(.selected):not(.outside) {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html.theme-light .cal-day.outside  { color: #94a3b8 !important; }
+html.theme-light .cal-day.weekend:not(.outside) { color: #dc2626 !important; }
+html.theme-light .cal-day.today:not(.selected) {
+  border: 1.5px solid #007C77 !important;
+  color: #007C77 !important;
   font-weight: 700 !important;
 }
-
-html.theme-light .calc-item .ci-value {
-  color: #0f172a !important;
-  font-weight: 800 !important;
+html.theme-light .cal-day.selected {
+  background-color: #007C77 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 6px rgba(0,124,119,0.35) !important;
+}
+html.theme-light .cal-day.focused:not(.selected) {
+  outline: 1.5px solid #007C77 !important;
+  outline-offset: -1.5px !important;
 }
 
-html.theme-light .calc-divider {
-  background-color: #cbd5e1 !important;
+/* Calendar footer */
+html.theme-light .cal-footer { border-color: #e2e8f0 !important; }
+html.theme-light .cal-footer-btn        { color: #007C77 !important; }
+html.theme-light .cal-footer-btn:hover  { color: #0f172a !important; }
+
+/* Month/year spinner overlay */
+html.theme-light .spinner-item          { color: #64748b !important; }
+html.theme-light .spinner-item.active   { color: #0f172a !important; font-weight: 800 !important; }
+html.theme-light .spinner-highlight {
+  background-color: rgba(0,124,119,0.1) !important;
+  border-color: #007C77 !important;
 }
 
-html.theme-light kbd {
-  background-color: #f1f5f9 !important;
-  color: #b45309 !important;
-  border-color: #cbd5e1 !important;
-}
 
 *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
 
