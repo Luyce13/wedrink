@@ -1,38 +1,36 @@
-<div class="p-5 bg-indigo-950/30 border border-indigo-500/30 rounded-2xl space-y-4">
-  <div class="flex items-center justify-between text-xs font-bold text-indigo-300 uppercase tracking-wider">
-    <span>Live Calculation Preview</span>
-    <span class="text-[10px] text-indigo-400/80 font-normal">Updates automatically on input</span>
-  </div>
-
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-      <div class="text-[10px] text-slate-400 font-medium">Other Payments</div>
-      <div class="text-sm font-bold text-amber-300">Rs. {{if .TotalExpenses}}{{printf "%.0f" .TotalExpenses}}{{else}}0{{end}}</div>
-    </div>
-
-    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-      <div class="text-[10px] text-slate-400 font-medium">Expected Cash</div>
-      <div class="text-sm font-bold text-slate-200">Rs. {{if .ExpectedCash}}{{printf "%.0f" .ExpectedCash}}{{else}}0{{end}}</div>
-    </div>
-
-    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-      <div class="text-[10px] text-slate-400 font-medium">Actual Cash</div>
-      <div class="text-sm font-bold text-white">Rs. {{if .CounterCash}}{{printf "%.0f" .CounterCash}}{{else}}0{{end}}</div>
-    </div>
-
-    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-      <div class="text-[10px] text-slate-400 font-medium">Discrepancy</div>
-      <div class="text-sm font-black {{if not .Difference}}text-emerald-400{{else if eq .Difference 0.0}}text-emerald-400{{else if lt .Difference 0.0}}text-rose-400{{else}}text-cyan-400{{end}}">
-        {{if not .Difference}}
-          Rs. 0 (Balanced)
-        {{else if eq .Difference 0.0}}
-          Rs. 0 (Balanced)
-        {{else if lt .Difference 0.0}}
-          - Rs. {{printf "%.0f" (mathAbs .Difference)}}
-        {{else}}
-          + Rs. {{printf "%.0f" .Difference}}
-        {{end}}
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Calculation preview: server-side fragment (used as fallback / edit mode init) -->
+<script>
+  // This fragment fires after HTMX swaps in a server-calculated preview.
+  // Push values into the sticky calc strip if it exists.
+  (function() {
+    const strip = document.getElementById('calc-strip');
+    if (!strip) return;
+    const data = {
+      expenses: '{{if .TotalExpenses}}{{printf "%.0f" .TotalExpenses}}{{else}}0{{end}}',
+      expected: '{{if .ExpectedCash}}{{printf "%.0f" .ExpectedCash}}{{else}}0{{end}}',
+      diff:     '{{if .Difference}}{{printf "%.0f" .Difference}}{{else}}0{{end}}',
+    };
+    const fmt = n => parseInt(n, 10).toLocaleString('en-IN');
+    const d   = parseInt(data.diff, 10);
+    const el = {
+      exp:  document.getElementById('strip-expenses'),
+      exc:  document.getElementById('strip-expected'),
+      dif:  document.getElementById('strip-diff'),
+      difw: document.getElementById('strip-diff-wrap'),
+    };
+    if (el.exp)  el.exp.textContent  = fmt(data.expenses);
+    if (el.exc)  el.exc.textContent  = fmt(data.expected);
+    if (el.dif && el.difw) {
+      if (d === 0) {
+        el.dif.textContent = '0  (Balanced)';
+        el.difw.className  = 'ci-value text-emerald-400';
+      } else if (d < 0) {
+        el.dif.textContent = `${fmt(d)}  (Short)`;
+        el.difw.className  = 'ci-value text-rose-400';
+      } else {
+        el.dif.textContent = `+${fmt(d)}  (Surplus)`;
+        el.difw.className  = 'ci-value text-cyan-400';
+      }
+    }
+  })();
+</script>

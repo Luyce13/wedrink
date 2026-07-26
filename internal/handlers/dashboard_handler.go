@@ -27,12 +27,12 @@ func (h *DashboardHandler) RenderDashboard(w http.ResponseWriter, r *http.Reques
 
 	dateStr := r.URL.Query().Get("date")
 	if dateStr == "" {
-		dateStr = time.Now().Format("2006-01-02")
+		dateStr = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	}
 
 	targetDate, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		targetDate = time.Now()
+		targetDate = time.Now().AddDate(0, 0, -1)
 		dateStr = targetDate.Format("2006-01-02")
 	}
 

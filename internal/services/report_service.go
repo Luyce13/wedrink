@@ -60,7 +60,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 	}
 
 	// Process expenses
-	var expenses []models.ExpenseItem
+	expenses := make([]models.ExpenseItem, 0)
 	var totalExpenses float64 = 0
 
 	for i := 0; i < len(input.ExpenseDescs); i++ {
@@ -147,6 +147,15 @@ func (s *ReportService) GetReportsForMonth(ctx context.Context, yearMonth string
 func (s *ReportService) GetReportsForRange(ctx context.Context, startDate, endDate string) ([]models.EODReport, error) {
 	return s.repo.FindByDateRange(ctx, startDate, endDate)
 }
+
+func (s *ReportService) GetAllReports(ctx context.Context) ([]models.EODReport, error) {
+	return s.repo.FindAll(ctx, 0) // 0 = no limit
+}
+
+func (s *ReportService) GetReportsWithParams(ctx context.Context, params repository.ReportQueryParams) ([]models.EODReport, error) {
+	return s.repo.FindWithParams(ctx, params)
+}
+
 
 func (s *ReportService) GetMonthlySummary(ctx context.Context, yearMonth string) (*models.MonthlySummary, error) {
 	return s.repo.CalculateMonthlySummary(ctx, yearMonth)

@@ -47,9 +47,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authService.Authenticate(r.Context(), username, password)
 	if err != nil {
 		if r.Header.Get("HX-Request") == "true" {
-			w.Header().Set("HX-Reswap", "outerHTML")
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(fmt.Sprintf(`<div id="login-error" class="p-3 bg-red-950/80 border border-red-500/50 text-red-300 text-sm rounded-lg flex items-center gap-2 mb-4"><svg class="w-5 h-5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>%s</div>`, err.Error())))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(fmt.Sprintf(`<div id="login-error" class="p-3 bg-rose-950/90 border border-rose-500/60 text-rose-200 text-xs font-semibold rounded mb-5 flex items-center gap-2"><svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>%s</span></div>`, err.Error())))
 			return
 		}
 

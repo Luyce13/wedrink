@@ -1,152 +1,204 @@
-{{if .Report}}
-  <!-- Hidden element for JS data extraction -->
-  <span id="dash-date-val" class="hidden">{{.Report.ReportDate}}</span>
-
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-    
-    <!-- Left 2 Cols: Google Sheets Summary & Reconciliation Table Layout -->
-    <div class="lg:col-span-2 space-y-4">
-      
-      <!-- Section: SUMMARY STATISTICS -->
-      <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
-        <div class="bg-[#1e2d4a] text-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-wider text-center border-b border-[#2b3d63]">
-          SUMMARY STATISTICS
-        </div>
-
-        <div class="divide-y divide-[#1e2d4a]/80 text-xs">
-          <!-- Total Sales -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/40">
-            <span class="font-semibold text-slate-300">Total Sales</span>
-            <span id="dash-total-sale" data-raw="{{printf "%.0f" .Report.TotalSale}}" class="font-bold text-white text-sm">Rs. {{printf "%.0f" .Report.TotalSale}}</span>
-          </div>
-
-          <!-- Credit Card Sales -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/80">
-            <span class="font-semibold text-slate-300">Credit Card Sales</span>
-            <span id="dash-credit-sale" data-raw="{{printf "%.0f" .Report.CreditSale}}" class="font-bold text-sky-400 text-sm">Rs. {{printf "%.0f" .Report.CreditSale}}</span>
-          </div>
-
-          <!-- Bank Transfers -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/40">
-            <span class="font-semibold text-slate-300">Bank Transfers</span>
-            <span id="dash-bank-transfer" data-raw="{{printf "%.0f" .Report.BankTransfer}}" class="font-bold text-purple-400 text-sm">Rs. {{printf "%.0f" .Report.BankTransfer}}</span>
-          </div>
-
-          <!-- Other Payments -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/80">
-            <span class="font-semibold text-slate-300">Other Payments (Expenses)</span>
-            <span id="dash-other-payments" data-raw="{{printf "%.0f" .Report.OtherPayments}}" class="font-bold text-amber-400 text-sm">Rs. {{printf "%.0f" .Report.OtherPayments}}</span>
-          </div>
-
-          <!-- Expected Closing Cash (Highlighted Cell) -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#1e2d4a]/60 font-bold border-t border-[#2b3d63]">
-            <span class="text-slate-200">Expected Closing Cash</span>
-            <span id="dash-expected-cash" data-raw="{{printf "%.0f" .Report.ExpectedCash}}" class="text-slate-100 text-sm">Rs. {{printf "%.0f" .Report.ExpectedCash}}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section: PHYSICAL RECONCILIATION -->
-      <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
-        <div class="bg-[#1e2d4a] text-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-wider text-center border-b border-[#2b3d63]">
-          PHYSICAL RECONCILIATION
-        </div>
-
-        <div class="divide-y divide-[#1e2d4a]/80 text-xs">
-          <!-- Actual TILL Cash -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/40">
-            <span class="font-semibold text-slate-300">Actual TILL Cash (Physical Count)</span>
-            <span id="dash-counter-cash" data-raw="{{printf "%.0f" .Report.CounterCash}}" class="font-bold text-white text-sm">Rs. {{printf "%.0f" .Report.CounterCash}}</span>
-          </div>
-
-          <!-- Cash Discrepancy -->
-          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/80">
-            <span class="font-semibold text-slate-300">Cash Discrepancy (Difference)</span>
-            <div class="text-right">
-              <span id="dash-discrepancy" data-raw="{{printf "%.0f" .Report.Difference}}" class="font-bold text-sm {{if eq .Report.Difference 0.0}}text-emerald-400{{else if lt .Report.Difference 0.0}}text-rose-400{{else}}text-sky-400{{end}}">
-                {{if eq .Report.Difference 0.0}}
-                  Rs. 0 (Balanced Match)
-                {{else if lt .Report.Difference 0.0}}
-                  - Rs. {{printf "%.0f" (mathAbs .Report.Difference)}} (Shortage)
-                {{else}}
-                  + Rs. {{printf "%.0f" .Report.Difference}} (Surplus)
-                {{end}}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Audit Meta Bar -->
-      <div class="flex items-center justify-between text-xs text-slate-400 px-1 pt-1">
-        <div>Submitted by: <span id="dash-submitted-by" class="font-bold text-slate-200">{{.Report.SubmittedBy}}</span> (<span class="capitalize text-[#00b4d8]">{{.Report.SubmittedByRole}}</span>)</div>
-        
-        {{if .User.CanEditReports}}
-        <a href="/reports/edit?id={{.Report.ReportID}}" class="text-xs font-semibold text-[#00b4d8] hover:underline">
-          ✎ Edit Report (Super Admin)
-        </a>
-        {{end}}
-      </div>
-
-    </div>
-
-    <!-- Right 1 Col: Section: OTHER PAYMENTS BREAKDOWN -->
-    <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden flex flex-col justify-between">
-      <div>
-        <!-- Section Header with Simple "Copy" Button -->
-        <div class="bg-[#1e2d4a] text-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between border-b border-[#2b3d63]">
-          <span>OTHER PAYMENTS BREAKDOWN</span>
-          
-          <!-- Simple "Copy" Button -->
-          <button type="button" onclick="copyExpensesForExcel()" class="px-2.5 py-1 rounded bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Copy expenses table to paste cleanly into Excel or QuickBooks">
-            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-            </svg>
-            <span>Copy</span>
-          </button>
-        </div>
-
-        <!-- Column Header (Google Sheets Blue Header #3b82f6) -->
-        <div class="bg-[#3b82f6] text-white px-4 py-2 text-xs font-bold flex justify-between uppercase">
-          <span>DESCRIPTION</span>
-          <span>AMOUNT</span>
-        </div>
-
-        <!-- Expenses List with Clean Data Attributes -->
-        {{if .Report.Expenses}}
-        <div class="divide-y divide-[#1e2d4a] max-h-72 overflow-y-auto">
-          {{range $idx, $exp := .Report.Expenses}}
-          <div class="dash-expense-item flex items-center justify-between px-4 py-2.5 text-xs {{if eq (mod $idx 2) 0}}bg-[#080e1e]/80{{else}}bg-[#080e1e]/40{{end}}"
-               data-desc="{{$exp.Description}}" 
-               data-amount="{{printf "%.0f" $exp.Amount}}">
-            <span class="dash-exp-desc text-slate-200 font-medium">{{$exp.Description}}</span>
-            <span class="dash-exp-amt font-bold text-white">Rs. {{printf "%.0f" $exp.Amount}}</span>
-          </div>
-          {{end}}
-        </div>
-        {{else}}
-        <div class="text-center py-8 text-slate-400 text-xs italic">
-          No itemized other payments/expenses recorded for this date.
-        </div>
-        {{end}}
-      </div>
-
-      <!-- Remarks / Store Notes -->
-      <div class="p-4 border-t border-[#1e2d4a] bg-[#080e1e]/60">
-        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">STORE REMARKS</div>
-        <p id="dash-notes" class="text-xs text-slate-300 bg-[#080e1e] p-2.5 rounded border border-[#1e2d4a]">{{if .Report.Notes}}{{.Report.Notes}}{{else}}Filter change required Ahmad will be on leave tomorrow{{end}}</p>
-      </div>
-    </div>
-
+<!-- Header + synchronized date navigation bar -->
+<div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+  <div>
+    <h1 class="text-base font-bold text-white tracking-tight uppercase">Dayend Report Dashboard</h1>
+    <p class="text-xs text-slate-300 mt-0.5 font-medium">Daily Sales Breakdown & Till Reconciliation</p>
   </div>
 
+  <!-- Date navigation (swaps #dashboard-content so date picker & prev/next stay in sync) -->
+  <div class="flex items-center gap-2">
+    <a id="dash-prev-day"
+       hx-get="/?date={{.PrevDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.PrevDate}}"
+       href="/?date={{.PrevDate}}"
+       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold" title="Previous day (←)">◄</a>
+
+    <input type="date" name="date" value="{{.ReportDate}}"
+           hx-get="/" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="true"
+           hx-trigger="change" hx-vals='{"partial": "true"}'
+           class="glass-input font-bold text-xs text-center py-1.5 px-2 bg-[#fef08a] border-yellow-400/60 text-slate-900 rounded w-36 cursor-pointer">
+
+    <a id="dash-next-day"
+       hx-get="/?date={{.NextDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.NextDate}}"
+       href="/?date={{.NextDate}}"
+       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold" title="Next day (→)">►</a>
+
+    <a hx-get="/?date={{.TodayStr}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.TodayStr}}"
+       href="/?date={{.TodayStr}}"
+       class="text-[11px] font-bold text-[#007C77] hover:underline px-1">Today</a>
+  </div>
+</div>
+
+{{if .Report}}
+  <span id="dash-date-val" class="hidden">{{.Report.ReportDate}}</span>
+
+  <!-- Resizable two-panel layout -->
+  <div class="dash-panels">
+
+    <!-- LEFT: Summary + Reconciliation -->
+    <div id="dash-main-panel" class="dash-main space-y-3">
+
+      <!-- Summary Statistics -->
+      <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+        <div class="dash-card-header px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-center">
+          Summary Statistics
+        </div>
+        <div class="divide-y divide-[#1e2d4a]/60 text-sm">
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/30">
+            <span class="text-xs font-bold text-slate-200">Total Sales</span>
+            <span id="dash-total-sale" data-raw="{{printf "%.0f" .Report.TotalSale}}"
+                  class="font-bold text-white tabular-nums">
+              {{printf "%s" (fmtNum .Report.TotalSale)}}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/60">
+            <span class="text-xs font-bold text-slate-200">Credit Card Sales</span>
+            <span id="dash-credit-sale" data-raw="{{printf "%.0f" .Report.CreditSale}}"
+                  class="font-bold text-white tabular-nums">
+              {{printf "%s" (fmtNum .Report.CreditSale)}}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/30">
+            <span class="text-xs font-bold text-slate-200">Bank Transfers</span>
+            <span id="dash-bank-transfer" data-raw="{{printf "%.0f" .Report.BankTransfer}}"
+                  class="font-bold text-white tabular-nums">
+              {{printf "%s" (fmtNum .Report.BankTransfer)}}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/60">
+            <span class="text-xs font-bold text-slate-200">Other Payments</span>
+            <span id="dash-other-payments" data-raw="{{printf "%.0f" .Report.OtherPayments}}"
+                  class="font-bold text-white tabular-nums">
+              {{printf "%s" (fmtNum .Report.OtherPayments)}}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#1e2d4a]/50 border-t border-[#2b3d63]">
+            <span class="text-xs font-bold text-slate-100">Expected Closing Cash</span>
+            <span id="dash-expected-cash" data-raw="{{printf "%.0f" .Report.ExpectedCash}}"
+                  class="font-bold text-white text-base tabular-nums">
+              {{printf "%s" (fmtNum .Report.ExpectedCash)}}
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Physical Reconciliation -->
+      <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+        <div class="dash-card-header px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-center">
+          Physical Reconciliation
+        </div>
+        <div class="divide-y divide-[#1e2d4a]/60 text-sm">
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/30">
+            <span class="text-xs font-bold text-slate-200">Actual Till Cash</span>
+            <span id="dash-counter-cash" data-raw="{{printf "%.0f" .Report.CounterCash}}"
+                  class="font-bold text-white tabular-nums">
+              {{printf "%s" (fmtNum .Report.CounterCash)}}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/60">
+            <span class="text-xs font-bold text-slate-200">Cash Discrepancy</span>
+            <span id="dash-discrepancy" data-raw="{{printf "%.0f" .Report.Difference}}"
+                  class="font-bold text-base tabular-nums {{if eq .Report.Difference 0.0}}text-emerald-400{{else if lt .Report.Difference 0.0}}text-rose-400{{else}}text-sky-400{{end}}">
+              {{if eq .Report.Difference 0.0}}
+                0  (Balanced)
+              {{else if lt .Report.Difference 0.0}}
+                {{printf "%s" (fmtNum .Report.Difference)}}  (Short)
+              {{else}}
+                +{{printf "%s" (fmtNum .Report.Difference)}}  (Surplus)
+              {{end}}
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Audit meta -->
+      <div class="flex items-center justify-between text-xs text-slate-300 px-1">
+        <div>By <span id="dash-submitted-by" class="font-bold text-slate-100">{{.Report.SubmittedBy}}</span>
+          (<span class="capitalize font-bold text-[#007C77]">{{.Report.SubmittedByRole}}</span>)</div>
+        {{if .User.CanEditReports}}
+        <a href="/reports/edit?id={{.Report.ReportID}}" class="font-bold text-[#007C77] hover:underline">✎ Edit</a>
+        {{end}}
+      </div>
+
+    </div><!-- /dash-main -->
+
+    <!-- Drag handle -->
+    <div id="dash-resize-handle" class="resize-handle" title="Drag to resize · Double-click to reset"></div>
+
+    <!-- RIGHT: Expenses + Notes -->
+    <div id="dash-side-panel" class="dash-side bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+      <!-- Header -->
+      <div class="dash-card-header px-4 py-2 text-[11px] font-bold uppercase tracking-widest flex items-center justify-between">
+        <span>Other Payments</span>
+        <button type="button" onclick="copyExpensesForExcel()"
+                class="px-2.5 py-1 rounded bg-emerald-700 border border-emerald-500/60 text-white text-[11px] font-bold hover:bg-emerald-600 transition"
+                title="Copy for Excel">Copy</button>
+      </div>
+
+      <!-- Column header -->
+      <div class="dash-sub-header px-4 py-1.5 text-[11px] font-extrabold flex justify-between uppercase tracking-wider">
+        <span>Description</span><span>Amount</span>
+      </div>
+
+      <!-- Expense rows -->
+      {{if .Report.Expenses}}
+      <div class="divide-y divide-[#1e2d4a]/60 overflow-y-auto flex-1" style="max-height: 16rem;">
+        {{range $idx, $exp := .Report.Expenses}}
+        <div class="dash-expense-item flex items-center justify-between px-4 py-2.5 text-xs {{if eq (mod $idx 2) 0}}bg-[#080e1e]/50{{else}}bg-[#080e1e]/20{{end}}"
+             data-desc="{{$exp.Description}}" data-amount="{{printf "%.0f" $exp.Amount}}">
+          <span class="dash-exp-desc text-slate-100 font-semibold">{{$exp.Description}}</span>
+          <span class="dash-exp-amt font-bold text-white tabular-nums">{{printf "%s" (fmtNum $exp.Amount)}}</span>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
+      <div class="py-8 text-center text-slate-400 text-xs italic flex-1">No other payments recorded.</div>
+      {{end}}
+
+      <!-- Store notes -->
+      <div class="p-3 border-t border-[#1e2d4a] bg-[#080e1e]/40 mt-auto">
+        <div class="text-[11px] font-extrabold text-slate-200 uppercase tracking-widest mb-1">Remarks</div>
+        <p id="dash-notes" class="text-xs text-slate-100 font-semibold leading-relaxed">
+          {{if .Report.Notes}}{{.Report.Notes}}{{else}}<span class="italic text-slate-400">None</span>{{end}}
+        </p>
+      </div>
+
+    </div><!-- /dash-side -->
+
+    <script>
+      (function() {
+        try {
+          var m = document.getElementById('dash-main-panel');
+          var s = document.getElementById('dash-side-panel');
+          var w = localStorage.getItem('wedrink_side_panel_width');
+          if (m && s && w) {
+            var num = parseInt(w, 10);
+            if (num >= 220 && num <= 800) {
+              m.style.flex = '1 1 0';
+              m.style.width = '';
+              s.style.flex = '0 0 auto';
+              s.style.width = num + 'px';
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </div><!-- /dash-panels -->
+
 {{else}}
-  <!-- No Record Placeholder -->
-  <div class="bg-[#131f3a] border border-[#1e2d4a] p-10 text-center max-w-md mx-auto my-8 rounded-lg">
-    <h3 class="text-md font-bold text-white">No Report Submitted for {{.ReportDate}}</h3>
-    <p class="text-xs text-slate-400 mt-1 mb-5">No closure record exists in MongoDB for this date.</p>
-    <a href="/submit" class="btn btn-primary inline-flex text-xs py-2 px-4">
-      Submit EOD Report for {{.ReportDate}}
-    </a>
+  <!-- No report placeholder -->
+  <div class="bg-[#131f3a] border border-[#1e2d4a] p-10 text-center max-w-sm mx-auto my-8 rounded-lg">
+    <div class="text-slate-400 text-2xl mb-3">📋</div>
+    <h3 class="text-sm font-bold text-white">No report for {{.ReportDate}}</h3>
+    <p class="text-xs text-slate-400 mt-1 mb-5">Nothing submitted to MongoDB for this date yet.</p>
+    <a href="/submit" class="btn btn-primary inline-flex text-xs py-2 px-5">Submit Report for {{.ReportDate}}</a>
   </div>
 {{end}}

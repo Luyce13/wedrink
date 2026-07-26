@@ -1,45 +1,5 @@
 {{define "content"}}
-<div class="space-y-5">
-  
-  <!-- Main Banner Header -->
-  <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-    <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold text-white tracking-tight uppercase">DAYEND REPORT DASHBOARD</h1>
-      </div>
-      <p class="text-xs text-slate-400 mt-1">Store Daily Sales Breakdown & Till Reconciliation</p>
-    </div>
-
-    <!-- Toolbar: Date Navigation Control -->
-    <div class="flex items-center gap-3 flex-wrap">
-      
-      <!-- Date Navigation Box -->
-      <div class="flex items-center gap-1 bg-[#080e1e] p-1 rounded border border-[#1e2d4a]">
-        <a hx-get="/?date={{.PrevDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" href="/?date={{.PrevDate}}" class="p-1 text-slate-400 hover:text-white transition" title="Previous Day">
-          ◄
-        </a>
-
-        <!-- Gold Highlighted Date Cell (Matching Google Sheets Cell B3) -->
-        <input type="date" name="date" value="{{.ReportDate}}" 
-               hx-get="/" hx-target="#dashboard-content" hx-swap="innerHTML" hx-trigger="change" hx-vals='{"partial": "true"}'
-               class="glass-input font-bold text-xs text-center py-1 px-2 bg-[#fef08a] border-yellow-400 text-slate-900 rounded w-36 cursor-pointer">
-
-        <a hx-get="/?date={{.NextDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" href="/?date={{.NextDate}}" class="p-1 text-slate-400 hover:text-white transition" title="Next Day">
-          ►
-        </a>
-
-        <a hx-get="/?date={{.TodayStr}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" href="/?date={{.TodayStr}}" class="text-[11px] font-bold text-[#00b4d8] hover:underline px-2">
-          Today
-        </a>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Dynamic Dashboard Content -->
-  <div id="dashboard-content">
-    {{template "dashboard_content.html" .}}
-  </div>
-
+<div id="dashboard-content" class="space-y-4">
+  {{template "dashboard_content.html" .}}
 </div>
 {{end}}

@@ -24,3 +24,6 @@ cookie.txt
 .vscode/
 *.swp
 *.swo
+cookies.txt
+scratch/
+.gemini/

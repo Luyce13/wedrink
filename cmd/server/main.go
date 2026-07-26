@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -69,6 +70,50 @@ func main() {
 		"mod": func(a, b int) int {
 			return a % b
 		},
+		// fmtNum formats a float64 as a comma-separated integer string (en-IN style).
+		// e.g. 125000 -> "1,25,000"
+		"fmtNum": func(val float64) string {
+			n := int64(math.Round(math.Abs(val)))
+			s := strconv.FormatInt(n, 10)
+			var result strings.Builder
+			l := len(s)
+			if l <= 3 {
+				result.WriteString(s)
+			} else {
+				// First group: last 3 digits
+				first := l % 2
+				if first == 0 {
+					first = 2 // en-IN groups of 2 after first 3
+				}
+				// Simple comma every 3 for the last three, then every 2
+				// Easier: just format in groups of 3 from right, then 2
+				// Use a straightforward approach:
+				if l <= 3 {
+					result.WriteString(s)
+				} else {
+					// last 3
+					last3 := s[l-3:]
+					prefix := s[:l-3]
+					// split prefix in groups of 2 from right
+					var parts []string
+					for len(prefix) > 2 {
+						parts = append([]string{prefix[len(prefix)-2:]}, parts...)
+						prefix = prefix[:len(prefix)-2]
+					}
+					if len(prefix) > 0 {
+						parts = append([]string{prefix}, parts...)
+					}
+					parts = append(parts, last3)
+					result.WriteString(strings.Join(parts, ","))
+				}
+			}
+			if val < 0 {
+				return "-" + result.String()
+			}
+			return result.String()
+		},
+		// not returns the boolean negation — used in template conditionals
+		"not": func(v bool) bool { return !v },
 	}
 
 	renderer, err := render.NewRenderer(funcMap)
@@ -88,7 +133,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Static file server
-	staticDir := filepath.Join("web", "static")
+	staticDir := render.ResolveProjectPath("web", "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	// Auth routes (Public)
@@ -105,8 +150,6 @@ func main() {
 	// Protected routes (Staff & Super Admin)
 	mux.HandleFunc("GET /{$}", middleware.RequireAuth(dashboardHandler.RenderDashboard))
 	mux.HandleFunc("GET /submit", middleware.RequireAuth(reportHandler.RenderSubmitForm))
-	mux.HandleFunc("GET /reports/expense-row", middleware.RequireAuth(reportHandler.RenderAddExpenseRow))
-	mux.HandleFunc("POST /reports/preview", middleware.RequireAuth(reportHandler.RenderCalculationPreview))
 	mux.HandleFunc("POST /reports", middleware.RequireAuth(reportHandler.HandleSubmit))
 
 	// Super Admin protected routes

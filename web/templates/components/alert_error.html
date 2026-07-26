@@ -1,4 +1,4 @@
-<div id="form-alert" class="p-4 bg-rose-950/90 border border-rose-500/60 text-rose-200 rounded-lg flex items-center justify-between gap-3 mb-5 shadow-xl">
+<div class="alert-box p-4 bg-rose-950/90 border border-rose-500/60 text-rose-200 rounded-lg flex items-center justify-between gap-3 mb-5 shadow-xl">
   <div class="flex items-center gap-3">
     <svg class="w-5 h-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -8,8 +8,5 @@
       <div class="text-xs text-rose-200 mt-0.5">{{.Error}}</div>
     </div>
   </div>
-  <button onclick="this.parentElement.remove()" class="text-rose-400 hover:text-white text-sm px-2">✕</button>
+  <button onclick="this.closest('.alert-box').remove()" class="text-rose-400 hover:text-white text-sm px-2">✕</button>
 </div>
-<script>
-  if (window.showToast) window.showToast("⚠️ Submission Error: {{.Error}}");
-</script>

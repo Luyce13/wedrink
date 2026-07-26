@@ -1,0 +1,46 @@
+{{range $idx, $rep := .Reports}}
+{{$rowNum := add $idx 1}}
+<tr {{if and (eq $rowNum $.TriggerIdx) $.NextCursor}}
+      hx-get="/reports?cursor={{$.NextCursor}}&startDate={{$.StartDate}}&endDate={{$.EndDate}}&sortBy={{$.SortBy}}&sortOrder={{$.SortOrder}}&append=true"
+      hx-trigger="intersect once"
+      hx-target="#report-table-body"
+      hx-swap="beforeend"
+      hx-indicator="#scroll-spinner"
+    {{end}}
+    class="hover:bg-[#131f3a]/60 transition border-b border-[#1e2d4a]/40">
+  <td class="p-3 text-center">
+    <input type="checkbox" value="{{$rep.ReportID}}" class="report-select-checkbox w-3.5 h-3.5 rounded border-slate-700">
+  </td>
+  <td class="p-3 font-bold text-white whitespace-nowrap">
+    <a href="/?date={{$rep.ReportDate}}" class="hover:text-[#00b4d8] transition">{{$rep.ReportDate}}</a>
+  </td>
+  <td class="p-3 text-right font-bold text-slate-100 tabular-nums">{{printf "%s" (fmtNum $rep.TotalSale)}}</td>
+  <td class="p-3 text-right font-bold text-slate-100 tabular-nums">{{printf "%s" (fmtNum $rep.CreditSale)}}</td>
+  <td class="p-3 text-right font-bold text-slate-100 tabular-nums">{{printf "%s" (fmtNum $rep.BankTransfer)}}</td>
+  <td class="p-3 text-right font-bold text-slate-100 tabular-nums">{{printf "%s" (fmtNum $rep.OtherPayments)}}</td>
+  <td class="p-3 text-right font-bold text-slate-100 tabular-nums">{{printf "%s" (fmtNum $rep.ExpectedCash)}}</td>
+  <td class="p-3 text-right font-bold text-slate-100 tabular-nums">{{printf "%s" (fmtNum $rep.CounterCash)}}</td>
+  <td class="p-3 text-center whitespace-nowrap">
+    {{if eq $rep.Difference 0.0}}
+      <span class="badge badge-success">OK</span>
+    {{else if lt $rep.Difference 0.0}}
+      <span class="badge badge-danger tabular-nums">{{printf "%s" (fmtNum $rep.Difference)}}</span>
+    {{else}}
+      <span class="badge badge-info tabular-nums">+{{printf "%s" (fmtNum $rep.Difference)}}</span>
+    {{end}}
+  </td>
+  <td class="p-3 whitespace-nowrap">
+    <div class="font-semibold text-slate-200">{{$rep.SubmittedBy}}</div>
+    <div class="text-[10px] text-slate-500 capitalize">{{$rep.SubmittedByRole}}</div>
+  </td>
+  <td class="p-3 text-center whitespace-nowrap">
+    <div class="flex items-center justify-center gap-1">
+      <button hx-get="/reports/detail?id={{$rep.ReportID}}" hx-target="#report-modal-container" hx-swap="innerHTML" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold rounded transition">View</button>
+      {{if $.User.CanEditReports}}
+      <a href="/reports/edit?id={{$rep.ReportID}}" class="px-2 py-1 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 hover:text-indigo-100 text-[11px] font-semibold rounded transition">Edit</a>
+      <button hx-delete="/reports/delete?id={{$rep.ReportID}}" hx-confirm="Delete report for {{$rep.ReportDate}}?" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-rose-100 text-[11px] font-semibold rounded transition">Del</button>
+      {{end}}
+    </div>
+  </td>
+</tr>
+{{end}}

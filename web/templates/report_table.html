@@ -1,78 +1,41 @@
-<div class="overflow-x-auto">
-  <table class="w-full text-left border-collapse">
+<div class="overflow-x-auto max-h-[calc(100vh-14rem)] overflow-y-auto">
+  <table class="w-full text-left border-collapse text-xs">
     <thead>
-      <tr class="bg-slate-900 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+      <tr class="sticky-thead border-b border-slate-700 text-[11px] font-extrabold text-slate-300 uppercase tracking-wider bg-[#060d1b]">
         <th class="p-3 w-8 text-center">
-          <input type="checkbox" onclick="selectAllReports(this)" class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-700">
+          <input type="checkbox" onclick="selectAllReports(this)" class="w-3.5 h-3.5 rounded border-slate-700">
         </th>
-        <th class="p-3">Report Date</th>
+        <th class="p-3">Date</th>
         <th class="p-3 text-right">Total Sales</th>
-        <th class="p-3 text-right">Credit Card</th>
-        <th class="p-3 text-right">Bank Transfer</th>
+        <th class="p-3 text-right">Card</th>
+        <th class="p-3 text-right">Bank</th>
         <th class="p-3 text-right">Expenses</th>
-        <th class="p-3 text-right">Expected Cash</th>
+        <th class="p-3 text-right">Exp. Cash</th>
         <th class="p-3 text-right">Till Cash</th>
-        <th class="p-3 text-center">Discrepancy</th>
-        <th class="p-3">Submitted By</th>
+        <th class="p-3 text-center">Diff</th>
+        <th class="p-3">By</th>
         <th class="p-3 text-center">Actions</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-slate-800 text-xs">
+    <tbody id="report-table-body" class="divide-y divide-slate-800/60">
       {{if .Reports}}
-        {{range .Reports}}
-        <tr class="hover:bg-slate-900/60 transition">
-          <td class="p-3 text-center">
-            <input type="checkbox" value="{{.ReportID}}" class="report-select-checkbox w-3.5 h-3.5 text-indigo-600 rounded border-slate-700">
-          </td>
-          <td class="p-3 font-bold text-white whitespace-nowrap">
-            <a href="/?date={{.ReportDate}}" class="hover:text-indigo-400 transition">{{.ReportDate}}</a>
-          </td>
-          <td class="p-3 text-right font-bold text-slate-100">Rs. {{printf "%.0f" .TotalSale}}</td>
-          <td class="p-3 text-right text-slate-300">Rs. {{printf "%.0f" .CreditSale}}</td>
-          <td class="p-3 text-right text-slate-300">Rs. {{printf "%.0f" .BankTransfer}}</td>
-          <td class="p-3 text-right text-amber-300 font-semibold">Rs. {{printf "%.0f" .OtherPayments}}</td>
-          <td class="p-3 text-right text-slate-300">Rs. {{printf "%.0f" .ExpectedCash}}</td>
-          <td class="p-3 text-right font-bold text-white">Rs. {{printf "%.0f" .CounterCash}}</td>
-          <td class="p-3 text-center whitespace-nowrap">
-            {{if eq .Difference 0.0}}
-              <span class="badge badge-success">Balanced</span>
-            {{else if lt .Difference 0.0}}
-              <span class="badge badge-danger">- Rs. {{printf "%.0f" (mathAbs .Difference)}}</span>
-            {{else}}
-              <span class="badge badge-info">+ Rs. {{printf "%.0f" .Difference}}</span>
-            {{end}}
-          </td>
-          <td class="p-3 whitespace-nowrap">
-            <div class="font-medium text-slate-200">{{.SubmittedBy}}</div>
-            <div class="text-[10px] text-slate-500 capitalize">{{.SubmittedByRole}}</div>
-          </td>
-          <td class="p-3 text-center whitespace-nowrap space-x-1">
-            <!-- View Detail -->
-            <button hx-get="/reports/detail?id={{.ReportID}}" hx-target="#report-modal-container" hx-swap="innerHTML" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded transition text-[11px]" title="View Details">
-              View
-            </button>
-
-            {{if $.User.CanEditReports}}
-            <!-- Super Admin Edit -->
-            <a href="/reports/edit?id={{.ReportID}}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-900 text-indigo-300 rounded transition text-[11px]" title="Edit Report">
-              Edit
-            </a>
-
-            <!-- Super Admin Delete -->
-            <button hx-delete="/reports/delete?id={{.ReportID}}" hx-confirm="Are you sure you want to delete report for {{.ReportDate}}?" hx-target="#report-table-container" hx-swap="outerHTML" class="px-2 py-1 bg-slate-800 hover:bg-red-950 text-red-400 rounded transition text-[11px]" title="Delete Report">
-              Delete
-            </button>
-            {{end}}
-          </td>
-        </tr>
-        {{end}}
+        {{template "report_rows.html" .}}
       {{else}}
         <tr>
-          <td colspan="11" class="p-6 text-center text-slate-500 text-xs italic">
-            No EOD reports found matching the criteria.
+          <td colspan="11" class="p-8 text-center text-slate-500 italic text-xs">
+            No reports found matching your criteria.
           </td>
         </tr>
       {{end}}
     </tbody>
   </table>
+</div>
+
+<!-- Scroll spinner for HTMX infinite pagination -->
+<div id="scroll-spinner" class="htmx-indicator py-4 text-center text-xs font-semibold text-cyan-400 flex items-center justify-center gap-2">
+  <svg class="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+  </svg>
+  Loading next 100 reports...
 </div>

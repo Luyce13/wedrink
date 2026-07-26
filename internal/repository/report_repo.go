@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -157,6 +159,111 @@ func (r *ReportRepository) FindByDateRange(ctx context.Context, startDate, endDa
 	if err := cursor.All(ctx, &reports); err != nil {
 		return nil, fmt.Errorf("failed to decode range reports: %w", err)
 	}
+	return reports, nil
+}
+
+type ReportQueryParams struct {
+	StartDate string
+	EndDate   string
+	SortBy    string
+	SortOrder string
+	Cursor    string
+	Limit     int
+}
+
+func (r *ReportRepository) FindWithParams(ctx context.Context, params ReportQueryParams) ([]models.EODReport, error) {
+	filter := bson.M{}
+
+	if params.StartDate != "" && params.EndDate != "" {
+		filter["report_date"] = bson.M{
+			"$gte": params.StartDate,
+			"$lte": params.EndDate,
+		}
+	} else if params.StartDate != "" {
+		filter["report_date"] = bson.M{"$gte": params.StartDate}
+	} else if params.EndDate != "" {
+		filter["report_date"] = bson.M{"$lte": params.EndDate}
+	}
+
+	sortKey := "report_date"
+	switch params.SortBy {
+	case "total_sale":
+		sortKey = "total_sale"
+	case "credit_sale":
+		sortKey = "credit_sale"
+	case "bank_transfer":
+		sortKey = "bank_transfer"
+	case "other_payments", "expenses":
+		sortKey = "other_payments"
+	case "difference":
+		sortKey = "difference"
+	default:
+		sortKey = "report_date"
+	}
+
+	sortDir := -1
+	if params.SortOrder == "asc" {
+		sortDir = 1
+	}
+
+	if params.Cursor != "" {
+		if sortKey == "report_date" {
+			if sortDir == -1 {
+				filter["report_date"] = bson.M{"$lt": params.Cursor}
+			} else {
+				filter["report_date"] = bson.M{"$gt": params.Cursor}
+			}
+		} else {
+			parts := strings.Split(params.Cursor, "|")
+			if len(parts) == 2 {
+				valStr, cursorDate := parts[0], parts[1]
+				val, _ := strconv.ParseFloat(valStr, 64)
+				if sortDir == -1 {
+					filter["$or"] = []bson.M{
+						{sortKey: bson.M{"$lt": val}},
+						{sortKey: val, "report_date": bson.M{"$lt": cursorDate}},
+					}
+				} else {
+					filter["$or"] = []bson.M{
+						{sortKey: bson.M{"$gt": val}},
+						{sortKey: val, "report_date": bson.M{"$gt": cursorDate}},
+					}
+				}
+			} else {
+				if sortDir == -1 {
+					filter["report_date"] = bson.M{"$lt": params.Cursor}
+				} else {
+					filter["report_date"] = bson.M{"$gt": params.Cursor}
+				}
+			}
+		}
+	}
+
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+
+	sortFields := bson.D{{Key: sortKey, Value: sortDir}}
+	if sortKey != "report_date" {
+		sortFields = append(sortFields, bson.E{Key: "report_date", Value: sortDir})
+	}
+
+	opts := options.Find().
+		SetSort(sortFields).
+		SetLimit(int64(limit))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch reports with params: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var reports []models.EODReport
+	if err := cursor.All(ctx, &reports); err != nil {
+		return nil, fmt.Errorf("failed to decode reports with params: %w", err)
+	}
+
 	return reports, nil
 }
 

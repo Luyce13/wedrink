@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 )
 
@@ -13,25 +14,51 @@ type Renderer struct {
 	partials *template.Template
 }
 
+func ResolveProjectPath(parts ...string) string {
+	candidates := make([]string, 0, 8)
+
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(append([]string{cwd}, parts...)...))
+	}
+
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		for dir := exeDir; dir != "" && dir != "." && dir != string(filepath.Separator); dir = filepath.Dir(dir) {
+			candidates = append(candidates, filepath.Join(append([]string{dir}, parts...)...))
+			if _, err := os.Stat(filepath.Join(dir, "web")); err == nil {
+				candidates = append(candidates, filepath.Join(append([]string{dir}, parts...)...))
+			}
+		}
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	return filepath.Join(parts...)
+}
+
 func NewRenderer(funcMap template.FuncMap) (*Renderer, error) {
-	layoutFile := filepath.Join("web", "templates", "layout.html")
-	compFiles, _ := filepath.Glob(filepath.Join("web", "templates", "components", "*.html"))
+	layoutFile := ResolveProjectPath("web", "templates", "layout.html")
+	compFiles, _ := filepath.Glob(filepath.Join(filepath.Dir(layoutFile), "components", "*.html"))
 
 	// Explicit page mappings with their required sub-templates to prevent block collision
 	pageConfig := map[string][]string{
 		"login.html": {
-			filepath.Join("web", "templates", "login.html"),
+			ResolveProjectPath("web", "templates", "login.html"),
 		},
 		"dashboard.html": {
-			filepath.Join("web", "templates", "dashboard.html"),
-			filepath.Join("web", "templates", "dashboard_content.html"),
+			ResolveProjectPath("web", "templates", "dashboard.html"),
+			ResolveProjectPath("web", "templates", "dashboard_content.html"),
 		},
 		"submit.html": {
-			filepath.Join("web", "templates", "submit.html"),
+			ResolveProjectPath("web", "templates", "submit.html"),
 		},
 		"reports.html": {
-			filepath.Join("web", "templates", "reports.html"),
-			filepath.Join("web", "templates", "report_table.html"),
+			ResolveProjectPath("web", "templates", "reports.html"),
+			ResolveProjectPath("web", "templates", "report_table.html"),
 		},
 	}
 
@@ -50,7 +77,8 @@ func NewRenderer(funcMap template.FuncMap) (*Renderer, error) {
 	}
 
 	// Standalone collection for HTMX partial snippets
-	allTemplates, _ := filepath.Glob(filepath.Join("web", "templates", "*.html"))
+	templatesDir := filepath.Dir(layoutFile)
+	allTemplates, _ := filepath.Glob(filepath.Join(templatesDir, "*.html"))
 	allFiles := append(allTemplates, compFiles...)
 	partials, err := template.New("partials").Funcs(funcMap).ParseFiles(allFiles...)
 	if err != nil {

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"wedrink/internal/middleware"
 	"wedrink/internal/models"
 	"wedrink/internal/render"
+	"wedrink/internal/repository"
 	"wedrink/internal/services"
 )
 
@@ -28,7 +28,8 @@ func NewReportHandler(service *services.ReportService, renderer *render.Renderer
 
 func (h *ReportHandler) RenderSubmitForm(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
-	todayStr := time.Now().Format("2006-01-02")
+	todayStr     := time.Now().Format("2006-01-02")
+	yesterdayStr := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
 	existing, _ := h.service.GetReportByDate(r.Context(), todayStr)
 
@@ -36,6 +37,7 @@ func (h *ReportHandler) RenderSubmitForm(w http.ResponseWriter, r *http.Request)
 		"Title":          "Submit End of Day Report",
 		"User":           user,
 		"Today":          todayStr,
+		"Yesterday":      yesterdayStr,
 		"ExistingReport": existing,
 		"ActiveTab":      "submit",
 		"IsEditMode":     false,
@@ -86,58 +88,6 @@ func (h *ReportHandler) RenderEditForm(w http.ResponseWriter, r *http.Request) {
 	_ = h.renderer.RenderPage(w, "submit.html", data)
 }
 
-func (h *ReportHandler) RenderAddExpenseRow(w http.ResponseWriter, r *http.Request) {
-	idxStr := r.URL.Query().Get("index")
-	idx, _ := strconv.Atoi(idxStr)
-	if idx <= 0 {
-		idx = time.Now().Nanosecond()
-	}
-
-	data := map[string]any{
-		"Index": idx,
-	}
-	_ = h.renderer.RenderPartial(w, "expense_row.html", data)
-}
-
-func (h *ReportHandler) RenderCalculationPreview(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
-
-	totalSale, _ := strconv.ParseFloat(r.FormValue("totalSale"), 64)
-	creditSale, _ := strconv.ParseFloat(r.FormValue("creditSale"), 64)
-	bankTransfer, _ := strconv.ParseFloat(r.FormValue("bankTransfer"), 64)
-	counterCash, _ := strconv.ParseFloat(r.FormValue("counterCash"), 64)
-
-	descs := r.Form["expenseDesc[]"]
-	amts := r.Form["expenseAmount[]"]
-	if len(descs) == 0 {
-		descs = r.Form["expenseDesc"]
-		amts = r.Form["expenseAmount"]
-	}
-
-	var totalExpenses float64 = 0
-	for i := 0; i < len(amts); i++ {
-		val, err := strconv.ParseFloat(amts[i], 64)
-		if err == nil && val > 0 {
-			totalExpenses += math.Abs(val)
-		}
-	}
-
-	expectedCash := totalSale - totalExpenses - creditSale - bankTransfer
-	difference := counterCash - expectedCash
-
-	data := map[string]any{
-		"TotalSale":     totalSale,
-		"CreditSale":    creditSale,
-		"BankTransfer":  bankTransfer,
-		"TotalExpenses": totalExpenses,
-		"ExpectedCash":  expectedCash,
-		"CounterCash":   counterCash,
-		"Difference":    difference,
-	}
-
-	_ = h.renderer.RenderPartial(w, "calculation_preview.html", data)
-}
-
 func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
 	if user == nil {
@@ -184,11 +134,11 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Reswap", "outerHTML")
 		msg := fmt.Sprintf("Report for %s successfully saved!", report.ReportDate)
 		if input.AllowOverwrite {
 			msg = fmt.Sprintf("Report for %s updated successfully by Super Admin!", report.ReportDate)
 		}
+		w.WriteHeader(http.StatusOK)
 		data := map[string]any{
 			"Report":  report,
 			"Message": msg,
@@ -204,43 +154,91 @@ func (h *ReportHandler) RenderReportsList(w http.ResponseWriter, r *http.Request
 	user := middleware.GetUser(r)
 	ctx := r.Context()
 
-	month := r.URL.Query().Get("month")
-	if month == "" {
-		month = time.Now().Format("2006-01")
-	}
-
 	startDate := r.URL.Query().Get("startDate")
 	endDate := r.URL.Query().Get("endDate")
+	sortBy := r.URL.Query().Get("sortBy")
+	if sortBy == "" {
+		sortBy = "date"
+	}
+	sortOrder := r.URL.Query().Get("sortOrder")
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
+	cursor := r.URL.Query().Get("cursor")
+	isAppend := r.URL.Query().Get("append") == "true"
 
-	var reports []models.EODReport
-	var err error
-
-	if startDate != "" || endDate != "" {
-		reports, err = h.service.GetReportsForRange(ctx, startDate, endDate)
-	} else {
-		reports, err = h.service.GetReportsForMonth(ctx, month)
+	limit := 100
+	if lStr := r.URL.Query().Get("limit"); lStr != "" {
+		if l, err := strconv.Atoi(lStr); err == nil && l > 0 {
+			limit = l
+		}
 	}
 
+	params := repository.ReportQueryParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
+		Cursor:    cursor,
+		Limit:     limit,
+	}
+
+	reports, err := h.service.GetReportsWithParams(ctx, params)
 	if err != nil {
 		reports = []models.EODReport{}
 	}
 
-	summary, _ := h.service.GetMonthlySummary(ctx, month)
-
-	data := map[string]any{
-		"Title":          "Historical EOD Reports",
-		"User":           user,
-		"Reports":        reports,
-		"Month":          month,
-		"StartDate":      startDate,
-		"EndDate":        endDate,
-		"MonthlySummary": summary,
-		"ActiveTab":      "reports",
+	var nextCursor string
+	if len(reports) == limit {
+		last := reports[len(reports)-1]
+		if sortBy == "date" {
+			nextCursor = last.ReportDate
+		} else {
+			var val float64
+			switch sortBy {
+			case "total_sale":
+				val = last.TotalSale
+			case "credit_sale":
+				val = last.CreditSale
+			case "bank_transfer":
+				val = last.BankTransfer
+			case "other_payments", "expenses":
+				val = last.OtherPayments
+			case "difference":
+				val = last.Difference
+			}
+			nextCursor = fmt.Sprintf("%.0f|%s", val, last.ReportDate)
+		}
 	}
 
-	if r.Header.Get("HX-Request") == "true" && r.URL.Query().Get("partial") == "true" {
-		_ = h.renderer.RenderPartial(w, "report_table.html", data)
-		return
+	// Trigger next batch fetch when user reaches row (limit - 25), e.g. row 75 for 100 items
+	triggerIdx := limit - 25
+	if triggerIdx <= 0 {
+		triggerIdx = limit / 2
+	}
+
+	data := map[string]any{
+		"Title":      "Historical EOD Reports",
+		"User":       user,
+		"Reports":    reports,
+		"StartDate":  startDate,
+		"EndDate":    endDate,
+		"SortBy":     sortBy,
+		"SortOrder":  sortOrder,
+		"NextCursor": nextCursor,
+		"TriggerIdx": triggerIdx,
+		"ActiveTab":  "reports",
+	}
+
+	if r.Header.Get("HX-Request") == "true" {
+		if isAppend {
+			_ = h.renderer.RenderPartial(w, "report_rows.html", data)
+			return
+		}
+		if r.URL.Query().Get("partial") == "true" {
+			_ = h.renderer.RenderPartial(w, "report_table.html", data)
+			return
+		}
 	}
 
 	_ = h.renderer.RenderPage(w, "reports.html", data)
@@ -298,8 +296,7 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 func (h *ReportHandler) renderError(w http.ResponseWriter, r *http.Request, msg string) {
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Reswap", "outerHTML")
-		w.WriteHeader(http.StatusOK) // Allow HTMX to swap alert_error.html component onto page
+		w.WriteHeader(http.StatusOK)
 		data := map[string]any{
 			"Error": msg,
 		}
@@ -307,4 +304,13 @@ func (h *ReportHandler) renderError(w http.ResponseWriter, r *http.Request, msg 
 		return
 	}
 	http.Error(w, msg, http.StatusBadRequest)
+}
+
+func parseAmount(val string) (float64, error) {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return 0, nil
+	}
+	clean := strings.ReplaceAll(val, ",", "")
+	return strconv.ParseFloat(clean, 64)
 }
