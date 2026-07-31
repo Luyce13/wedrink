@@ -98,7 +98,7 @@
       </div>
       <div class="flex items-center gap-2">
         {{if .User.CanEditReports}}
-        <a href="/reports/edit?id={{.Report.ReportID}}" class="btn btn-secondary text-xs py-1.5 px-3 text-indigo-300 border-indigo-500/30">✎ Edit</a>
+        <a href="/reports/edit?id={{.Report.ReportID}}" class="px-2 py-1 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 hover:text-indigo-100 text-xs font-semibold rounded transition">Edit</a>
         {{end}}
         <a href="/export/excel?ids={{.Report.ReportID}}" download="wedrink_eod_report_{{.Report.ReportDate}}.xlsx" target="_blank" hx-boost="false" class="btn btn-secondary text-xs py-1.5 px-3">Export</a>
         <button onclick="closeModal()" class="btn btn-primary text-xs py-1.5 px-3">Close</button>

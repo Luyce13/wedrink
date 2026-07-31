@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-and-build:
-    name: Test & Build
+    name: Test & Build Artifact
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -26,16 +26,42 @@ jobs:
       - name: Run Tests
         run: go test -v ./...
 
-      - name: Build Binary
-        run: go build -v -o bin/wedrink ./cmd/server
+      - name: Build Production Linux Binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/wedrink ./cmd/server
+
+      - name: Package Deployment Artifact
+        run: |
+          tar -czf release.tar.gz bin/wedrink web/
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@4bec439ed40a341da4ec99eb59d9c2a382103f6f # v4.6.1
+        with:
+          name: release-package
+          path: release.tar.gz
 
   deploy:
-    name: Deploy to VPS (PM2)
+    name: Deploy Artifact to VPS
     needs: test-and-build
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Download Build Artifact
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e6345e69e4f2081f # v4.1.9
+        with:
+          name: release-package
+
+      - name: Upload Artifact to VPS via SCP
+        uses: appleboy/scp-action@646b97b0a7edb7cb347ec051c5d9f36f906497f3 # v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "release.tar.gz"
+          target: "/tmp"
+
+      - name: Extract Artifact & Reload PM2 via SSH
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -50,15 +76,18 @@ jobs:
             export PNPM_HOME="$HOME/.local/share/pnpm"
             case ":$PATH:" in
               *":$PNPM_HOME/bin:"*) ;;
-              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH:/usr/local/go/bin:$HOME/go/bin" ;;
+              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH" ;;
             esac
-            
+
             APP_DIR="${{ secrets.VPS_APP_DIR }}"
             if [ -z "$APP_DIR" ]; then
               APP_DIR="$HOME/wedrink"
             fi
             eval APP_DIR="$APP_DIR"
+            mkdir -p "$APP_DIR"
+
+            tar -xzf /tmp/release.tar.gz -C "$APP_DIR"
+            rm -f /tmp/release.tar.gz
+
             cd "$APP_DIR"
-            git pull origin master
-            go build -o bin/wedrink ./cmd/server
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink

@@ -109,12 +109,12 @@
             <td class="p-3 text-slate-400 text-[11px]">{{.CreatedAt.Format "02 Jan 2006"}}</td>
             <td class="p-3 text-right whitespace-nowrap">
               <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                <button type="button" hx-get="/admin/users/edit?username={{.Username}}" hx-target="#report-modal-container" hx-swap="innerHTML" class="btn bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-500/40 text-[11px] py-1 px-2.5">
-                  ✎ Edit
+                <button type="button" hx-get="/admin/users/edit?username={{.Username}}" hx-target="#report-modal-container" hx-swap="innerHTML" class="px-2 py-1 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 hover:text-indigo-100 text-[11px] font-semibold rounded transition">
+                  Edit
                 </button>
                 {{if not (eq .Username $.User.Username)}}
-                <button type="button" onclick="openDeleteUserModal('{{.Username}}')" class="btn bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 text-[11px] py-1 px-2.5">
-                  🗑 Delete
+                <button type="button" onclick="openDeleteUserModal('{{.Username}}')" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-rose-100 text-[11px] font-semibold rounded transition">
+                  Delete
                 </button>
                 {{end}}
               </div>
