@@ -1,0 +1,96 @@
+<div class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onclick="if(event.target===this) closeModal();">
+  <div class="glass-card w-full max-w-md bg-slate-950 border-slate-800 shadow-2xl relative">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+      <h2 class="text-sm font-bold text-white flex items-center gap-2">
+        ✎ Edit Account @{{.TargetUser.Username}}
+      </h2>
+      <button type="button" onclick="closeModal()" class="p-1.5 text-slate-400 hover:text-white rounded bg-slate-900 border border-slate-800 text-xs">✕</button>
+    </div>
+
+    <!-- Form -->
+    <form action="/admin/users/edit" method="POST" onsubmit="return validateEditForm(this);" class="p-5 space-y-4">
+      <input type="hidden" name="username" value="{{.TargetUser.Username}}">
+
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">Username</label>
+        <input type="text" value="{{.TargetUser.Username}}" disabled class="glass-input text-xs opacity-60 cursor-not-allowed">
+      </div>
+
+      <div>
+        <label for="editFullName" class="block text-xs font-bold text-slate-300 mb-1">Full Name</label>
+        <input type="text" id="editFullName" name="fullName" value="{{.TargetUser.FullName}}" required class="glass-input text-xs">
+      </div>
+
+      <div>
+        <label for="editRole" class="block text-xs font-bold text-slate-300 mb-1">Access Role</label>
+        <select id="editRole" name="role" required class="glass-input text-xs bg-slate-900 text-white">
+          <option value="staff" {{if eq .TargetUser.Role "staff"}}selected{{end}}>Staff (Submit & Preview)</option>
+          <option value="super_admin" {{if eq .TargetUser.Role "super_admin"}}selected{{end}}>Manager / Super Admin (Full Access)</option>
+        </select>
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 space-y-3">
+        <div class="text-xs font-bold text-amber-400">
+          {{if eq .TargetUser.Username .CurrentUser.Username}}
+            Change My Password
+          {{else}}
+            Reset User Password
+          {{end}}
+        </div>
+
+        <div>
+          <label for="editNewPassword" class="block text-[11px] font-semibold text-slate-400 mb-1">New Password</label>
+          <input type="password" id="editNewPassword" name="newPassword" placeholder="Leave blank to keep unchanged" class="glass-input text-xs">
+        </div>
+
+        <div>
+          <label for="editConfirmPassword" class="block text-[11px] font-semibold text-slate-400 mb-1">Confirm New Password</label>
+          <input type="password" id="editConfirmPassword" name="confirmPassword" placeholder="Repeat new password" class="glass-input text-xs">
+          <div id="edit-pass-mismatch" class="hidden text-[10px] text-rose-400 mt-1 font-semibold">⚠ Passwords do not match</div>
+        </div>
+
+        <div>
+          <label for="editAdminPassword" class="block text-[11px] font-semibold text-rose-300 mb-1">
+            {{if eq .TargetUser.Username .CurrentUser.Username}}
+              Current Password <span class="text-rose-400">*</span>
+            {{else}}
+              Your Admin Password <span class="text-rose-400">*</span>
+            {{end}}
+          </label>
+          <input type="password" id="editAdminPassword" name="adminPassword" placeholder="Required if changing password" class="glass-input text-xs">
+          <span class="text-[10px] text-slate-500">Required to authorize password changes</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+        <button type="button" onclick="closeModal()" class="btn bg-slate-800 text-slate-300 text-xs py-1.5 px-4">Cancel</button>
+        <button type="submit" class="btn btn-primary text-xs py-1.5 px-5">Save Changes</button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<script>
+function validateEditForm(form) {
+  const newPass = form.newPassword.value.trim();
+  const confirmPass = form.confirmPassword.value.trim();
+  const adminPass = form.adminPassword.value.trim();
+
+  if (newPass !== "" || confirmPass !== "") {
+    if (newPass !== confirmPass) {
+      document.getElementById('edit-pass-mismatch').classList.remove('hidden');
+      alert("New password and Confirm password do not match!");
+      return false;
+    }
+    if (adminPass === "") {
+      alert("Please enter your current admin password to authorize the password change!");
+      form.adminPassword.focus();
+      return false;
+    }
+  }
+  return true;
+}
+</script>

@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"fmt"
+	"html"
 	"net/http"
+	"net/url"
 	"time"
 
 	"wedrink/internal/middleware"
@@ -46,9 +48,10 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.authService.Authenticate(r.Context(), username, password)
 	if err != nil {
+		safeErr := html.EscapeString(err.Error())
 		if r.Header.Get("HX-Request") == "true" {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(fmt.Sprintf(`<div id="login-error" class="p-3 bg-rose-950/90 border border-rose-500/60 text-rose-200 text-xs font-semibold rounded mb-5 flex items-center gap-2"><svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>%s</span></div>`, err.Error())))
+			_, _ = fmt.Fprintf(w, `<div id="login-error" class="p-3 bg-rose-950/90 border border-rose-500/60 text-rose-200 text-xs font-semibold rounded mb-5 flex items-center gap-2"><svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>%s</span></div>`, safeErr)
 			return
 		}
 
@@ -61,7 +64,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set session cookie (username|role|fullname)
-	cookieValue := fmt.Sprintf("%s|%s|%s", user.Username, string(user.Role), user.FullName)
+	rawCookie := fmt.Sprintf("%s|%s|%s", user.Username, string(user.Role), user.FullName)
+	cookieValue := url.QueryEscape(rawCookie)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "wedrink_session",
 		Value:    cookieValue,

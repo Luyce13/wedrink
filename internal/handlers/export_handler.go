@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"context"
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"net/http"
@@ -9,7 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xuri/excelize/v2"
+
 	"wedrink/internal/models"
+	"wedrink/internal/repository"
 	"wedrink/internal/services"
 )
 
@@ -21,21 +24,17 @@ func NewExportHandler(reportService *services.ReportService) *ExportHandler {
 	return &ExportHandler{reportService: reportService}
 }
 
-func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
+func (h *ExportHandler) getReportsFromRequest(r *http.Request) ([]models.EODReport, error) {
 	ctx := r.Context()
 
 	startDate := r.URL.Query().Get("startDate")
 	endDate := r.URL.Query().Get("endDate")
+	sortBy := r.URL.Query().Get("sortBy")
+	sortOrder := r.URL.Query().Get("sortOrder")
 	selectedIDs := r.URL.Query().Get("ids")
-	exportMode := r.URL.Query().Get("export") // "summary", "expenses", "all_combined"
-	if exportMode == "" {
-		exportMode = "summary"
-	}
-
-	var reports []models.EODReport
-	var err error
 
 	if selectedIDs != "" {
+		var reports []models.EODReport
 		idList := strings.Split(selectedIDs, ",")
 		for _, idStr := range idList {
 			idStr = strings.TrimSpace(idStr)
@@ -46,36 +45,37 @@ func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	} else if startDate != "" || endDate != "" {
-		reports, err = h.serviceGetReportsForRange(ctx, startDate, endDate)
-	} else {
-		month := r.URL.Query().Get("month")
-		if r.URL.Query().Get("type") == "all" || month == "all" {
-			reports, err = h.reportService.GetReportsForRange(ctx, "", "")
-		} else {
-			if month == "" {
-				month = time.Now().Format("2006-01")
-			}
-			reports, err = h.reportService.GetReportsForMonth(ctx, month)
-		}
+		return reports, nil
 	}
 
+	params := repository.ReportQueryParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
+		Limit:     10000,
+	}
+
+	return h.reportService.GetReportsWithParams(ctx, params)
+}
+
+func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
+	reports, err := h.getReportsFromRequest(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Export database query error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	filename := fmt.Sprintf("wedrink_%s_%s.csv", exportMode, time.Now().Format("20060102_150405"))
+	exportMode := r.URL.Query().Get("export") // "summary", "expenses", "all_combined"
+	if exportMode == "" {
+		exportMode = "summary"
+	}
 
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-
-	writer := csv.NewWriter(w)
-	defer writer.Flush()
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
 
 	switch exportMode {
 	case "expenses":
-		// Export itemized expenses tab matching legacy Google Sheets "EOD Expenses"
 		header := []string{"Report ID", "Report Date", "Expense Description", "Amount", "Submitted By", "Submitted Role"}
 		_ = writer.Write(header)
 
@@ -94,16 +94,14 @@ func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "all_combined":
-		// Export detailed combined sheet (Summary row followed by itemized expense lines)
 		header := []string{
-			"Record Type", "Report Date", "Total Sale", "Credit Card Sale", "Bank Transfer", 
-			"Other Payments Total", "Expected Cash", "Counter Cash", "Difference", 
+			"Record Type", "Report Date", "Total Sale", "Credit Card Sale", "Bank Transfer",
+			"Other Payments Total", "Expected Cash", "Counter Cash", "Difference",
 			"Expense Description", "Expense Amount", "Submitted By", "Notes", "Report ID",
 		}
 		_ = writer.Write(header)
 
 		for _, rep := range reports {
-			// Write summary record row
 			sumRow := []string{
 				"SUMMARY",
 				rep.ReportDate,
@@ -121,7 +119,6 @@ func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 			}
 			_ = writer.Write(sumRow)
 
-			// Write individual itemized expense rows for this report
 			for _, exp := range rep.Expenses {
 				expRow := []string{
 					"EXPENSE_ITEM",
@@ -138,7 +135,6 @@ func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 		}
 
 	default: // "summary"
-		// Export EOD Summary matching legacy Google Sheets "EOD Summary"
 		header := []string{
 			"Date",
 			"Total Sale",
@@ -179,8 +175,134 @@ func (h *ExportHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 			_ = writer.Write(row)
 		}
 	}
+
+	writer.Flush()
+
+	filename := fmt.Sprintf("wedrink_%s_%s.csv", exportMode, time.Now().Format("20060102_150405"))
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
+
+	_, _ = w.Write(buf.Bytes())
 }
 
-func (h *ExportHandler) serviceGetReportsForRange(ctx context.Context, startDate, endDate string) ([]models.EODReport, error) {
-	return h.reportService.GetReportsForRange(ctx, startDate, endDate)
+// ExportExcel generates a single .xlsx file containing 2 tabs ("EOD Summary" and "EOD Expenses"), matching legacy Google Sheets
+func (h *ExportHandler) ExportExcel(w http.ResponseWriter, r *http.Request) {
+	reports, err := h.getReportsFromRequest(r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Export database query error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	f := excelize.NewFile()
+	defer func() { _ = f.Close() }()
+
+	sheetSummary := "EOD Summary"
+	sheetExpenses := "EOD Expenses"
+
+	// Rename default sheet
+	f.SetSheetName("Sheet1", sheetSummary)
+
+	// Create second sheet for Expenses
+	_, err = f.NewSheet(sheetExpenses)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Excel sheet creation error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// -------------------------------------------------------------
+	// Tab 1: EOD Summary
+	// -------------------------------------------------------------
+	summaryHeaders := []interface{}{
+		"Date", "Total Sale", "Credit Card Sale", "Bank Transfer", "Other Payments",
+		"Expected Cash", "Counter Cash", "Difference", "Report ID", "Submitted By", "Notes",
+	}
+
+	_ = f.SetSheetRow(sheetSummary, "A1", &summaryHeaders)
+
+	for i, rep := range reports {
+		rowNum := i + 2
+		rowData := []interface{}{
+			rep.ReportDate,
+			rep.TotalSale,
+			rep.CreditSale,
+			rep.BankTransfer,
+			rep.OtherPayments,
+			rep.ExpectedCash,
+			rep.CounterCash,
+			rep.Difference,
+			rep.ReportID,
+			rep.SubmittedBy,
+			rep.Notes,
+		}
+		cellAddr := fmt.Sprintf("A%d", rowNum)
+		_ = f.SetSheetRow(sheetSummary, cellAddr, &rowData)
+	}
+
+	// -------------------------------------------------------------
+	// Tab 2: EOD Expenses
+	// -------------------------------------------------------------
+	expenseHeaders := []interface{}{
+		"Report ID", "Date", "Description", "Amount", "Submitted By", "Submitted Role",
+	}
+
+	_ = f.SetSheetRow(sheetExpenses, "A1", &expenseHeaders)
+
+	expRowIdx := 2
+	for _, rep := range reports {
+		for _, exp := range rep.Expenses {
+			expRowData := []interface{}{
+				rep.ReportID,
+				rep.ReportDate,
+				exp.Description,
+				exp.Amount,
+				rep.SubmittedBy,
+				rep.SubmittedByRole,
+			}
+			cellAddr := fmt.Sprintf("A%d", expRowIdx)
+			_ = f.SetSheetRow(sheetExpenses, cellAddr, &expRowData)
+			expRowIdx++
+		}
+	}
+
+	// Auto-fit column widths across both sheets
+	autoFitColumns(f, sheetSummary)
+	autoFitColumns(f, sheetExpenses)
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to write excel file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	filename := fmt.Sprintf("wedrink_eod_report_%s.xlsx", time.Now().Format("20060102_150405"))
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
+
+	_, _ = w.Write(buf.Bytes())
+}
+
+func autoFitColumns(f *excelize.File, sheet string) {
+	cols, err := f.GetCols(sheet)
+	if err != nil {
+		return
+	}
+	for i, col := range cols {
+		maxLen := 0
+		for _, cell := range col {
+			if len(cell) > maxLen {
+				maxLen = len(cell)
+			}
+		}
+		colName, err := excelize.ColumnNumberToName(i + 1)
+		if err == nil {
+			width := float64(maxLen) + 4
+			if width < 12 {
+				width = 12
+			}
+			_ = f.SetColWidth(sheet, colName, colName, width)
+		}
+	}
 }

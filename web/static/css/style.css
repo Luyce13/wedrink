@@ -125,11 +125,27 @@ html.theme-light textarea:focus {
 }
 
 /* ── Keyboard hint badges ── */
+.kbd-hint { color: #64748b; font-size: 0.75rem; margin-left: 0.25rem; }
 html.theme-light .kbd-hint { color: #64748b !important; font-weight: 500 !important; }
 html.theme-light kbd {
   background-color: #f1f5f9 !important;
   color: #b45309 !important;
   border-color: #cbd5e1 !important;
+}
+
+/* ── Hide keyboard shortcut visuals on touch / mobile devices ── */
+@media (pointer: coarse), (hover: none), (max-width: 768px) {
+  .kbd-hint,
+  .kbd-shortcut,
+  kbd {
+    display: none !important;
+  }
+}
+
+html.is-touch-device .kbd-hint,
+html.is-touch-device .kbd-shortcut,
+html.is-touch-device kbd {
+  display: none !important;
 }
 
 /* ── Sticky table header ── */
@@ -757,4 +773,56 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   height: 28px;
   background-color: var(--border);
   flex-shrink: 0;
+}
+
+/* ─── Instant WhatsApp-Style Page Slide Transitions ─── */
+.slide-out-left {
+  animation: slideOutLeft 0.12s ease-out forwards;
+}
+.slide-out-right {
+  animation: slideOutRight 0.12s ease-out forwards;
+}
+.slide-in-left {
+  animation: slideInLeft 0.12s ease-out forwards;
+}
+.slide-in-right {
+  animation: slideInRight 0.12s ease-out forwards;
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-24px); opacity: 0; }
+}
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(24px); opacity: 0; }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Alert Banner Animations & Dismissal */
+.alert-banner, .alert-box {
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), margin 0.35s ease, padding 0.35s ease;
+  max-height: 250px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.alert-banner.dismissing, .alert-box.dismissing {
+  opacity: 0 !important;
+  transform: translateY(-8px) scale(0.98) !important;
+  max-height: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-width: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
 }

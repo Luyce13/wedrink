@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"wedrink/internal/models"
@@ -24,8 +25,12 @@ func (sm *SessionManager) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("wedrink_session")
 		if err == nil && cookie.Value != "" {
-			// Format: username:role:fullname
-			parts := strings.Split(cookie.Value, "|")
+			val, errUnescape := url.QueryUnescape(cookie.Value)
+			if errUnescape != nil || val == "" {
+				val = cookie.Value
+			}
+			// Format: username|role|fullname
+			parts := strings.Split(val, "|")
 			if len(parts) >= 3 {
 				user := &models.User{
 					Username: parts[0],

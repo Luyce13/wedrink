@@ -58,6 +58,7 @@ func main() {
 	// Services
 	authService := services.NewAuthService(userRepo)
 	reportService := services.NewReportService(reportRepo)
+	userService := services.NewUserService(userRepo)
 
 	// HTML Template setup with custom FuncMap
 	funcMap := template.FuncMap{
@@ -80,39 +81,24 @@ func main() {
 			if l <= 3 {
 				result.WriteString(s)
 			} else {
-				// First group: last 3 digits
-				first := l % 2
-				if first == 0 {
-					first = 2 // en-IN groups of 2 after first 3
+				last3 := s[l-3:]
+				prefix := s[:l-3]
+				var parts []string
+				for len(prefix) > 2 {
+					parts = append([]string{prefix[len(prefix)-2:]}, parts...)
+					prefix = prefix[:len(prefix)-2]
 				}
-				// Simple comma every 3 for the last three, then every 2
-				// Easier: just format in groups of 3 from right, then 2
-				// Use a straightforward approach:
-				if l <= 3 {
-					result.WriteString(s)
-				} else {
-					// last 3
-					last3 := s[l-3:]
-					prefix := s[:l-3]
-					// split prefix in groups of 2 from right
-					var parts []string
-					for len(prefix) > 2 {
-						parts = append([]string{prefix[len(prefix)-2:]}, parts...)
-						prefix = prefix[:len(prefix)-2]
-					}
-					if len(prefix) > 0 {
-						parts = append([]string{prefix}, parts...)
-					}
-					parts = append(parts, last3)
-					result.WriteString(strings.Join(parts, ","))
+				if len(prefix) > 0 {
+					parts = append([]string{prefix}, parts...)
 				}
+				parts = append(parts, last3)
+				result.WriteString(strings.Join(parts, ","))
 			}
 			if val < 0 {
 				return "-" + result.String()
 			}
 			return result.String()
 		},
-		// not returns the boolean negation — used in template conditionals
 		"not": func(v bool) bool { return !v },
 	}
 
@@ -126,6 +112,7 @@ func main() {
 	reportHandler := handlers.NewReportHandler(reportService, renderer)
 	dashboardHandler := handlers.NewDashboardHandler(reportService, renderer)
 	exportHandler := handlers.NewExportHandler(reportService)
+	userHandler := handlers.NewUserHandler(userService, renderer)
 
 	sessionMgr := middleware.NewSessionManager(cfg.SessionSecret)
 
@@ -165,6 +152,14 @@ func main() {
 	mux.HandleFunc("DELETE /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
 	mux.HandleFunc("POST /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
 	mux.HandleFunc("GET /export/csv", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportCSV))
+	mux.HandleFunc("GET /export/excel", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportExcel))
+
+	// User Management (Super Admin)
+	mux.HandleFunc("GET /admin/users", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.RenderUserList))
+	mux.HandleFunc("POST /admin/users/create", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleCreateUser))
+	mux.HandleFunc("GET /admin/users/edit", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.RenderEditUserModal))
+	mux.HandleFunc("POST /admin/users/edit", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleEditUser))
+	mux.HandleFunc("POST /admin/users/delete", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleDeleteUser))
 
 	// Global Middlewares (Logger + Auth Context Injection)
 	handler := middleware.Logger(sessionMgr.AuthMiddleware(mux))

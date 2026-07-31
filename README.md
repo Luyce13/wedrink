@@ -60,6 +60,9 @@ export SESSION_SECRET="wedrink-secret-session-key-2026"
 # Build the binary
 go build -o bin/wedrink ./cmd/server
 
+# Seed sample monthly data (Optional)
+go run ./cmd/seed
+
 # Run the server
 ./bin/wedrink
 ```
@@ -79,6 +82,21 @@ The application automatically seeds initial demo accounts when first launched:
 
 ---
 
+## AI Agent Knowledge & Architecture Skills
+
+This repository includes pre-built workspace agent rules and skills under `.agents/` so that AI coding assistants can navigate and work on the codebase without extensive onboarding:
+
+- **Agent Rules**: [`.agents/AGENTS.md`](file:///home/luyce/Documents/Personal/wedrink/.agents/AGENTS.md)
+- **Core Agent Skill**: [`.agents/skills/wedrink-codebase/SKILL.md`](file:///home/luyce/Documents/Personal/wedrink/.agents/skills/wedrink-codebase/SKILL.md)
+- **Detailed References**:
+  - [Architecture & Routing Guide](file:///home/luyce/Documents/Personal/wedrink/.agents/skills/wedrink-codebase/references/architecture.md)
+  - [Financial Reconciliation Math](file:///home/luyce/Documents/Personal/wedrink/.agents/skills/wedrink-codebase/references/eod_reconciliation_math.md)
+  - [Data Models & MongoDB Guide](file:///home/luyce/Documents/Personal/wedrink/.agents/skills/wedrink-codebase/references/data_models_and_mongo.md)
+  - [HTMX & Frontend Dynamic Components](file:///home/luyce/Documents/Personal/wedrink/.agents/skills/wedrink-codebase/references/htmx_and_frontend.md)
+  - [Legacy Apps Script Parity](file:///home/luyce/Documents/Personal/wedrink/.agents/skills/wedrink-codebase/references/legacy_migration.md)
+
+---
+
 ## API & HTMX Endpoints
 
 - `GET /login` / `POST /login`: Authentication
@@ -92,3 +110,4 @@ The application automatically seeds initial demo accounts when first launched:
 - `DELETE /reports/delete`: Delete Report (Manager Only)
 - `GET /export/csv`: Export Reports to CSV (`?type=all`, `?month=YYYY-MM`, or `?ids=id1,id2`)
 - `GET /health`: Health Check Endpoint
+

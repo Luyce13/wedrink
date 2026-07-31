@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -19,7 +20,8 @@ func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, username, password string) (*models.User, error) {
-	user, err := s.userRepo.FindByUsername(ctx, username)
+	cleanUsername := strings.ToLower(strings.TrimSpace(username))
+	user, err := s.userRepo.FindByUsername(ctx, cleanUsername)
 	if err != nil {
 		return nil, fmt.Errorf("authentication error: %w", err)
 	}

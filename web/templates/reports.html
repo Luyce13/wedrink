@@ -42,10 +42,16 @@
       <div class="flex gap-2">
         <button type="submit" class="btn btn-primary text-xs py-1.5 px-3">Apply</button>
         <a href="/reports" class="btn btn-[#080e1e] text-xs py-1.5 px-3 text-slate-400 border-[#1e2d4a] hover:text-white">Reset</a>
-        {{if .User.CanExportData}}
-        <a href="/export/csv?type=all" class="btn btn-secondary text-xs py-1.5 px-3 text-emerald-300 border-emerald-500/30">Export CSV</a>
-        {{end}}
       </div>
+
+      {{if .User.CanExportData}}
+      <div class="ml-auto">
+        <button type="button" onclick="triggerUnifiedExport()" class="btn bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 text-xs py-1.5 px-3 flex items-center gap-1.5 font-medium shadow-sm transition" title="Export to Excel (.xlsx 2-Tab)">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Export
+        </button>
+      </div>
+      {{end}}
     </form>
   </div>
 

@@ -4,6 +4,76 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+  // Escape HTML entities to prevent XSS vulnerabilities
+  function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Detect touch / mobile device without external keyboard
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches) {
+    document.documentElement.classList.add('is-touch-device');
+  }
+
+  /* ─────────────────────────────────────────────────────
+     ALERT AUTO-DISMISS & MANUAL CLOSE (4 SECONDS FADE OUT)
+  ───────────────────────────────────────────────────── */
+  window.dismissAlert = function(el) {
+    if (!el || el._isDismissing) return;
+    el._isDismissing = true;
+    el.classList.add('dismissing');
+
+    setTimeout(() => {
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    }, 360);
+
+    // Strip success and error query parameters from URL without reloading
+    if (window.location.search.includes('success=') || window.location.search.includes('error=')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('success');
+      url.searchParams.delete('error');
+      history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
+    }
+  };
+
+  window.initAlertAutoDismiss = function() {
+    const alertSelectors = [
+      '.alert-banner',
+      '.alert-box',
+      '[id*="login-error"]',
+      '[id*="login-success"]'
+    ];
+
+    document.querySelectorAll(alertSelectors.join(',')).forEach(banner => {
+      if (banner._autoDismissInited) return;
+      banner._autoDismissInited = true;
+
+      // Add close button if not present
+      if (!banner.querySelector('button')) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '✕';
+        btn.className = 'text-current opacity-70 hover:opacity-100 text-sm px-2 ml-auto cursor-pointer shrink-0';
+        btn.onclick = () => window.dismissAlert(banner);
+        banner.appendChild(btn);
+      }
+
+      // Auto dismiss after 4 seconds (4000ms)
+      setTimeout(() => {
+        window.dismissAlert(banner);
+      }, 4000);
+    });
+  };
+
+  initAlertAutoDismiss();
+
   /* ─────────────────────────────────────────────────────
      HTMX HOOKS
   ───────────────────────────────────────────────────── */
@@ -19,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#expenses-container > .expense-row').forEach(bindExpenseRow);
     // Re-number badges
     reNumberRows();
+    // Auto-dismiss newly rendered alert banners
+    window.initAlertAutoDismiss();
   });
 
   /* ─────────────────────────────────────────────────────
@@ -246,7 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dpLabel) return;
     if (dpSelected) {
       const d = dpSelected;
-      dpLabel.textContent = `${String(d.getDate()).padStart(2,'0')} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+      const monthName = MONTH_SHORT[d.getMonth() % 12] || '';
+      dpLabel.textContent = `${String(d.getDate()).padStart(2,'0')} ${monthName} ${d.getFullYear()}`;
       dpLabel.classList.remove('placeholder');
     } else {
       dpLabel.textContent = 'Select date';
@@ -258,7 +331,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dpGrid) return;
     // Update the visible month/year label (inside the dp-spin-open trigger button)
     const headerSpan = document.querySelector('#dp-spin-open > span');
-    if (headerSpan) headerSpan.textContent = `${MONTH_LONG[dpViewMonth]} ${dpViewYear}`;
+    if (headerSpan) {
+      const monthLongName = MONTH_LONG[dpViewMonth % 12] || '';
+      headerSpan.textContent = `${monthLongName} ${dpViewYear}`;
+    }
 
     const today   = new Date();
     const first   = new Date(dpViewYear, dpViewMonth, 1);
@@ -289,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!c.outside && dpIsSame(cd, today))    cls += ' today';
       if (dpSelected && dpIsSame(cd, dpSelected)) cls += ' selected';
       if (dpFocused  && dpIsSame(cd, dpFocused))  cls += ' focused';
-      return `<button type="button" class="${cls}" data-y="${c.y}" data-m="${c.m}" data-d="${c.d}">${c.d}</button>`;
+      return `<button type="button" class="${escapeHTML(cls)}" data-y="${Number(c.y)}" data-m="${Number(c.m)}" data-d="${Number(c.d)}">${Number(c.d)}</button>`;
     }).join('');
 
     dpGrid.querySelectorAll('.cal-day').forEach(btn => {
@@ -349,14 +425,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!mCol._built) {
       mCol.innerHTML = '<div class="spinner-highlight"></div><div id="dp-month-track"></div>';
       document.getElementById('dp-month-track').innerHTML =
-        MONTH_SHORT.map((m,i)=>`<div class="spinner-item" data-index="${i}">${m}</div>`).join('');
+        MONTH_SHORT.map((m,i)=>`<div class="spinner-item" data-index="${Number(i)}">${escapeHTML(m)}</div>`).join('');
       wireSpinner(mCol, MONTH_SHORT.length, (idx) => { spMonthIdx = idx; });
       mCol._built = true;
     }
     if (!yCol._built) {
       yCol.innerHTML = '<div class="spinner-highlight"></div><div id="dp-year-track"></div>';
       document.getElementById('dp-year-track').innerHTML =
-        YEAR_LIST.map((y,i)=>`<div class="spinner-item" data-index="${i}">${y}</div>`).join('');
+        YEAR_LIST.map((y,i)=>`<div class="spinner-item" data-index="${Number(i)}">${escapeHTML(String(y))}</div>`).join('');
       wireSpinner(yCol, YEAR_LIST.length, (idx) => { spYearIdx = idx; });
       yCol._built = true;
     }
@@ -505,13 +581,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'expense-row';
     row.innerHTML = `
-      <span class="row-badge" title="Click to focus · Shift-click to delete">${rowCount}</span>
+      <span class="row-badge" title="Click to focus · Shift-click to delete">${Number(rowCount)}</span>
       <div class="desc-input">
-        <input type="text" name="expenseDesc[]" value="${descVal}"
+        <input type="text" name="expenseDesc[]" value="${escapeHTML(descVal)}"
                placeholder="Description" class="glass-input text-xs" autocomplete="off">
       </div>
       <div class="amt-input">
-        <input type="text" inputmode="numeric" name="expenseAmount[]" value="${amtVal}"
+        <input type="text" inputmode="numeric" name="expenseAmount[]" value="${escapeHTML(amtVal)}"
                placeholder="0" class="glass-input number-input text-xs">
       </div>
       <button type="button" class="del-btn" title="Remove row">
@@ -571,10 +647,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Alt shortcuts work EVEN when a field is focused — that's the whole point
     if (e.altKey) {
       const map = { d:'dp-trigger', s:'totalSale', c:'creditSale', b:'bankTransfer', k:'counterCash', a:null };
-      if (map.hasOwnProperty(e.key.toLowerCase())) {
+      const k = e.key.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(map, k)) {
         e.preventDefault();
-        if (e.key.toLowerCase() === 'a') { addExpenseRow(); return; }
-        document.getElementById(map[e.key.toLowerCase()])?.focus();
+        if (k === 'a') { addExpenseRow(); return; }
+        const targetId = map[k];
+        if (targetId) document.getElementById(targetId)?.focus();
         return;
       }
     }
@@ -595,8 +673,10 @@ document.addEventListener('DOMContentLoaded', () => {
      MODAL / OVERLAYS
   ───────────────────────────────────────────────────── */
   window.closeModal = function() {
-    document.getElementById('report-modal-container')?.replaceChildren();
+    const reportModal = document.getElementById('report-modal-container');
+    if (reportModal) reportModal.innerHTML = '';
     document.getElementById('global-shortcuts-modal')?.remove();
+    document.querySelectorAll('.modal-backdrop, .modal-overlay').forEach(m => m.remove());
   };
 
   window.toggleShortcutsModal = function() {
@@ -630,8 +710,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ['This guide',               '?',            'text-slate-300'],
           ].map(([action,key,klass])=>`
             <div class="flex items-center justify-between py-1.5 gap-2">
-              <span class="text-slate-400">${action}</span>
-              <kbd class="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded ${klass} font-mono text-[10px] shrink-0">${key}</kbd>
+              <span class="text-slate-400">${escapeHTML(action)}</span>
+              <kbd class="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded ${escapeHTML(klass)} font-mono text-[10px] shrink-0">${escapeHTML(key)}</kbd>
             </div>
           `).join('')}
         </div>
@@ -852,10 +932,295 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   /* ─────────────────────────────────────────────────────
-     REPORTS TABLE — select all
+     REPORTS TABLE — select all & unified export
   ───────────────────────────────────────────────────── */
   window.selectAllReports = function(masterCb) {
     document.querySelectorAll('.report-select-checkbox').forEach(cb => { cb.checked = masterCb.checked; });
   };
+
+  window.triggerUnifiedExport = function() {
+    const selected = Array.from(document.querySelectorAll('.report-select-checkbox:checked')).map(cb => cb.value);
+    let url = '/export/excel';
+
+    if (selected.length > 0) {
+      url += '?ids=' + encodeURIComponent(selected.join(','));
+    } else {
+      const form = document.querySelector('form[hx-get="/reports"]');
+      if (form) {
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        params.set('type', 'all');
+        for (const [key, value] of formData.entries()) {
+          if (value && key !== 'partial') {
+            params.set(key, value);
+          }
+        }
+        url += '?' + params.toString();
+      } else {
+        url += '?type=all';
+      }
+    }
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wedrink_eod_report.xlsx';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  window.exportSelectedRows = function(format) {
+    window.triggerUnifiedExport();
+  };
+
+  /* ─────────────────────────────────────────────────────
+     INSTANT MOBILE TOUCH SWIPE & TAB NAVIGATION (WhatsApp style)
+  ───────────────────────────────────────────────────── */
+  (function initTouchSwipeNavigation() {
+    const pageCache = new Map();
+
+    // Cache initial page main content
+    const mainEl = document.getElementById('app-main-content') || document.querySelector('main');
+    if (mainEl) {
+      pageCache.set(window.location.pathname, mainEl.innerHTML);
+    }
+
+    // Background pre-fetch of tab pages for instant (0ms) switching
+    function prefetchRoutes() {
+      const navLinks = document.querySelectorAll('#mobile-nav-bar a.mobile-nav-item, nav a[href]');
+      navLinks.forEach(link => {
+        const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
+        if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/profile') && !pageCache.has(href)) {
+          fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, 'text/html');
+              const fetchedMain = doc.querySelector('#app-main-content') || doc.querySelector('main');
+              if (fetchedMain) {
+                pageCache.set(href, fetchedMain.innerHTML);
+              }
+            })
+            .catch(() => {});
+        }
+      });
+    }
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(prefetchRoutes);
+    } else {
+      setTimeout(prefetchRoutes, 200);
+    }
+
+    // Instant Page Swap Function (0ms response)
+    window.navigateToTabInstant = function(targetRoute, direction = 'left') {
+      const currentPath = window.location.pathname;
+      if (currentPath === targetRoute) return;
+
+      const mainContainer = document.getElementById('app-main-content') || document.querySelector('main');
+      if (!mainContainer) {
+        window.location.href = targetRoute;
+        return;
+      }
+
+      updateActiveNavLinks(targetRoute);
+
+      const outClass = direction === 'left' ? 'slide-out-left' : 'slide-out-right';
+      const inClass = direction === 'left' ? 'slide-in-right' : 'slide-in-left';
+
+      const renderContent = (newHTML) => {
+        mainContainer.className = mainContainer.className.replace(/slide-\S+/g, '').trim();
+        mainContainer.classList.add(outClass);
+
+        setTimeout(() => {
+          mainContainer.innerHTML = newHTML;
+          pageCache.set(targetRoute, newHTML);
+          history.pushState({ path: targetRoute }, '', targetRoute);
+
+          // Re-bind HTMX & component listeners
+          if (window.htmx) htmx.process(mainContainer);
+          if (window.initAlertAutoDismiss) window.initAlertAutoDismiss();
+          document.body.dispatchEvent(new Event('htmx:afterSwap'));
+          window.scrollTo({ top: 0, behavior: 'instant' });
+
+          mainContainer.classList.remove(outClass);
+          mainContainer.classList.add(inClass);
+
+          setTimeout(() => {
+            mainContainer.classList.remove(inClass);
+          }, 120);
+        }, 60);
+      };
+
+      if (pageCache.has(targetRoute)) {
+        renderContent(pageCache.get(targetRoute));
+      } else {
+        fetch(targetRoute)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const fetchedMain = doc.querySelector('#app-main-content') || doc.querySelector('main');
+            if (fetchedMain) {
+              renderContent(fetchedMain.innerHTML);
+            } else {
+              window.location.href = targetRoute;
+            }
+          })
+          .catch(() => {
+            window.location.href = targetRoute;
+          });
+      }
+    };
+
+    function updateActiveNavLinks(targetRoute) {
+      document.querySelectorAll('nav a[href]').forEach(link => {
+        const href = link.getAttribute('href');
+        const isActive = href === targetRoute;
+        if (isActive) {
+          link.classList.add('bg-[#007C77]', 'text-white');
+          link.classList.remove('text-slate-400', 'hover:text-slate-200');
+        } else {
+          link.classList.remove('bg-[#007C77]', 'text-white');
+          link.classList.add('text-slate-400');
+        }
+      });
+
+      document.querySelectorAll('#mobile-nav-bar a.mobile-nav-item').forEach(link => {
+        const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
+        const isActive = href === targetRoute;
+        if (isActive) {
+          link.classList.add('text-[#00b4d8]', 'bg-[#131f3a]');
+          link.classList.remove('text-slate-400');
+        } else {
+          link.classList.remove('text-[#00b4d8]', 'bg-[#131f3a]');
+          link.classList.add('text-slate-400');
+        }
+      });
+    }
+
+    // Intercept clicks on mobile & header nav links for instant SPA switching
+    document.addEventListener('click', (e) => {
+      const navItem = e.target.closest('#mobile-nav-bar a.mobile-nav-item, nav a[href]');
+      if (!navItem) return;
+      const href = navItem.getAttribute('data-nav-href') || navItem.getAttribute('href');
+      if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/profile')) {
+        e.preventDefault();
+        const currentPath = window.location.pathname;
+        const routes = ['/', '/submit', '/reports', '/admin/users', '/profile'];
+        const fromIdx = routes.indexOf(currentPath);
+        const toIdx = routes.indexOf(href);
+        const dir = toIdx >= fromIdx ? 'left' : 'right';
+        window.navigateToTabInstant(href, dir);
+      }
+    });
+
+    // Support browser Back / Forward buttons
+    window.addEventListener('popstate', (e) => {
+      const path = window.location.pathname;
+      if (pageCache.has(path)) {
+        window.navigateToTabInstant(path, 'right');
+      } else {
+        window.location.reload();
+      }
+    });
+
+    // Touch Swipe Gesture Handling
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    function isInsideHorizontallyScrollable(el) {
+      let curr = el;
+      while (curr && curr !== document.body && curr !== document.documentElement) {
+        if (curr.nodeType === 1) {
+          const style = window.getComputedStyle(curr);
+          const overflowX = style.overflowX;
+          if ((overflowX === 'auto' || overflowX === 'scroll') && curr.scrollWidth > curr.clientWidth) {
+            return true;
+          }
+          if (curr.classList && (
+              curr.classList.contains('overflow-x-auto') ||
+              curr.classList.contains('date-panel') ||
+              curr.id === 'dp-panel' ||
+              curr.id === 'global-shortcuts-modal' ||
+              curr.id === 'report-modal-container'
+          )) {
+            return true;
+          }
+        }
+        curr = curr.parentElement;
+      }
+      return false;
+    }
+
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length !== 1) return;
+
+      const duration = Date.now() - touchStartTime;
+      if (duration > 600) return;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+
+      if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < 1.3 * Math.abs(deltaY)) {
+        return;
+      }
+
+      const target = document.elementFromPoint(touch.clientX, touch.clientY) || e.target;
+      if (isInsideHorizontallyScrollable(target)) {
+        return;
+      }
+
+      const navLinks = Array.from(document.querySelectorAll('#mobile-nav-bar a.mobile-nav-item, nav a[href]'));
+      if (navLinks.length === 0) return;
+
+      const routes = [];
+      navLinks.forEach(link => {
+        const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
+        if (href && !routes.includes(href) && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/profile')) {
+          routes.push(href);
+        }
+      });
+
+      if (routes.length < 2) return;
+
+      const currentPath = window.location.pathname;
+      let currentIndex = routes.indexOf(currentPath);
+      if (currentIndex === -1) {
+        if (currentPath === '' || currentPath === '/') currentIndex = routes.indexOf('/');
+        else if (currentPath.startsWith('/submit')) currentIndex = routes.indexOf('/submit');
+        else if (currentPath.startsWith('/reports')) currentIndex = routes.indexOf('/reports');
+        else if (currentPath.startsWith('/admin/users')) currentIndex = routes.indexOf('/admin/users');
+        else if (currentPath.startsWith('/profile')) currentIndex = routes.indexOf('/profile');
+      }
+
+      if (currentIndex === -1) return;
+
+      let targetIndex = -1;
+      let dir = 'left';
+      if (deltaX < 0 && currentIndex < routes.length - 1) {
+        targetIndex = currentIndex + 1;
+        dir = 'left';
+      } else if (deltaX > 0 && currentIndex > 0) {
+        targetIndex = currentIndex - 1;
+        dir = 'right';
+      }
+
+      if (targetIndex !== -1 && targetIndex !== currentIndex) {
+        window.navigateToTabInstant(routes[targetIndex], dir);
+      }
+    }, { passive: true });
+  })();
 
 });

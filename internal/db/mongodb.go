@@ -51,8 +51,11 @@ func Connect(cfg *config.Config) (*Database, error) {
 
 		usersCol := db.Collection("users")
 		_, _ = usersCol.Indexes().CreateOne(idxCtx, mongo.IndexModel{
-			Keys:    bson.D{{Key: "username", Value: 1}},
-			Options: options.Index().SetUnique(true).SetName("idx_unique_username"),
+			Keys: bson.D{{Key: "username", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("idx_unique_username").SetCollation(&options.Collation{
+				Locale:   "en",
+				Strength: 2,
+			}),
 		})
 	}()
 
