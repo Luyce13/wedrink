@@ -1,0 +1,54 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Go
+        uses: actions/setup-go@f157143b091418f4dd1e82860e8b1e5749304ad0 # v5.3.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run Vet & Code Checks
+        run: go vet ./...
+
+      - name: Run Tests
+        run: go test -v ./...
+
+      - name: Build Binary
+        run: go build -v -o bin/wedrink ./cmd/server
+
+  deploy:
+    name: Deploy to VPS (PM2)
+    needs: test-and-build
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            APP_DIR="${{ secrets.VPS_APP_DIR }}"
+            if [ -z "$APP_DIR" ]; then
+              APP_DIR="/var/www/wedrink"
+            fi
+            cd "$APP_DIR"
+            git pull origin master
+            go build -o bin/wedrink ./cmd/server
+            pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
