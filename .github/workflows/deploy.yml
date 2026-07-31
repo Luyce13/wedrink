@@ -52,4 +52,6 @@ jobs:
             cd "$APP_DIR"
             git pull origin master
             go build -o bin/wedrink ./cmd/server
+            [ -s "$HOME/.nvm/nvm.sh" ] && \. "$HOME/.nvm/nvm.sh" 2>/dev/null || true
+            export PATH="$PATH:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
