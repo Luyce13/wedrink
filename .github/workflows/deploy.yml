@@ -44,6 +44,15 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+            export PNPM_HOME="$HOME/.local/share/pnpm"
+            case ":$PATH:" in
+              *":$PNPM_HOME/bin:"*) ;;
+              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH:/usr/local/go/bin:$HOME/go/bin" ;;
+            esac
+            
             APP_DIR="${{ secrets.VPS_APP_DIR }}"
             if [ -z "$APP_DIR" ]; then
               APP_DIR="$HOME/wedrink"
@@ -52,6 +61,4 @@ jobs:
             cd "$APP_DIR"
             git pull origin master
             go build -o bin/wedrink ./cmd/server
-            [ -s "$HOME/.nvm/nvm.sh" ] && \. "$HOME/.nvm/nvm.sh" 2>/dev/null || true
-            export PATH="$PATH:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
