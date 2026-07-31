@@ -81,7 +81,7 @@ jobs:
 
             APP_DIR="${{ secrets.VPS_APP_DIR }}"
             if [ -z "$APP_DIR" ]; then
-              APP_DIR="$HOME/wedrink"
+              APP_DIR="/var/www/wedrink"
             fi
             eval APP_DIR="$APP_DIR"
             mkdir -p "$APP_DIR"
@@ -90,4 +90,9 @@ jobs:
             rm -f /tmp/release.tar.gz
 
             cd "$APP_DIR"
-            pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
+            if pm2 describe wedrink >/dev/null 2>&1; then
+              pm2 restart wedrink --update-env
+            else
+              pm2 start ./bin/wedrink --name wedrink --cwd "$APP_DIR"
+            fi
+            pm2 save
