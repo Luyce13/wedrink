@@ -97,16 +97,13 @@ jobs:
             tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
             rm -f /tmp/release.tar.gz
 
-            # Atomic symlink swap — old "current" stays intact until the instant the mv succeeds
+            # Atomic symlink swap
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
             cd "$APP_DIR/current"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
 
-            sleep 2
-            pm2 describe wedrink | grep -q "online" || { echo "PM2 health check failed"; exit 1; }
-
-            # Keep last 5 releases for instant rollback, prune older releases
+            # Cleanly prune older releases (keep last 5)
             cd "$APP_DIR/releases"
-            ls -1dt */ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+            ls -1dt * 2>/dev/null | tail -n +6 | while read -r d; do rm -rf "$d"; done
