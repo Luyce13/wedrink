@@ -1,30 +1,50 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>{{.Title}}</title>
 
+  <!-- Google Fonts: Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
   <!-- Primary stylesheet loaded first to prevent FOUC / forced layout -->
   <link rel="stylesheet" href="/static/css/style.css">
 
-  <!-- Favicon (Inline SVG Data URI to prevent 404) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23007C77'/><text y='70' x='20' font-size='70' font-weight='bold' fill='%23ffffff'>W</text></svg>">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/static/images/favicon.png">
 
   <!-- Tailwind CSS CDN -->
+  <script>
+    (function () {
+      const _warn = console.warn;
+      console.warn = function (...a) {
+        if (a[0] && typeof a[0] === 'string' && a[0].includes('cdn.tailwindcss.com')) return;
+        _warn.apply(console, a);
+      };
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Poppins', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
           colors: {
             brand: {
-              50: '#f0fdfa',
-              500: '#007C77',
-              600: '#006B67',
-              700: '#005A57',
-              900: '#0b1329',
+              50: '#fef2f2',
+              100: '#ffe1e1',
+              500: '#e50811',
+              600: '#c8060e',
+              700: '#a3040b',
+              900: '#1a1a1a',
             }
           }
         }
@@ -34,57 +54,58 @@
 
   <!-- Synchronous inline script to prevent theme flash (FOUC) and auto-sync with system -->
   <script>
-    (function() {
-      const storageKey = 'wedrink_theme';
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      (function () {
+        const storageKey = 'wedrink_theme';
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-      function applyTheme(theme) {
-        const isDark = theme === 'dark';
-        document.documentElement.classList.toggle('theme-light', !isDark);
-        document.documentElement.classList.toggle('dark', isDark);
-        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-      }
+        function applyTheme(theme) {
+          const isDark = theme === 'dark';
+          document.documentElement.classList.toggle('theme-light', !isDark);
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
 
-      function getSystemTheme() {
-        return mediaQuery.matches ? 'dark' : 'light';
-      }
+        function getSystemTheme() {
+          return mediaQuery.matches ? 'dark' : 'light';
+        }
 
-      function syncToSystem() {
-        localStorage.removeItem(storageKey);
-        applyTheme(getSystemTheme());
-      }
+        function syncToSystem() {
+          localStorage.removeItem(storageKey);
+          applyTheme(getSystemTheme());
+        }
 
-      function toggleTheme() {
+        function toggleTheme() {
+          const saved = localStorage.getItem(storageKey);
+          const current = saved === 'dark' || saved === 'light' ? saved : getSystemTheme();
+          const next = current === 'light' ? 'dark' : 'light';
+          localStorage.setItem(storageKey, next);
+          applyTheme(next);
+        }
+
+        window.applyTheme = applyTheme;
+        window.toggleTheme = toggleTheme;
+        window.syncThemeWithSystem = syncToSystem;
+
         const saved = localStorage.getItem(storageKey);
-        const current = saved === 'dark' || saved === 'light' ? saved : getSystemTheme();
-        const next = current === 'light' ? 'dark' : 'light';
-        localStorage.setItem(storageKey, next);
-        applyTheme(next);
-      }
+        if (saved === 'dark' || saved === 'light') {
+          applyTheme(saved);
+        } else {
+          applyTheme(getSystemTheme());
+        }
 
-      window.applyTheme = applyTheme;
-      window.toggleTheme = toggleTheme;
-      window.syncThemeWithSystem = syncToSystem;
-
-      const saved = localStorage.getItem(storageKey);
-      if (saved === 'dark' || saved === 'light') {
-        applyTheme(saved);
-      } else {
-        applyTheme(getSystemTheme());
-      }
-
-      if (typeof mediaQuery.addEventListener === 'function') {
-        mediaQuery.addEventListener('change', syncToSystem);
-      } else if (typeof mediaQuery.addListener === 'function') {
-        mediaQuery.addListener(syncToSystem);
-      }
-    })();
+        if (typeof mediaQuery.addEventListener === 'function') {
+          mediaQuery.addEventListener('change', syncToSystem);
+        } else if (typeof mediaQuery.addListener === 'function') {
+          mediaQuery.addListener(syncToSystem);
+        }
+      })();
   </script>
 
   <!-- HTMX 2.0.4 & App logic -->
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="/static/js/app.js" defer></script>
 </head>
+
 <body class="h-full text-slate-100 flex flex-col bg-[#0b1329] font-sans antialiased">
 
   <!-- Header -->
@@ -93,20 +114,25 @@
 
       <!-- Brand -->
       <div class="flex items-center gap-3">
-        <a href="/" class="flex items-center gap-2 text-base font-bold tracking-tight text-white hover:opacity-90 transition">
-          <div class="w-7 h-7 rounded bg-[#007C77] flex items-center justify-center font-black text-white text-sm shadow-md">W</div>
-          <span class="hidden sm:inline">Wedrink <span class="text-xs px-1.5 py-0.5 rounded bg-[#131f3a] text-cyan-300 font-semibold border border-[#1e2d4a]">EOD</span></span>
+        <a href="/"
+          class="flex items-center gap-2 text-base font-bold tracking-tight text-white hover:opacity-90 transition">
+          <img src="/static/images/logo.webp" alt="Wedrink Logo" class="h-8 w-auto object-contain">
+          <span class="hidden sm:inline font-bold text-white">EOD Report System</span>
         </a>
       </div>
 
       <!-- Desktop nav -->
       {{if .User}}
       <nav class="hidden md:flex items-center gap-1 bg-[#0b1329] p-1 rounded-lg border border-[#1e2d4a]">
-        <a href="/" class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "dashboard"}}bg-[#007C77] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Dashboard</a>
-        <a href="/submit" class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "submit"}}bg-[#007C77] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Submit Report</a>
+        <a href="/"
+          class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `dashboard` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Dashboard</a>
+        <a href="/submit"
+          class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `submit` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Submit Report</a>
         {{if .User.IsSuperAdmin}}
-        <a href="/reports" class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "reports"}}bg-[#007C77] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">History</a>
-        <a href="/admin/users" class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab "users"}}bg-[#007C77] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Users</a>
+        <a href="/reports"
+          class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `reports` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">History</a>
+        <a href="/admin/users"
+          class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `users` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Users</a>
         {{end}}
       </nav>
       {{end}}
@@ -116,27 +142,31 @@
 
         <!-- Theme Toggle Button (Light / Dark with Auto System Sync) -->
         <button type="button" onclick="if (window.toggleTheme) { window.toggleTheme(); }" id="theme-btn"
-                class="px-2.5 py-1.5 rounded bg-[#131f3a] border border-[#1e2d4a] text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold"
-                title="Toggle Light / Dark Theme">
+          class="px-2.5 py-1.5 rounded bg-[#131f3a] border border-[#1e2d4a] text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold"
+          title="Toggle Light / Dark Theme">
           <span id="theme-icon">🌙</span>
           <span id="theme-label" class="hidden sm:inline">Dark</span>
         </button>
 
         {{if .User}}
-          <div class="flex items-center gap-2 bg-[#131f3a] px-2.5 py-1.5 rounded border border-[#1e2d4a]">
-            <div class="w-6 h-6 rounded bg-[#0b1329] border border-[#1e2d4a] flex items-center justify-center font-bold text-xs text-[#00b4d8]">
-              {{slice .User.Username 0 1 | printf "%s"}}
-            </div>
-            <div class="hidden sm:block text-left">
-              <div class="text-xs font-bold text-slate-200">{{.User.FullName}}</div>
-              <div class="text-[10px] font-bold tracking-wider uppercase {{if .User.IsSuperAdmin}}text-amber-400{{else}}text-purple-400{{end}}">{{.User.Role}}</div>
-            </div>
+        <div class="flex items-center gap-2 bg-[#131f3a] px-2.5 py-1.5 rounded border border-[#1e2d4a]">
+          <div
+            class="w-6 h-6 rounded bg-[#0b1329] border border-[#1e2d4a] flex items-center justify-center font-bold text-xs text-[#00b4d8]">
+            {{slice .User.Username 0 1 | printf "%s"}}
           </div>
-          <form action="/logout" method="POST">
-            <button type="submit" class="px-2.5 py-1.5 rounded text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-[#131f3a] border border-[#1e2d4a] transition">Logout</button>
-          </form>
+          <div class="hidden sm:block text-left">
+            <div class="text-xs font-bold text-slate-200">{{.User.FullName}}</div>
+            <div
+              class="text-[10px] font-bold tracking-wider uppercase {{if .User.IsSuperAdmin}}text-amber-400{{else}}text-purple-400{{end}}">
+              {{.User.Role}}</div>
+          </div>
+        </div>
+        <form action="/logout" method="POST">
+          <button type="submit"
+            class="px-2.5 py-1.5 rounded text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-[#131f3a] border border-[#1e2d4a] transition">Logout</button>
+        </form>
         {{else}}
-          <a href="/login" class="btn btn-primary text-xs py-1.5 px-4">Sign In</a>
+        <a href="/login" class="btn btn-primary text-xs py-1.5 px-4">Sign In</a>
         {{end}}
       </div>
     </div>
@@ -144,11 +174,15 @@
     <!-- Mobile nav -->
     {{if .User}}
     <div id="mobile-nav-bar" class="md:hidden flex border-t border-[#1e2d4a] bg-[#060d1b] px-4 py-1.5 justify-around">
-      <a href="/" data-nav-href="/" class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab "dashboard"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Dashboard</a>
-      <a href="/submit" data-nav-href="/submit" class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab "submit"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Submit</a>
+      <a href="/" data-nav-href="/"
+        class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `dashboard` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">Dashboard</a>
+      <a href="/submit" data-nav-href="/submit"
+        class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `submit` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">Submit</a>
       {{if .User.IsSuperAdmin}}
-      <a href="/reports" data-nav-href="/reports" class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab "reports"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">History</a>
-      <a href="/admin/users" data-nav-href="/admin/users" class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab "users"}}text-[#00b4d8] bg-[#131f3a]{{else}}text-slate-400{{end}}">Users</a>
+      <a href="/reports" data-nav-href="/reports"
+        class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `reports` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">History</a>
+      <a href="/admin/users" data-nav-href="/admin/users"
+        class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `users` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">Users</a>
       {{end}}
     </div>
     {{end}}
@@ -165,9 +199,11 @@
   <!-- Footer -->
   <footer class="border-t border-[#1e2d4a] bg-[#060d1b] py-3 text-center text-xs text-slate-500">
     <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
-      <div class="kbd-hint">Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded font-mono text-cyan-300">?</kbd> for shortcuts</div>
+      <div class="kbd-hint">Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded font-mono text-cyan-300">?</kbd> for
+        shortcuts</div>
     </div>
   </footer>
 
 </body>
+
 </html>

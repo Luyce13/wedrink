@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --bg-main:    #0b1329;
   --bg-card:    #131f3a;
   --bg-header:  #060d1b;
@@ -10,6 +10,8 @@
   --border-mid: #2b3d63;
   --text-primary: #ffffff;
   --text-muted:   #94a3b8;
+  --brand-red:    #e50811;
+  --brand-red-hover: #c8060e;
   --cyan:  #007C77;
   --gold:  #fef08a;
 }
@@ -27,6 +29,8 @@ html.theme-light {
   --border-mid:   #94a3b8;
   --text-primary: #0f172a;
   --text-muted:   #334155;
+  --brand-red:    #e50811;
+  --brand-red-hover: #c8060e;
   --cyan:         #007C77;
   --gold:         #b45309;
 }
@@ -78,6 +82,31 @@ html.theme-light .text-slate-200   { color: #0f172a !important; font-weight: 700
 html.theme-light .text-slate-300   { color: #1e293b !important; font-weight: 700 !important; }
 html.theme-light .text-slate-400   { color: #334155 !important; font-weight: 600 !important; }
 html.theme-light .text-slate-500   { color: #475569 !important; font-weight: 600 !important; }
+
+/* Keep text crisp white on brand red buttons, badges, and active nav tabs */
+html.theme-light .bg-\[\#e50811\],
+html.theme-light .btn-primary,
+html.theme-light nav a.bg-\[\#e50811\],
+html.theme-light .bg-\[\#e50811\] * {
+  color: #ffffff !important;
+}
+
+/* ── Light Mode Header & Desktop Nav overrides ── */
+html.theme-light nav {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+html.theme-light nav a.bg-\[\#e50811\] {
+  background-color: #e50811 !important;
+  color: #ffffff !important;
+}
+html.theme-light nav a:not(.bg-\[\#e50811\]) {
+  color: #334155 !important;
+}
+html.theme-light nav a:not(.bg-\[\#e50811\]):hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
 
 /* ── Dashboard panel text ── */
 html.theme-light .dash-panels .text-white,
@@ -148,7 +177,15 @@ html.is-touch-device kbd {
   display: none !important;
 }
 
-/* ── Sticky table header ── */
+/* ── Table headers & rows (All tables: reports, users, etc.) ── */
+html.theme-light table thead tr {
+  background-color: #f1f5f9 !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+html.theme-light table thead th {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
 html.theme-light .sticky-thead th {
   position: sticky !important;
   top: 0 !important;
@@ -160,13 +197,43 @@ html.theme-light .sticky-thead th {
   box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
 }
 
-/* ── Report table rows ── */
-html.theme-light #report-table-body tr { background-color: #ffffff !important; }
-html.theme-light #report-table-body tr:nth-child(even) { background-color: #f8fafc !important; }
-html.theme-light #report-table-body td { color: #0f172a !important; border-color: #e2e8f0 !important; }
-html.theme-light #report-table-body .text-slate-100,
-html.theme-light #report-table-body .text-slate-200,
-html.theme-light #report-table-body .font-bold { color: #0f172a !important; }
+html.theme-light table tbody tr {
+  background-color: #ffffff !important;
+}
+html.theme-light table tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+html.theme-light table tbody tr:hover,
+html.theme-light table tbody tr.hover\:bg-\[\#0d162d\]:hover {
+  background-color: #f1f5f9 !important;
+}
+html.theme-light table td {
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+html.theme-light table td .text-white,
+html.theme-light table td .text-slate-100,
+html.theme-light table td .text-slate-200,
+html.theme-light table td .text-slate-300,
+html.theme-light table td .font-bold {
+  color: #0f172a !important;
+}
+html.theme-light table td .text-slate-400,
+html.theme-light table td .text-slate-500 {
+  color: #475569 !important;
+}
+
+/* Light mode table action button overrides */
+html.theme-light table .bg-indigo-950\/60,
+html.theme-light .bg-indigo-950\/60 {
+  background-color: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+html.theme-light table .bg-rose-950\/60,
+html.theme-light .bg-rose-950\/60 {
+  background-color: #ffe4e6 !important;
+  color: #9f1239 !important;
+}
 
 /* ── Badges (ok/surplus/deficit) ── */
 html.theme-light .badge-success { background-color: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
@@ -339,6 +406,20 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .glass-input::placeholder { color: #475569; }
 
+/* Native date input icon styling */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.85);
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+html.theme-light input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.2);
+}
+
 /* Number inputs right-aligned, comma-formatted display */
 .glass-input.number-input {
   text-align: right;
@@ -363,8 +444,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   line-height: 1.25rem;
   white-space: nowrap;
 }
-.btn-primary  { background-color: var(--cyan); color: var(--bg-main); border-color: #0096c7; }
-.btn-primary:hover  { background-color: #0096c7; color: #ffffff; }
+.btn-primary  { background-color: var(--brand-red, #e50811); color: #ffffff; border-color: var(--brand-red, #e50811); }
+.btn-primary:hover  { background-color: var(--brand-red-hover, #c8060e); color: #ffffff; border-color: var(--brand-red-hover, #c8060e); }
 .btn-secondary { background-color: #1e2d4a; border-color: #2b3d63; color: #ffffff; }
 .btn-secondary:hover { background-color: #2b3d63; }
 

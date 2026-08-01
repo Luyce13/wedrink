@@ -47,8 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const alertSelectors = [
       '.alert-banner',
       '.alert-box',
-      '[id*="login-error"]',
-      '[id*="login-success"]'
+      '.alert-dismissible'
     ];
 
     document.querySelectorAll(alertSelectors.join(',')).forEach(banner => {
@@ -91,6 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
     reNumberRows();
     // Auto-dismiss newly rendered alert banners
     window.initAlertAutoDismiss();
+    // Re-init date picker if present in swapped DOM
+    if (window.initDatePicker) window.initDatePicker();
   });
 
   /* ─────────────────────────────────────────────────────
@@ -213,6 +214,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ─────────────────────────────────────────────────────
      CUSTOM DATE PICKER
+  /* ─────────────────────────────────────────────────────
+     CUSTOM ACCESSIBLE DATE PICKER
   ───────────────────────────────────────────────────── */
   const WEEKDAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   const MONTH_LONG = ['January','February','March','April','May','June',
@@ -225,20 +228,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let dpOpen = false;
   let dpSpinnerOpen = false;
 
-  const dpTrigger    = document.getElementById('dp-trigger');
-  const dpPanel      = document.getElementById('dp-panel');
-  const dpHidden     = document.getElementById('reportDate');
-  const dpLabel      = document.getElementById('dp-label');
-  const dpGridView   = document.getElementById('dp-grid-view');
-  const dpSpinView   = document.getElementById('dp-spin-view');
-  const dpMonthLabel = document.getElementById('dp-month-label');
-  const dpGrid       = document.getElementById('dp-grid');
+  window.initDatePicker = function() {
+    const dpTrigger    = document.getElementById('dp-trigger');
+    const dpPanel      = document.getElementById('dp-panel');
+    const dpHidden     = document.getElementById('reportDate');
+    const dpLabel      = document.getElementById('dp-label');
 
-  if (dpTrigger && dpPanel) {
-    // Init: set to yesterday
+    if (!dpTrigger || !dpPanel || dpTrigger._dpInited) return;
+    dpTrigger._dpInited = true;
+
+    // Init: set to yesterday or hidden field value
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    // If the hidden input already has a value (edit mode or server prefill), use that
     if (dpHidden && dpHidden.value) {
       const parts = dpHidden.value.split('-');
       if (parts.length === 3) {
@@ -273,16 +274,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('dp-clear')?.addEventListener('click', () => { dpSelected=null; dpUpdateTrigger(); dpClose(); });
     document.getElementById('dp-spin-open')?.addEventListener('click', dpOpenSpinner);
     document.getElementById('dp-spin-back')?.addEventListener('click', dpCloseSpinner);
-  }
+  };
+
+  window.initDatePicker();
 
   function dpToggle() {
     dpOpen ? dpClose() : dpOpenPicker();
   }
 
   function dpOpenPicker() {
+    const dpPanel    = document.getElementById('dp-panel');
+    const dpTrigger  = document.getElementById('dp-trigger');
+    const dpSpinView = document.getElementById('dp-spin-view');
+    const dpGridView = document.getElementById('dp-grid-view');
+
+    if (!dpPanel) return;
     dpOpen = true;
     dpPanel.classList.remove('hidden');
-    // Reset UI to grid view without going through dpCloseSpinner
     dpSpinnerOpen = false;
     if (dpSpinView) dpSpinView.style.display = 'none';
     if (dpGridView) dpGridView.classList.remove('hidden');
@@ -290,44 +298,67 @@ document.addEventListener('DOMContentLoaded', () => {
     dpViewMonth = dpSelected ? dpSelected.getMonth()     : new Date().getMonth();
     dpFocused   = dpSelected ? new Date(dpSelected)      : null;
     dpRenderGrid();
-    dpTrigger.setAttribute('aria-expanded', 'true');
+    if (dpTrigger) dpTrigger.setAttribute('aria-expanded', 'true');
     if (window.clearFormErrors) window.clearFormErrors();
   }
 
   function dpClose() {
+    const dpPanel   = document.getElementById('dp-panel');
+    const dpTrigger = document.getElementById('dp-trigger');
+
     dpOpen = false;
-    dpPanel.classList.add('hidden');
-    dpTrigger.setAttribute('aria-expanded', 'false');
-    dpTrigger.focus();
+    if (dpPanel) dpPanel.classList.add('hidden');
+    if (dpTrigger) {
+      dpTrigger.setAttribute('aria-expanded', 'false');
+      dpTrigger.focus();
+    }
   }
 
   function dpSetDate(d, updateView) {
+    const dpHidden = document.getElementById('reportDate');
+    const oldVal   = dpHidden ? dpHidden.value : '';
+
     dpSelected = d ? new Date(d) : null;
     dpUpdateTrigger();
-    if (dpHidden) dpHidden.value = dpSelected ? dpIso(dpSelected) : '';
+    const newVal   = dpSelected ? dpIso(dpSelected) : '';
+    if (dpHidden) dpHidden.value = newVal;
+
     if (updateView && dpSelected) {
       dpViewYear  = dpSelected.getFullYear();
       dpViewMonth = dpSelected.getMonth();
     }
     if (dpOpen) dpRenderGrid();
-    triggerPreview();
+
+    const dashContainer = document.getElementById('dashboard-content');
+    if (dashContainer && newVal && oldVal && oldVal !== newVal) {
+      const url = '/?date=' + newVal + '&partial=true';
+      if (window.htmx) {
+        htmx.ajax('GET', url, { target: '#dashboard-content', swap: 'innerHTML' });
+        history.pushState({ path: '/?date=' + newVal }, '', '/?date=' + newVal);
+      }
+    } else {
+      triggerPreview();
+    }
+
     if (window.clearFormErrors) window.clearFormErrors();
   }
 
   function dpUpdateTrigger() {
-    if (!dpLabel) return;
+    const curLabel = document.getElementById('dp-label');
+    if (!curLabel) return;
     if (dpSelected) {
       const d = dpSelected;
       const monthName = MONTH_SHORT[d.getMonth() % 12] || '';
-      dpLabel.textContent = `${String(d.getDate()).padStart(2,'0')} ${monthName} ${d.getFullYear()}`;
-      dpLabel.classList.remove('placeholder');
+      curLabel.textContent = `${String(d.getDate()).padStart(2,'0')} ${monthName} ${d.getFullYear()}`;
+      curLabel.classList.remove('placeholder');
     } else {
-      dpLabel.textContent = 'Select date';
-      dpLabel.classList.add('placeholder');
+      curLabel.textContent = 'Select date';
+      curLabel.classList.add('placeholder');
     }
   }
 
   function dpRenderGrid() {
+    const dpGrid = document.getElementById('dp-grid');
     if (!dpGrid) return;
     // Update the visible month/year label (inside the dp-spin-open trigger button)
     const headerSpan = document.querySelector('#dp-spin-open > span');
@@ -414,6 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let spMonthIdx = 0, spYearIdx = 0;
 
   function dpOpenSpinner() {
+    const dpGridView = document.getElementById('dp-grid-view');
+    const dpSpinView = document.getElementById('dp-spin-view');
     dpSpinnerOpen = true;
     if (dpGridView)  dpGridView.classList.add('hidden');
     if (dpSpinView)  { dpSpinView.style.display = 'flex'; dpSpinView.style.flexDirection = 'column'; }
@@ -444,6 +477,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function dpCloseSpinner() {
+    const dpGridView = document.getElementById('dp-grid-view');
+    const dpSpinView = document.getElementById('dp-spin-view');
     dpSpinnerOpen = false;
     if (dpSpinView)  dpSpinView.style.display = 'none';
     if (dpGridView)  dpGridView.classList.remove('hidden');
@@ -1079,10 +1114,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const href = link.getAttribute('href');
         const isActive = href === targetRoute;
         if (isActive) {
-          link.classList.add('bg-[#007C77]', 'text-white');
-          link.classList.remove('text-slate-400', 'hover:text-slate-200');
+          link.classList.add('bg-[#e50811]', 'text-white');
+          link.classList.remove('bg-[#007C77]', 'text-slate-400', 'hover:text-slate-200');
         } else {
-          link.classList.remove('bg-[#007C77]', 'text-white');
+          link.classList.remove('bg-[#e50811]', 'bg-[#007C77]', 'text-white');
           link.classList.add('text-slate-400');
         }
       });
@@ -1091,14 +1126,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
         const isActive = href === targetRoute;
         if (isActive) {
-          link.classList.add('text-[#00b4d8]', 'bg-[#131f3a]');
-          link.classList.remove('text-slate-400');
+          link.classList.add('text-[#e50811]', 'bg-[#131f3a]');
+          link.classList.remove('text-[#00b4d8]', 'text-slate-400');
         } else {
-          link.classList.remove('text-[#00b4d8]', 'bg-[#131f3a]');
+          link.classList.remove('text-[#e50811]', 'text-[#00b4d8]', 'bg-[#131f3a]');
           link.classList.add('text-slate-400');
         }
       });
     }
+
+    // Sync active nav links on initial load
+    updateActiveNavLinks(window.location.pathname);
 
     // Intercept clicks on mobile & header nav links for instant SPA switching
     document.addEventListener('click', (e) => {

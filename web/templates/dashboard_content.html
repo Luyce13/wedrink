@@ -12,10 +12,74 @@
        href="/?date={{.PrevDate}}"
        class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold" title="Previous day (←)">◄</a>
 
-    <input type="date" name="date" value="{{.ReportDate}}"
-           hx-get="/" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="true"
-           hx-trigger="change" hx-vals='{"partial": "true"}'
-           class="glass-input font-bold text-xs text-center py-1.5 px-2 bg-[#fef08a] border-yellow-400/60 text-slate-900 rounded w-36 cursor-pointer">
+    <!-- Custom accessible date picker trigger for Dashboard -->
+    <div class="relative input-wrap">
+      <button type="button" id="dp-trigger" class="date-trigger text-xs py-1.5 px-3 font-bold"
+              aria-haspopup="true" aria-expanded="false">
+        <span id="dp-label" class="text-xs font-bold"></span>
+        <svg class="dt-icon w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/>
+          <line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/>
+          <line x1="8"  y1="2" x2="8"  y2="6" stroke-width="2"/>
+          <line x1="3"  y1="10" x2="21" y2="10" stroke-width="2"/>
+        </svg>
+      </button>
+
+      <input type="hidden" id="reportDate" name="date" value="{{.ReportDate}}">
+
+      <!-- Dropdown panel -->
+      <div id="dp-panel" class="date-panel hidden">
+
+        <!-- Grid view -->
+        <div id="dp-grid-view" class="cal-grid-view">
+          <div class="cal-header">
+            <button type="button" id="dp-prev" class="cal-nav" aria-label="Previous month">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg>
+            </button>
+            <button type="button" id="dp-spin-open" class="cal-month-label">
+              <span></span>
+              <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" stroke-width="2.5"/></svg>
+            </button>
+            <button type="button" id="dp-next" class="cal-nav" aria-label="Next month">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke-width="2.5"/></svg>
+            </button>
+          </div>
+
+          <div id="dp-month-label" style="display:none"><span></span></div>
+
+          <div class="cal-weekdays">
+            <div class="cal-weekday weekend">Su</div>
+            <div class="cal-weekday">Mo</div>
+            <div class="cal-weekday">Tu</div>
+            <div class="cal-weekday">We</div>
+            <div class="cal-weekday">Th</div>
+            <div class="cal-weekday">Fr</div>
+            <div class="cal-weekday weekend">Sa</div>
+          </div>
+          <div id="dp-grid" class="cal-grid"></div>
+
+          <div class="cal-footer">
+            <button type="button" id="dp-clear" class="cal-footer-btn">Clear</button>
+            <button type="button" id="dp-today" class="cal-footer-btn">Today</button>
+          </div>
+        </div>
+
+        <!-- Spinner view -->
+        <div id="dp-spin-view" class="cal-spinner-view">
+          <div class="spinner-back-btn">
+            <button type="button" id="dp-spin-back" class="cal-month-label">
+              <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15" stroke-width="2.5"/></svg>
+              <span>Done</span>
+            </button>
+          </div>
+          <div class="spinner-cols">
+            <div class="spinner-col" id="dp-month-col"></div>
+            <div class="spinner-col" id="dp-year-col"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
     <a id="dash-next-day"
        hx-get="/?date={{.NextDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.NextDate}}"
