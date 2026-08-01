@@ -35,7 +35,7 @@ jobs:
           wait $PID_TEST || { echo "go test failed"; exit 1; }
           wait $PID_BUILD || { echo "go build failed"; exit 1; }
 
-      - name: Package Deployment Artifact
+      - name: Fast Package Deployment Artifact
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           tar -czf release.tar.gz bin/wedrink web/
