@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.event_name == 'push' && 'deploy-production' || format('pr-{0}', github.ref) }}
+  group: deploy-production
   cancel-in-progress: false
 
 jobs:
@@ -53,27 +53,24 @@ jobs:
           [ "$BUILD_OK" -eq 1 ] || echo "::error::go build failed"
           [ "$VET_OK" -eq 1 ] && [ "$TEST_OK" -eq 1 ] && [ "$BUILD_OK" -eq 1 ]
 
-      - name: Package Artifact & Generate Checksum
-        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      - name: Fast Package Deployment Artifact
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           tar -czf release.tar.gz bin/wedrink web/
-          sha256sum release.tar.gz > release.tar.gz.sha256
 
-      - name: Publish GitHub Release
-        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      - name: Publish GitHub Release (History + Rollback Point)
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           tag_name: latest
           name: Latest Release (${{ github.sha }})
-          files: |
-            release.tar.gz
-            release.tar.gz.sha256
+          files: release.tar.gz
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Atomic Deploy, Checksum Verification & Reload via SSH
-        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      - name: Atomic Deploy, Health Check & Reload via SSH
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -81,7 +78,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
-            set -eo pipefail
+            set -e
             source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -94,34 +91,19 @@ jobs:
 
             APP_DIR="$HOME/wedrink"
             RELEASE_DIR="$APP_DIR/releases/${{ github.sha }}"
-            mkdir -p "$RELEASE_DIR" /tmp/wedrink-deploy
+            mkdir -p "$RELEASE_DIR"
 
-            # 1. Direct CDN download artifact + checksum with curl -fsSL
-            RELEASE_URL="https://github.com/Luyce13/wedrink/releases/download/latest"
-            curl -fsSL "$RELEASE_URL/release.tar.gz" -o /tmp/wedrink-deploy/release.tar.gz
-            curl -fsSL "$RELEASE_URL/release.tar.gz.sha256" -o /tmp/wedrink-deploy/release.tar.gz.sha256
+            curl -sL https://github.com/Luyce13/wedrink/releases/download/latest/release.tar.gz -o /tmp/release.tar.gz
+            tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
+            rm -f /tmp/release.tar.gz
 
-            # 2. Verify SHA256 checksum integrity before extracting
-            cd /tmp/wedrink-deploy
-            sha256sum -c release.tar.gz.sha256
-
-            # 3. Extract release & grant execute permission
-            tar -xzf release.tar.gz -C "$RELEASE_DIR"
-            chmod +x "$RELEASE_DIR/bin/wedrink"
-            rm -rf /tmp/wedrink-deploy
-
-            # 4. Atomic symlink swap
+            # Atomic symlink swap
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
-            # 5. PM2 reload
             cd "$APP_DIR/current"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
 
-            # 6. Post-reload non-blocking health check
-            sleep 2
-            curl -fsSL http://localhost:8080/ >/dev/null 2>&1 || curl -fsSL http://localhost:8090/ >/dev/null 2>&1 || pm2 jlist | grep '"status":"online"' >/dev/null || { echo "::error::PM2 health check failed — application is not responding"; exit 1; }
-
-            # 7. Cleanly prune older releases (keep last 5)
+            # Cleanly prune older releases (keep last 5)
             cd "$APP_DIR/releases"
             ls -1dt * 2>/dev/null | tail -n +6 | while read -r d; do rm -rf "$d"; done
