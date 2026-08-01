@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: deploy-production
+  group: ${{ github.event_name == 'push' && 'deploy-production' || format('pr-{0}', github.ref) }}
   cancel-in-progress: false
 
 jobs:
@@ -54,13 +54,13 @@ jobs:
           [ "$VET_OK" -eq 1 ] && [ "$TEST_OK" -eq 1 ] && [ "$BUILD_OK" -eq 1 ]
 
       - name: Package Artifact & Generate Checksum
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
           tar -czf release.tar.gz bin/wedrink web/
           sha256sum release.tar.gz > release.tar.gz.sha256
 
       - name: Publish GitHub Release
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           tag_name: release-${{ github.sha }}
@@ -73,7 +73,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Atomic Deploy, Checksum Verification & Reload via SSH
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -81,7 +81,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
-            set -e
+            set -eo pipefail
             source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -118,6 +118,10 @@ jobs:
             cd "$APP_DIR/current"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
 
-            # 6. Cleanly prune older releases (keep last 5)
+            # 6. Post-reload non-blocking health check
+            sleep 2
+            curl -fsSL http://localhost:8080/ >/dev/null 2>&1 || curl -fsSL http://localhost:8090/ >/dev/null 2>&1 || pm2 jlist | grep -q '"status":"online"' || { echo "::error::PM2 health check failed — application is not responding"; exit 1; }
+
+            # 7. Cleanly prune older releases (keep last 5)
             cd "$APP_DIR/releases"
             ls -1dt * 2>/dev/null | tail -n +6 | while read -r d; do rm -rf "$d"; done
