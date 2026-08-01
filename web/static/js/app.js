@@ -653,18 +653,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('#expenses-container > .expense-row').forEach(bindExpenseRow);
   reNumberRows();
 
-  // Hook the HTMX add-expense button if present; replace with local addExpenseRow
-  const addBtn = document.getElementById('add-expense-btn');
-  if (addBtn) {
-    // Override HTMX with instant client-side row
-    addBtn.removeAttribute('hx-get');
-    addBtn.removeAttribute('hx-target');
-    addBtn.removeAttribute('hx-swap');
-    addBtn.addEventListener('click', (e) => {
+  // Delegated click handler for #add-expense-btn (works seamlessly across SPA transitions & swaps)
+  document.body.addEventListener('click', (e) => {
+    const addBtn = e.target.closest('#add-expense-btn');
+    if (addBtn) {
       e.preventDefault();
       addExpenseRow();
-    });
-  }
+    }
+  });
 
 
   /* ─────────────────────────────────────────────────────

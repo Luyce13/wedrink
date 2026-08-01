@@ -1,0 +1,23 @@
+# Air configuration for live reloading Wedrink Go server
+# https://github.com/air-verse/air
+
+root = "."
+tmp_dir = "bin"
+
+[build]
+  cmd = "go build -o bin/wedrink ./cmd/server"
+  bin = "bin/wedrink"
+  full_bin = "./bin/wedrink"
+  include_ext = ["go", "html", "css", "js", "env"]
+  exclude_dir = ["bin", "scratch", ".git", ".gemini", ".agents"]
+  delay = 300
+  stop_on_error = true
+
+[color]
+  main = "magenta"
+  build = "yellow"
+  runner = "green"
+  watcher = "cyan"
+
+[misc]
+  clean_on_exit = true
