@@ -20,22 +20,17 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Parallel Vet, Test & Build
+      - name: Run Vet & Code Checks
+        run: go vet ./...
+
+      - name: Run Tests
+        run: go test ./...
+
+      - name: Build Production Linux Binary
         run: |
-          go vet ./... &
-          PID_VET=$!
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -ldflags="-s -w" -o bin/wedrink ./cmd/server
 
-          go test ./... &
-          PID_TEST=$!
-
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -ldflags="-s -w" -o bin/wedrink ./cmd/server &
-          PID_BUILD=$!
-
-          wait $PID_VET || { echo "go vet failed"; exit 1; }
-          wait $PID_TEST || { echo "go test failed"; exit 1; }
-          wait $PID_BUILD || { echo "go build failed"; exit 1; }
-
-      - name: Fast Package Deployment Artifact
+      - name: Package Deployment Artifact
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           tar -czf release.tar.gz bin/wedrink web/
