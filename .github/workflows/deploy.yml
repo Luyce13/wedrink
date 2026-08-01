@@ -8,23 +8,21 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
-
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  build-and-deploy:
-    name: Build & Deploy
+  test-and-build:
+    name: Test & Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write # Needed for creating GitHub Release asset
     steps:
       - name: Checkout Code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -53,57 +51,78 @@ jobs:
           [ "$BUILD_OK" -eq 1 ] || echo "::error::go build failed"
           [ "$VET_OK" -eq 1 ] && [ "$TEST_OK" -eq 1 ] && [ "$BUILD_OK" -eq 1 ]
 
-      - name: Fast Package Deployment Artifact
+      - name: Package Artifact & Generate Checksum
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           tar -czf release.tar.gz bin/wedrink web/
+          sha256sum release.tar.gz > release.tar.gz.sha256
 
       - name: Publish GitHub Release (History + Rollback Point)
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.2.1
         with:
-          tag_name: latest
-          name: Latest Release (${{ github.sha }})
-          files: release.tar.gz
+          tag_name: release-${{ github.sha }}
+          name: Release ${{ github.sha }}
+          files: |
+            release.tar.gz
+            release.tar.gz.sha256
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Atomic Deploy, Health Check & Reload via SSH
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17
+  deploy:
+    name: Deploy to VPS
+    needs: test-and-build
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Atomic Deploy, Checksum Verification & Reload via SSH
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
-            set -e
+            set -euo pipefail
             source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
-            export NVM_DIR="$HOME/.nvm"
+            export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-            export PNPM_HOME="$HOME/.local/share/pnpm"
-            case ":$PATH:" in
-              *":$PNPM_HOME/bin:"*) ;;
-              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH" ;;
-            esac
 
             APP_DIR="$HOME/wedrink"
             RELEASE_DIR="$APP_DIR/releases/${{ github.sha }}"
-            mkdir -p "$RELEASE_DIR"
+            mkdir -p "$RELEASE_DIR" /tmp/wedrink-deploy
 
-            curl -sL https://github.com/Luyce13/wedrink/releases/download/latest/release.tar.gz -o /tmp/release.tar.gz
-            tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
-            rm -f /tmp/release.tar.gz
+            # 1. Direct CDN download artifact + checksum with curl -fsSL
+            RELEASE_URL="https://github.com/Luyce13/wedrink/releases/download/release-${{ github.sha }}"
+            curl -fsSL "$RELEASE_URL/release.tar.gz" -o /tmp/wedrink-deploy/release.tar.gz
+            curl -fsSL "$RELEASE_URL/release.tar.gz.sha256" -o /tmp/wedrink-deploy/release.tar.gz.sha256
 
-            # Atomic symlink swap
+            # 2. Verify SHA256 checksum integrity before extracting
+            cd /tmp/wedrink-deploy
+            sha256sum -c release.tar.gz.sha256
+
+            # 3. Extract release & grant execute permission
+            tar -xzf release.tar.gz -C "$RELEASE_DIR"
+            chmod +x "$RELEASE_DIR/bin/wedrink"
+            rm -rf /tmp/wedrink-deploy
+
+            # 4. Atomic symlink swap — old "current" stays intact until the instant the mv succeeds
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
+            # 5. Zero-downtime PM2 reload
             cd "$APP_DIR/current"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
 
-            # Cleanly prune older releases (keep last 5)
+            # 6. Non-blocking HTTP / PM2 Health Check
+            sleep 2
+            curl -fsSL http://localhost:8080/ >/dev/null 2>&1 || curl -fsSL http://localhost:8090/ >/dev/null 2>&1 || pm2 jlist | grep -q '"status":"online"' || { echo "::error::Health check failed — application is not responding"; exit 1; }
+
+            # 7. Prune older releases (keep last 5 for instant 1-sec rollback)
             cd "$APP_DIR/releases"
             ls -1dt * 2>/dev/null | tail -n +6 | while read -r d; do rm -rf "$d"; done
