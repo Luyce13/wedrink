@@ -79,11 +79,7 @@ jobs:
               *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH" ;;
             esac
 
-            APP_DIR="${{ secrets.VPS_APP_DIR }}"
-            if [ -z "$APP_DIR" ]; then
-              APP_DIR="$HOME/wedrink"
-            fi
-            eval APP_DIR="$APP_DIR"
+            APP_DIR="$HOME/wedrink"
             mkdir -p "$APP_DIR"
 
             tar -xzf /tmp/release.tar.gz -C "$APP_DIR"
