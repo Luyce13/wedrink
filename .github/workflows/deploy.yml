@@ -56,12 +56,21 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
+            source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            export PATH="$PATH:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.local/share/pnpm:$HOME/.pnpm-global/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+            export PNPM_HOME="$HOME/.local/share/pnpm"
+            case ":$PATH:" in
+              *":$PNPM_HOME/bin:"*) ;;
+              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH" ;;
+            esac
+
             APP_DIR="$HOME/wedrink"
             mkdir -p "$APP_DIR"
+
             tar -xzf /tmp/release.tar.gz -C "$APP_DIR"
             rm -f /tmp/release.tar.gz
+
             cd "$APP_DIR"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
