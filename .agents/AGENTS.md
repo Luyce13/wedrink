@@ -65,3 +65,13 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 
 - **Logging**: Use `log/slog` structured logging throughout `internal/`.
 - **Testing / Seeding**: Default demo accounts (`staff` / `staffpassword`, `manager` / `managerpassword`) are auto-seeded on initial run.
+
+---
+
+## 7. Developer Signature & Branding Rule
+
+- **Developer Signature**: All web application user interfaces MUST feature Tanveer's interactive signature badge in the footer.
+- **Badge Design & Behavior**:
+  - Default state: Circled T Monogram `Ⓣ` styled identically to the classic copyright symbol `©` (`<svg viewBox="0 0 24 24"><circle/><path d="M8 8.5h8M12 8.5v7"/></svg>`).
+  - Hover / Interactive state: Smoothly expands on hover to display: `Designed & Built by Tanveer Abbas`.
+  - Light & Dark mode support: Adaptive styling using theme tokens (Cyan glow in dark mode, Brand Red glow in light mode).

@@ -127,7 +127,8 @@
         <a href="/"
           class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `dashboard` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Dashboard</a>
         <a href="/submit"
-          class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `submit` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Submit Report</a>
+          class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `submit` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Submit
+          Report</a>
         {{if .User.IsSuperAdmin}}
         <a href="/reports"
           class="px-3 py-1.5 rounded text-xs font-semibold transition {{if eq .ActiveTab `reports` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">History</a>
@@ -201,6 +202,23 @@
     <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
       <div class="kbd-hint">Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded font-mono text-cyan-300">?</kbd> for
         shortcuts</div>
+
+      <!-- Developer Signature: Tanveer (Circled T like ©) -->
+      <div class="dev-signature-wrap group relative inline-flex items-center cursor-pointer select-none"
+        title="Designed & Built by Tanveer Abbas">
+        <div
+          class="dev-sig-circle flex items-center justify-center rounded-full transition-all duration-300 group-hover:scale-110">
+          <span
+            class="text-base leading-none text-slate-400 group-hover:text-cyan-400 transition-colors duration-300 select-none">Ⓣ</span>
+        </div>
+        <div
+          class="dev-sig-tooltip max-w-0 overflow-hidden whitespace-nowrap opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out">
+          <span
+            class="text-[11px] font-semibold text-slate-300 group-hover:text-cyan-300 bg-[#080e1e]/90 border border-[#1e2d4a] px-2.5 py-1 rounded-full shadow-md">
+            Designed & Built by <strong class="text-white font-bold">Tanveer Abbas</strong>
+          </span>
+        </div>
+      </div>
     </div>
   </footer>
 

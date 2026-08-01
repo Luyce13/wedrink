@@ -243,6 +243,22 @@ html.theme-light .text-sky-300 {
   color: #0369a1 !important;
 }
 
+/* ── Tanveer Developer Signature Badge (Light Mode) ── */
+html.theme-light .dev-sig-circle svg {
+  color: #64748b !important;
+}
+html.theme-light .dev-signature-wrap:hover .dev-sig-circle svg {
+  color: #e50811 !important;
+}
+html.theme-light .dev-sig-tooltip span {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+html.theme-light .dev-sig-tooltip span strong {
+  color: #e50811 !important;
+}
+
 /* ── Badges (ok/surplus/deficit) ── */
 html.theme-light .badge-success { background-color: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
 html.theme-light .badge-danger  { background-color: #fee2e2 !important; color: #991b1b !important; border-color: #fca5a5 !important; }

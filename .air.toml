@@ -13,6 +13,11 @@ tmp_dir = "bin"
   delay = 300
   stop_on_error = true
 
+[proxy]
+  enabled = true
+  proxy_port = 8090
+  app_port = 8080
+
 [color]
   main = "magenta"
   build = "yellow"
