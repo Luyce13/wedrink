@@ -60,4 +60,4 @@ jobs:
             rm -f /tmp/release.tar.gz
             cd "$APP_DIR"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
-EOF
+          EOF
