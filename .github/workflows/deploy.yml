@@ -8,15 +8,17 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  test-and-build:
-    name: Test & Build
+  build-and-deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -70,17 +72,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy:
-    name: Deploy to VPS
-    needs: test-and-build
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    steps:
       - name: Atomic Deploy, Checksum Verification & Reload via SSH
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -121,7 +114,7 @@ jobs:
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
-            # 5. PM2 reload (exact working reload command)
+            # 5. PM2 reload
             cd "$APP_DIR/current"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
 
