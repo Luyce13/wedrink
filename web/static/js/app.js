@@ -259,8 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dpOpen) dpHandleCalKey(e);
     });
 
+    dpPanel.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
     document.addEventListener('click', (e) => {
-      if (dpOpen && !dpPanel.contains(e.target) && e.target !== dpTrigger) dpClose();
+      const curTrigger = document.getElementById('dp-trigger');
+      const curPanel   = document.getElementById('dp-panel');
+      if (dpOpen && curPanel && !curPanel.contains(e.target) && e.target !== curTrigger && !curTrigger?.contains(e.target)) {
+        dpClose();
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -268,12 +276,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Nav buttons
-    document.getElementById('dp-prev')?.addEventListener('click', () => dpStepMonth(-1));
-    document.getElementById('dp-next')?.addEventListener('click', () => dpStepMonth(1));
-    document.getElementById('dp-today')?.addEventListener('click', () => { dpSetDate(new Date(), true); dpClose(); });
-    document.getElementById('dp-clear')?.addEventListener('click', () => { dpSelected=null; dpUpdateTrigger(); dpClose(); });
-    document.getElementById('dp-spin-open')?.addEventListener('click', dpOpenSpinner);
-    document.getElementById('dp-spin-back')?.addEventListener('click', dpCloseSpinner);
+    document.getElementById('dp-prev')?.addEventListener('click', (e) => { e.stopPropagation(); dpStepMonth(-1); });
+    document.getElementById('dp-next')?.addEventListener('click', (e) => { e.stopPropagation(); dpStepMonth(1); });
+    document.getElementById('dp-today')?.addEventListener('click', (e) => { e.stopPropagation(); dpSetDate(new Date(), true); dpClose(); });
+    document.getElementById('dp-clear')?.addEventListener('click', (e) => { e.stopPropagation(); dpSelected=null; dpUpdateTrigger(); dpClose(); });
+    document.getElementById('dp-spin-open')?.addEventListener('click', (e) => { e.stopPropagation(); dpOpenSpinner(); });
+    document.getElementById('dp-spin-back')?.addEventListener('click', (e) => { e.stopPropagation(); dpCloseSpinner(); });
   };
 
   window.initDatePicker();
