@@ -35,29 +35,42 @@ jobs:
         run: |
           tar -czf release.tar.gz bin/wedrink web/
 
-      - name: Setup Native SSH Agent
+      - name: Upload Artifact to VPS via SCP
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: appleboy/scp-action@v0.1.7
         with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "release.tar.gz"
+          target: "/tmp"
 
-      - name: Deploy to VPS over Native SSH
+      - name: Extract & Reload PM2 via SSH
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -p ${{ secrets.VPS_PORT || 22 }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-          scp -P ${{ secrets.VPS_PORT || 22 }} release.tar.gz ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/
-          ssh -p ${{ secrets.VPS_PORT || 22 }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} 'bash -s' << 'EOF'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
             set -e
+            source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            NODE_BINS=$(find $HOME/.nvm/versions/node -type d -name bin 2>/dev/null | tr '\n' ':')
-            export PATH="$NODE_BINS:$PATH:$HOME/.local/share/pnpm:$HOME/.pnpm-global/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin"
-            
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+            export PNPM_HOME="$HOME/.local/share/pnpm"
+            case ":$PATH:" in
+              *":$PNPM_HOME/bin:"*) ;;
+              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH" ;;
+            esac
+
             APP_DIR="$HOME/wedrink"
             mkdir -p "$APP_DIR"
+
             tar -xzf /tmp/release.tar.gz -C "$APP_DIR"
             rm -f /tmp/release.tar.gz
+
             cd "$APP_DIR"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
-          EOF
