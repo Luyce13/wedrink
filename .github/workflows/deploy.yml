@@ -21,10 +21,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -60,7 +60,7 @@ jobs:
 
       - name: Publish GitHub Release (History + Rollback Point)
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.2.1
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           tag_name: latest
           name: Latest Release (${{ github.sha }})
@@ -79,10 +79,13 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -euo pipefail
-            source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
+
             export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use default >/dev/null 2>&1 || nvm use --lts >/dev/null 2>&1 || true
             export PATH="$HOME/.local/share/pnpm:$PATH"
+
+            command -v pm2 >/dev/null || { echo "::error::pm2 not found on PATH"; exit 1; }
 
             APP_DIR="$HOME/wedrink"
             RELEASE_DIR="$APP_DIR/releases/${{ github.sha }}"
@@ -92,7 +95,6 @@ jobs:
             tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
             rm -f /tmp/release.tar.gz
 
-            # Atomic symlink swap — old "current" stays intact until the instant the mv succeeds
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
@@ -102,6 +104,5 @@ jobs:
             sleep 2
             pm2 describe wedrink | grep -q "online" || { echo "::error::PM2 health check failed"; exit 1; }
 
-            # Keep last 5 releases for instant rollback, prune older releases
             cd "$APP_DIR/releases"
             ls -1dt */ 2>/dev/null | tail -n +6 | xargs -r rm -rf
