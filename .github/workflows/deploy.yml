@@ -93,7 +93,7 @@ jobs:
             RELEASE_DIR="$APP_DIR/releases/${{ github.sha }}"
             mkdir -p "$RELEASE_DIR"
 
-            curl -sL https://github.com/Luyce13/wedrink/releases/download/latest/release.tar.gz -o /tmp/release.tar.gz
+            curl -sSL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 30 https://github.com/Luyce13/wedrink/releases/download/latest/release.tar.gz -o /tmp/release.tar.gz
             tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
             rm -f /tmp/release.tar.gz
 
