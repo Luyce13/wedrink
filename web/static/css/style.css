@@ -223,7 +223,7 @@ html.theme-light table td .text-slate-500 {
   color: #475569 !important;
 }
 
-/* Light mode table action button overrides */
+/* Light mode table action button & badge overrides */
 html.theme-light table .bg-indigo-950\/60,
 html.theme-light .bg-indigo-950\/60 {
   background-color: #e0e7ff !important;
@@ -233,6 +233,14 @@ html.theme-light table .bg-rose-950\/60,
 html.theme-light .bg-rose-950\/60 {
   background-color: #ffe4e6 !important;
   color: #9f1239 !important;
+}
+html.theme-light .bg-sky-950 {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #7dd3fc !important;
+}
+html.theme-light .text-sky-300 {
+  color: #0369a1 !important;
 }
 
 /* ── Badges (ok/surplus/deficit) ── */
