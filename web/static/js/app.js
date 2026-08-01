@@ -228,16 +228,28 @@ document.addEventListener('DOMContentLoaded', () => {
   let dpOpen = false;
   let dpSpinnerOpen = false;
 
+  // Register global outside-click & keydown handlers ONCE
+  document.addEventListener('click', (e) => {
+    if (!dpOpen) return;
+    const curPanel   = document.getElementById('dp-panel');
+    const curTrigger = document.getElementById('dp-trigger');
+    if (curPanel && curPanel.contains(e.target)) return;
+    if (curTrigger && (curTrigger === e.target || curTrigger.contains(e.target))) return;
+    dpClose();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (dpOpen && !dpSpinnerOpen) dpHandleCalKey(e);
+  });
+
   window.initDatePicker = function() {
-    const dpTrigger    = document.getElementById('dp-trigger');
-    const dpPanel      = document.getElementById('dp-panel');
-    const dpHidden     = document.getElementById('reportDate');
-    const dpLabel      = document.getElementById('dp-label');
+    const dpTrigger = document.getElementById('dp-trigger');
+    const dpPanel   = document.getElementById('dp-panel');
+    const dpHidden  = document.getElementById('reportDate');
 
-    if (!dpTrigger || !dpPanel || dpTrigger._dpInited) return;
-    dpTrigger._dpInited = true;
+    if (!dpTrigger || !dpPanel) return;
 
-    // Init: set to yesterday or hidden field value
+    // Reset date selection state from hidden input
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     if (dpHidden && dpHidden.value) {
@@ -245,9 +257,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (parts.length === 3) {
         dpSelected = new Date(+parts[0], +parts[1]-1, +parts[2]);
       }
+    } else {
+      dpSelected = yesterday;
     }
-    if (!dpSelected) dpSelected = yesterday;
     dpSetDate(dpSelected, false);
+
+    if (dpTrigger._dpInited) return;
+    dpTrigger._dpInited = true;
 
     dpTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -261,18 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dpPanel.addEventListener('click', (e) => {
       e.stopPropagation();
-    });
-
-    document.addEventListener('click', (e) => {
-      const curTrigger = document.getElementById('dp-trigger');
-      const curPanel   = document.getElementById('dp-panel');
-      if (dpOpen && curPanel && !curPanel.contains(e.target) && e.target !== curTrigger && !curTrigger?.contains(e.target)) {
-        dpClose();
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (dpOpen && !dpSpinnerOpen) dpHandleCalKey(e);
     });
 
     // Nav buttons
