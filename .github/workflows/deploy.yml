@@ -7,15 +7,15 @@ on:
     branches: [master]
 
 jobs:
-  test-and-build:
-    name: Test & Build Artifact
+  build-and-deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -24,35 +24,20 @@ jobs:
         run: go vet ./...
 
       - name: Run Tests
-        run: go test -v ./...
+        run: go test ./...
 
       - name: Build Production Linux Binary
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/wedrink ./cmd/server
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -ldflags="-s -w" -o bin/wedrink ./cmd/server
 
       - name: Package Deployment Artifact
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           tar -czf release.tar.gz bin/wedrink web/
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        with:
-          name: release-package
-          path: release.tar.gz
-
-  deploy:
-    name: Deploy Artifact to VPS
-    needs: test-and-build
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Build Artifact
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
-        with:
-          name: release-package
-
       - name: Upload Artifact to VPS via SCP
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -61,8 +46,9 @@ jobs:
           source: "release.tar.gz"
           target: "/tmp"
 
-      - name: Extract Artifact & Reload PM2 via SSH
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.0
+      - name: Extract & Reload PM2 via SSH
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -70,20 +56,10 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-            export PNPM_HOME="$HOME/.local/share/pnpm"
-            case ":$PATH:" in
-              *":$PNPM_HOME/bin:"*) ;;
-              *) export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH" ;;
-            esac
-
+            export PATH=$PATH:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.local/share/pnpm:$HOME/.pnpm-global/bin
             APP_DIR="$HOME/wedrink"
             mkdir -p "$APP_DIR"
-
             tar -xzf /tmp/release.tar.gz -C "$APP_DIR"
             rm -f /tmp/release.tar.gz
-
             cd "$APP_DIR"
             pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
