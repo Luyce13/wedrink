@@ -62,8 +62,8 @@ jobs:
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
-          tag_name: latest
-          name: Latest Release (${{ github.sha }})
+          tag_name: ${{ github.sha }}
+          name: Release ${{ github.sha }}
           files: release.tar.gz
           make_latest: true
         env:
@@ -93,7 +93,7 @@ jobs:
             RELEASE_DIR="$APP_DIR/releases/${{ github.sha }}"
             mkdir -p "$RELEASE_DIR"
 
-            curl -sSL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 30 https://github.com/Luyce13/wedrink/releases/download/latest/release.tar.gz -o /tmp/release.tar.gz
+            curl -sSL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 30 "https://github.com/Luyce13/wedrink/releases/download/${{ github.sha }}/release.tar.gz" -o /tmp/release.tar.gz
             tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
             rm -f /tmp/release.tar.gz
 
