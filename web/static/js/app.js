@@ -92,6 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.initAlertAutoDismiss();
     // Re-init date picker if present in swapped DOM
     if (window.initDatePicker) window.initDatePicker();
+
+    // Smooth scroll alert banner into view if target is form alert container or login error
+    const target = evt.detail?.target;
+    if (target && (target.id === 'form-alert-container' || target.id === 'login-error')) {
+      if (target.firstElementChild) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
   });
 
   /* ─────────────────────────────────────────────────────
@@ -311,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
     dpFocused   = dpSelected ? new Date(dpSelected)      : null;
     dpRenderGrid();
     if (dpTrigger) dpTrigger.setAttribute('aria-expanded', 'true');
-    if (window.clearFormErrors) window.clearFormErrors();
   }
 
   function dpClose() {
@@ -351,8 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       triggerPreview();
     }
-
-    if (window.clearFormErrors) window.clearFormErrors();
   }
 
   function dpUpdateTrigger() {
@@ -782,12 +787,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  ['input', 'change', 'click'].forEach(evtType => {
-    document.addEventListener(evtType, (e) => {
-      if (e.target.closest('form') || e.target.closest('#dp-trigger') || e.target.closest('#dp-panel')) {
-        window.clearFormErrors();
-      }
-    });
+  document.addEventListener('input', (e) => {
+    // Only clear form alert when user is actively editing form text/number input fields
+    if (e.target.closest('form') && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+      window.clearFormErrors();
+    }
   });
 
 
