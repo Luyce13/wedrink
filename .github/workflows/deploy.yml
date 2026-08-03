@@ -101,8 +101,8 @@ jobs:
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
-            cd "$APP_DIR/current"
-            pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
+            pm2 delete wedrink 2>/dev/null || true
+            pm2 start "$APP_DIR/current/bin/wedrink" --name wedrink --update-env
 
             # Cleanly prune older releases (keep last 5)
             cd "$APP_DIR/releases"
