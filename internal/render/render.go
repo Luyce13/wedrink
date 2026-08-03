@@ -17,25 +17,23 @@ type Renderer struct {
 func ResolveProjectPath(parts ...string) string {
 	candidates := make([]string, 0, 8)
 
-	// 1. Check relative to executable location (highest priority for production releases)
-	if exe, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exe)
-		// Check ../web relative to executable (e.g. bin/wedrink -> ../web)
-		candidates = append(candidates, filepath.Join(append([]string{exeDir, ".."}, parts...)...))
-		// Check web in same dir as executable
-		candidates = append(candidates, filepath.Join(append([]string{exeDir}, parts...)...))
-	}
-
-	// 2. Check current working directory (for local dev with go run / air)
 	if cwd, err := os.Getwd(); err == nil {
 		candidates = append(candidates, filepath.Join(append([]string{cwd}, parts...)...))
 	}
 
-	for _, candidate := range candidates {
-		if abs, err := filepath.Abs(candidate); err == nil {
-			if _, err := os.Stat(abs); err == nil {
-				return abs
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		for dir := exeDir; dir != "" && dir != "." && dir != string(filepath.Separator); dir = filepath.Dir(dir) {
+			candidates = append(candidates, filepath.Join(append([]string{dir}, parts...)...))
+			if _, err := os.Stat(filepath.Join(dir, "web")); err == nil {
+				candidates = append(candidates, filepath.Join(append([]string{dir}, parts...)...))
 			}
+		}
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
 		}
 	}
 
