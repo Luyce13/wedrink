@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -15,7 +16,19 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	loadDotEnv(".env")
+	candidates := []string{".env", "../.env", "../../.env"}
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(exeDir, ".env"),
+			filepath.Join(exeDir, "..", ".env"),
+			filepath.Join(exeDir, "..", "..", ".env"),
+		)
+	}
+
+	for _, p := range candidates {
+		loadDotEnv(p)
+	}
 
 	return &Config{
 		Port:          getEnv("PORT", "8080"),

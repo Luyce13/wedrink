@@ -97,6 +97,11 @@ jobs:
             tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
             rm -f /tmp/release.tar.gz
 
+            # Copy production .env if present in APP_DIR
+            if [ -f "$APP_DIR/.env" ]; then
+              cp "$APP_DIR/.env" "$RELEASE_DIR/.env"
+            fi
+
             # Atomic symlink swap
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
