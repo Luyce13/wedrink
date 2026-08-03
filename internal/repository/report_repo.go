@@ -76,22 +76,20 @@ func (r *ReportRepository) UpsertByDate(ctx context.Context, report *models.EODR
 }
 
 func (r *ReportRepository) FindByID(ctx context.Context, idStr string) (*models.EODReport, error) {
-	objID, err := bson.ObjectIDFromHex(idStr)
-	if err != nil {
-		// Try report_id fallback
-		var rep models.EODReport
-		err2 := r.collection.FindOne(ctx, bson.M{"report_id": idStr}).Decode(&rep)
-		if err2 != nil {
-			if errors.Is(err2, mongo.ErrNoDocuments) {
-				return nil, nil
-			}
-			return nil, err2
-		}
-		return &rep, nil
+	if idStr == "" {
+		return nil, nil
+	}
+
+	orConditions := []bson.M{
+		{"report_id": idStr},
+		{"report_date": idStr},
+	}
+	if objID, err := bson.ObjectIDFromHex(idStr); err == nil {
+		orConditions = append(orConditions, bson.M{"_id": objID})
 	}
 
 	var report models.EODReport
-	err = r.collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&report)
+	err := r.collection.FindOne(ctx, bson.M{"$or": orConditions}).Decode(&report)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
@@ -316,19 +314,19 @@ func (r *ReportRepository) FindAll(ctx context.Context, limit int) ([]models.EOD
 }
 
 func (r *ReportRepository) Delete(ctx context.Context, idStr string) error {
-	objID, err := bson.ObjectIDFromHex(idStr)
-	if err != nil {
-		res, err2 := r.collection.DeleteOne(ctx, bson.M{"report_id": idStr})
-		if err2 != nil {
-			return err2
-		}
-		if res.DeletedCount == 0 {
-			return fmt.Errorf("report not found")
-		}
-		return nil
+	if idStr == "" {
+		return fmt.Errorf("report id required")
 	}
 
-	res, err := r.collection.DeleteOne(ctx, bson.M{"_id": objID})
+	orConditions := []bson.M{
+		{"report_id": idStr},
+		{"report_date": idStr},
+	}
+	if objID, err := bson.ObjectIDFromHex(idStr); err == nil {
+		orConditions = append(orConditions, bson.M{"_id": objID})
+	}
+
+	res, err := r.collection.DeleteOne(ctx, bson.M{"$or": orConditions})
 	if err != nil {
 		return fmt.Errorf("failed to delete report: %w", err)
 	}

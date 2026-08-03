@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -283,16 +284,51 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		id = strings.TrimPrefix(r.URL.Path, "/reports/delete/")
 	}
 
-	err := h.service.DeleteReport(r.Context(), id)
+	report, err := h.service.GetReportByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		slog.Error("HandleDelete: failed to fetch report", "id", id, "error", err)
+	}
+
+	if delErr := h.service.DeleteReport(r.Context(), id); delErr != nil {
+		slog.Error("HandleDelete: failed to delete report from DB", "id", id, "error", delErr)
+	} else {
+		slog.Info("HandleDelete: report deleted from DB", "id", id)
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("HX-Trigger", "reportSaved, refreshReportsList")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`<div class="p-3 bg-slate-900 border border-emerald-500/50 text-emerald-300 text-xs font-semibold rounded-lg">Report deleted successfully.</div>`))
+
+		reportDate := id
+		submittedBy := "System"
+		submittedByRole := "admin"
+		var totalSale, creditSale, bankTransfer, otherPayments, expectedCash, counterCash float64
+
+		if report != nil {
+			reportDate = report.ReportDate
+			submittedBy = report.SubmittedBy
+			submittedByRole = report.SubmittedByRole
+			totalSale = report.TotalSale
+			creditSale = report.CreditSale
+			bankTransfer = report.BankTransfer
+			otherPayments = report.OtherPayments
+			expectedCash = report.ExpectedCash
+			counterCash = report.CounterCash
+		}
+
+		data := map[string]any{
+			"ID":              id,
+			"ReportDate":      reportDate,
+			"SubmittedBy":     submittedBy,
+			"SubmittedByRole": submittedByRole,
+			"TotalSale":       totalSale,
+			"CreditSale":      creditSale,
+			"BankTransfer":    bankTransfer,
+			"OtherPayments":   otherPayments,
+			"ExpectedCash":    expectedCash,
+			"CounterCash":     counterCash,
+		}
+		_ = h.renderer.RenderPartial(w, "report_deleted_row.html", data)
 		return
 	}
 

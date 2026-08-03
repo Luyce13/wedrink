@@ -4,7 +4,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="htmx-config" content='{"historyCacheSize": 0, "refreshOnHistoryMiss": true}'>
   <title>{{.Title}}</title>
+  <script>
+    (function () {
+      var STALE = 'app_stale';
+
+      // ── bfcache bypass: only reload if data was mutated ──────────────────
+      window.addEventListener('pageshow', function (e) {
+        if (e.persisted && sessionStorage.getItem(STALE) === '1') {
+          var u = new URL(location.href);
+          u.searchParams.set('_r', Date.now());
+          location.replace(u);
+        }
+      });
+
+      document.addEventListener('DOMContentLoaded', function () {
+
+        // ── strip _r from address bar (keeps URL clean after cache-bust) ──
+        if (new URLSearchParams(location.search).has('_r')) {
+          var clean = new URL(location.href);
+          clean.searchParams.delete('_r');
+          history.replaceState(null, '', clean.toString());
+        }
+
+        // ── mark stale after any mutation (HTMX events from HX-Trigger) ──
+        // reportSaved  = new submit or overwrite
+        // refreshReportsList = delete
+        ['reportSaved', 'refreshReportsList'].forEach(function (evt) {
+          document.addEventListener(evt, function () {
+            try { sessionStorage.setItem(STALE, '1'); } catch (e) {}
+          });
+        });
+
+        // ── nav tab clicks: force fresh GET only when stale ───────────────
+        document.querySelectorAll('nav a[href], #mobile-nav-bar a[href]').forEach(function (a) {
+          a.addEventListener('click', function (e) {
+            if (sessionStorage.getItem(STALE) !== '1') return; // allow normal navigation
+            e.preventDefault();
+            sessionStorage.removeItem(STALE);
+            var u = new URL(this.href, location.origin);
+            u.searchParams.set('_r', Date.now());
+            location.href = u.toString();
+          });
+        });
+
+        // ── on a fresh (non-cache-busted) page load, clear stale flag ─────
+        if (!new URLSearchParams(location.search).has('_r')) {
+          // Page was loaded normally (not triggered by our cache-bust).
+          // Clear stale so next navigation is fast unless another mutation occurs.
+          // Exception: don't clear if we just landed on /reports (still stale until rendered).
+        } else {
+          try { sessionStorage.removeItem(STALE); } catch (e) {}
+        }
+
+      });
+    })();
+  </script>
+
+  <!-- Critical: inline background prevents white flash during page navigation -->
+  <style>html,body{background:#0b1329;color:#f1f5f9;}</style>
 
   <!-- Google Fonts: Poppins -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,52 +117,79 @@
         const storageKey = 'wedrink_theme';
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-        function applyTheme(theme) {
-          const isDark = theme === 'dark';
-          document.documentElement.classList.toggle('theme-light', !isDark);
-          document.documentElement.classList.toggle('dark', isDark);
-          document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        }
-
         function getSystemTheme() {
           return mediaQuery.matches ? 'dark' : 'light';
         }
 
-        function syncToSystem() {
-          localStorage.removeItem(storageKey);
-          applyTheme(getSystemTheme());
+        function applyTheme(themeMode) {
+          const mode = themeMode || localStorage.getItem(storageKey) || 'system';
+          const effective = (mode === 'system') ? getSystemTheme() : mode;
+          const isDark = effective === 'dark';
+          document.documentElement.classList.toggle('theme-light', !isDark);
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+          const icon = document.getElementById('theme-icon');
+          const label = document.getElementById('theme-label');
+          if (icon && label) {
+            if (mode === 'system') {
+              icon.textContent = '💻';
+              label.textContent = 'Auto (' + (isDark ? 'Dark' : 'Light') + ')';
+            } else if (mode === 'dark') {
+              icon.textContent = '🌙';
+              label.textContent = 'Dark';
+            } else {
+              icon.textContent = '☀️';
+              label.textContent = 'Light';
+            }
+          }
         }
 
         function toggleTheme() {
-          const saved = localStorage.getItem(storageKey);
-          const current = saved === 'dark' || saved === 'light' ? saved : getSystemTheme();
-          const next = current === 'light' ? 'dark' : 'light';
-          localStorage.setItem(storageKey, next);
+          const saved = localStorage.getItem(storageKey) || 'system';
+          let next = 'dark';
+          if (saved === 'system') {
+            next = 'dark';
+          } else if (saved === 'dark') {
+            next = 'light';
+          } else {
+            next = 'system';
+          }
+          if (next === 'system') {
+            localStorage.removeItem(storageKey);
+          } else {
+            localStorage.setItem(storageKey, next);
+          }
           applyTheme(next);
         }
 
         window.applyTheme = applyTheme;
         window.toggleTheme = toggleTheme;
-        window.syncThemeWithSystem = syncToSystem;
 
-        const saved = localStorage.getItem(storageKey);
-        if (saved === 'dark' || saved === 'light') {
-          applyTheme(saved);
-        } else {
-          applyTheme(getSystemTheme());
-        }
+        applyTheme(localStorage.getItem(storageKey) || 'system');
+
+        const handleSystemChange = () => {
+          const currentSaved = localStorage.getItem(storageKey);
+          if (!currentSaved || currentSaved === 'system') {
+            applyTheme('system');
+          }
+        };
 
         if (typeof mediaQuery.addEventListener === 'function') {
-          mediaQuery.addEventListener('change', syncToSystem);
+          mediaQuery.addEventListener('change', handleSystemChange);
         } else if (typeof mediaQuery.addListener === 'function') {
-          mediaQuery.addListener(syncToSystem);
+          mediaQuery.addListener(handleSystemChange);
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          applyTheme(localStorage.getItem(storageKey) || 'system');
+        });
       })();
   </script>
 
   <!-- HTMX 2.0.4 & App logic -->
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script src="/static/js/app.js?v=20260804_v2" defer></script>
+  <script src="/static/js/app.js?v=20260804_v4" defer></script>
 </head>
 
 <body class="h-full text-slate-100 flex flex-col bg-[#0b1329] font-sans antialiased">

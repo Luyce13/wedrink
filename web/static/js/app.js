@@ -1,8 +1,27 @@
-/* ═══════════════════════════════════════════════════════
-   app.js  —  Wedrink EOD Portal
-   ═══════════════════════════════════════════════════════ */
+// Force fresh re-render on Firefox/Safari Back button navigation (bypass bfcache)
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    window.location.reload();
+  }
+});
+
+// Nuke HTMX's sessionStorage history cache on every page load so stale snapshots never restore
+try {
+  for (let i = sessionStorage.length - 1; i >= 0; i--) {
+    const key = sessionStorage.key(i);
+    if (key && key.startsWith('htmx-history')) {
+      sessionStorage.removeItem(key);
+    }
+  }
+} catch (e) {}
 
 document.addEventListener('DOMContentLoaded', () => {
+
+  // Disable HTMX client-side history caching so navigation always fetches fresh data from server
+  if (window.htmx) {
+    htmx.config.historyCacheSize = 0;
+    htmx.config.refreshOnHistoryMiss = true;
+  }
 
   // Escape HTML entities to prevent XSS vulnerabilities
   function escapeHTML(str) {
@@ -1044,69 +1063,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  /* ─────────────────────────────────────────────────────
-     THEME TOGGLE & AUTO SYSTEM OS SYNC
-  ───────────────────────────────────────────────────── */
-  window.getSystemTheme = window.getSystemTheme || function() {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  };
-
-  window.getCurrentTheme = window.getCurrentTheme || function() {
-    const saved = localStorage.getItem('wedrink_theme');
-    if (saved === 'dark' || saved === 'light') return saved;
-    return getSystemTheme();
-  };
-
-  window.applyTheme = window.applyTheme || function(theme) {
-    const isDark = theme === 'dark';
-    document.documentElement.classList.toggle('theme-light', !isDark);
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    updateThemeUI(theme);
-  };
-
-  window.toggleTheme = window.toggleTheme || function() {
-    const current = getCurrentTheme();
-    const next = current === 'light' ? 'dark' : 'light';
-    localStorage.setItem('wedrink_theme', next);
-    applyTheme(next);
-  };
-
-  window.syncThemeWithSystem = window.syncThemeWithSystem || function() {
-    localStorage.removeItem('wedrink_theme');
-    applyTheme(getSystemTheme());
-  };
-
-  function updateThemeUI(theme) {
-    const icon = document.getElementById('theme-icon');
-    const label = document.getElementById('theme-label');
-    if (!icon || !label) return;
-
-    if (theme === 'light') {
-      icon.textContent = '☀️';
-      label.textContent = 'Light';
-    } else {
-      icon.textContent = '🌙';
-      label.textContent = 'Dark';
-    }
-  }
-
-  // Auto-sync if system OS theme changes
-  const systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
-  if (typeof systemThemeMedia.addEventListener === 'function') {
-    systemThemeMedia.addEventListener('change', () => {
-      syncThemeWithSystem();
-    });
-  } else if (typeof systemThemeMedia.addListener === 'function') {
-    systemThemeMedia.addListener(() => {
-      syncThemeWithSystem();
-    });
-  }
-
-  applyTheme(getCurrentTheme());
-  document.addEventListener('htmx:afterSwap', () => {
-    applyTheme(getCurrentTheme());
-  });
+  // Theme is handled by the inline script in layout.html (3-way: system/dark/light).
+  // Do not re-define applyTheme/toggleTheme here to avoid overwriting the correct implementation.
 
 
   /* ─────────────────────────────────────────────────────

@@ -119,13 +119,11 @@ func main() {
 	// Router setup
 	mux := http.NewServeMux()
 
-	// Static file server — no-cache headers so Cloudflare always fetches fresh CSS/JS
+	// Static file server — long-lived immutable cache (filenames versioned via ?v= params)
 	staticDir := render.ResolveProjectPath("web", "static")
 	staticFS := http.FileServer(http.Dir(staticDir))
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "0")
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		staticFS.ServeHTTP(w, r)
 	})))
 
@@ -163,8 +161,17 @@ func main() {
 	mux.HandleFunc("POST /admin/users/edit", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleEditUser))
 	mux.HandleFunc("POST /admin/users/delete", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleDeleteUser))
 
-	// Global Middlewares (Logger + Auth Context Injection)
-	handler := middleware.Logger(sessionMgr.AuthMiddleware(mux))
+	noCacheMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	// Global Middlewares (Logger + NoCache + Auth Context Injection)
+	handler := middleware.Logger(noCacheMiddleware(sessionMgr.AuthMiddleware(mux)))
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,

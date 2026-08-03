@@ -1,0 +1,22 @@
+<tr class="opacity-40 bg-slate-950/60 line-through select-none transition-all duration-300">
+  <td class="p-3 text-center">
+    <input type="checkbox" disabled class="w-3.5 h-3.5 rounded border-slate-800 opacity-40 cursor-not-allowed">
+  </td>
+  <td class="p-3 font-bold text-slate-400 whitespace-nowrap">{{.ReportDate}}</td>
+  <td class="p-3 text-right text-slate-500 tabular-nums">{{printf "%s" (fmtNum .TotalSale)}}</td>
+  <td class="p-3 text-right text-slate-500 tabular-nums">{{printf "%s" (fmtNum .CreditSale)}}</td>
+  <td class="p-3 text-right text-slate-500 tabular-nums">{{printf "%s" (fmtNum .BankTransfer)}}</td>
+  <td class="p-3 text-right text-slate-500 tabular-nums">{{printf "%s" (fmtNum .OtherPayments)}}</td>
+  <td class="p-3 text-right text-slate-500 tabular-nums">{{printf "%s" (fmtNum .ExpectedCash)}}</td>
+  <td class="p-3 text-right text-slate-500 tabular-nums">{{printf "%s" (fmtNum .CounterCash)}}</td>
+  <td class="p-3 text-center whitespace-nowrap">
+    <span class="px-2 py-0.5 text-[10px] font-semibold text-slate-500 bg-slate-900 rounded border border-slate-800">Deleted</span>
+  </td>
+  <td class="p-3 whitespace-nowrap">
+    <div class="font-medium text-slate-500">{{.SubmittedBy}}</div>
+    <div class="text-[10px] text-slate-600 capitalize">{{.SubmittedByRole}}</div>
+  </td>
+  <td class="p-3 text-center whitespace-nowrap">
+    <span class="inline-flex items-center px-2.5 py-1 bg-rose-950/40 border border-rose-800/40 text-rose-400 text-[11px] font-bold rounded shadow-sm">Deleted</span>
+  </td>
+</tr>
