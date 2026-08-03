@@ -135,6 +135,35 @@ func (r *ReportRepository) FindByMonth(ctx context.Context, yearMonth string) ([
 	return reports, nil
 }
 
+func (r *ReportRepository) GetSubmittedDatesByMonth(ctx context.Context, yearMonth string) ([]string, error) {
+	filter := bson.M{
+		"report_date": bson.M{
+			"$regex": "^" + yearMonth,
+		},
+	}
+	opts := options.Find().SetProjection(bson.M{"report_date": 1, "_id": 0})
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch submitted dates: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var results []struct {
+		ReportDate string `bson:"report_date"`
+	}
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, fmt.Errorf("failed to decode submitted dates: %w", err)
+	}
+
+	dates := make([]string, 0, len(results))
+	for _, res := range results {
+		if res.ReportDate != "" {
+			dates = append(dates, res.ReportDate)
+		}
+	}
+	return dates, nil
+}
+
 func (r *ReportRepository) FindByDateRange(ctx context.Context, startDate, endDate string) ([]models.EODReport, error) {
 	filter := bson.M{}
 	if startDate != "" && endDate != "" {

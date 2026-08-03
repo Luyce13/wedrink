@@ -18,9 +18,17 @@
 
       <!-- Date -->
       <div class="form-row">
-        <label for="dp-trigger">
-          Report Date <span class="kbd-hint">[Alt+D]</span>
-        </label>
+        <div class="flex items-center gap-2">
+          <label for="dp-trigger">
+            Report Date <span class="kbd-hint">[Alt+D]</span>
+          </label>
+          <div id="date-status-container" class="flex items-center"
+               hx-get="/reports/check-date"
+               hx-trigger="load, change from:#reportDate"
+               hx-include="#reportDate"
+               hx-target="#date-status-container"
+               hx-swap="innerHTML"></div>
+        </div>
         <input type="hidden" id="reportDate" name="reportDate"
                value="{{if .Report}}{{.Report.ReportDate}}{{else}}{{.Yesterday}}{{end}}" required>
 
@@ -91,17 +99,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Overwrite toggle (super-admin, non-edit mode) -->
-      {{if and .User.CanEditReports (not .IsEditMode)}}
-      <label class="flex items-center gap-2.5 px-3 py-2 bg-[#080e1e] border border-[#1e2d4a] rounded cursor-pointer hover:border-amber-500/40 transition">
-        <input type="checkbox" name="allowOverwrite" value="true" class="w-3.5 h-3.5 text-amber-500 rounded border-slate-700">
-        <div>
-          <div class="text-xs font-bold text-amber-300">Overwrite Mode</div>
-          <div class="text-[10px] text-slate-500">Allow updating an existing report for this date</div>
-        </div>
-      </label>
-      {{end}}
 
       <!-- ── Revenue & Settlements ── -->
       <div class="border-t border-[#1e2d4a] pt-3">
@@ -232,12 +229,24 @@
           </svg>
           Saving…
         </div>
-        <div class="text-[10px] text-slate-600 kbd-hint">
-          <kbd class="px-1 py-0.5 bg-[#080e1e] rounded font-mono text-amber-300">Ctrl+Enter</kbd> to submit
+
+        <div class="flex items-center gap-3">
+          {{if and .User.CanEditReports (not .IsEditMode)}}
+          <div id="overwrite-toggle-wrap" class="hidden">
+            <label class="flex items-center gap-2 px-2.5 py-1.5 bg-amber-950/60 border border-amber-500/50 rounded cursor-pointer hover:border-amber-400 transition shadow-sm">
+              <input type="checkbox" id="allowOverwrite" name="allowOverwrite" value="true" class="w-3.5 h-3.5 text-amber-500 rounded border-slate-700">
+              <span class="text-xs font-bold text-amber-300">Enable Overwrite Mode</span>
+            </label>
+          </div>
+          {{end}}
+
+          <div class="text-[10px] text-slate-600 kbd-hint">
+            <kbd class="px-1 py-0.5 bg-[#080e1e] rounded font-mono text-amber-300">Ctrl+Enter</kbd> to submit
+          </div>
+          <button type="submit" id="submit-btn" class="btn btn-primary py-2 px-5 text-xs">
+            {{if .IsEditMode}}Update Report{{else}}Submit Report{{end}}
+          </button>
         </div>
-        <button type="submit" class="btn btn-primary py-2 px-5 text-xs">
-          {{if .IsEditMode}}Update Report{{else}}Submit Report{{end}}
-        </button>
       </div>
 
     </div>

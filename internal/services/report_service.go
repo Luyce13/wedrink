@@ -10,6 +10,7 @@ import (
 
 	"wedrink/internal/models"
 	"wedrink/internal/repository"
+	"wedrink/internal/utils"
 )
 
 type ReportService struct {
@@ -37,6 +38,14 @@ type SubmitReportInput struct {
 func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitReportInput) (*models.EODReport, error) {
 	if strings.TrimSpace(input.ReportDate) == "" {
 		return nil, fmt.Errorf("report date is required")
+	}
+
+	if utils.IsBeforeMinDate(input.ReportDate) {
+		return nil, fmt.Errorf("date cannot be prior to July 2026 (%s)", utils.MinDateStr)
+	}
+
+	if utils.IsFutureDate(input.ReportDate) {
+		return nil, fmt.Errorf("cannot submit EOD report for future date %s", input.ReportDate)
 	}
 
 	totalSale, err := parseAmount(input.TotalSale)
@@ -142,6 +151,10 @@ func (s *ReportService) GetReportByID(ctx context.Context, idStr string) (*model
 
 func (s *ReportService) GetReportsForMonth(ctx context.Context, yearMonth string) ([]models.EODReport, error) {
 	return s.repo.FindByMonth(ctx, yearMonth)
+}
+
+func (s *ReportService) GetSubmittedDatesForMonth(ctx context.Context, yearMonth string) ([]string, error) {
+	return s.repo.GetSubmittedDatesByMonth(ctx, yearMonth)
 }
 
 func (s *ReportService) GetReportsForRange(ctx context.Context, startDate, endDate string) ([]models.EODReport, error) {

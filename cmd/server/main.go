@@ -144,6 +144,8 @@ func main() {
 	mux.HandleFunc("GET /{$}", middleware.RequireAuth(dashboardHandler.RenderDashboard))
 	mux.HandleFunc("GET /submit", middleware.RequireAuth(reportHandler.RenderSubmitForm))
 	mux.HandleFunc("POST /reports", middleware.RequireAuth(reportHandler.HandleSubmit))
+	mux.HandleFunc("GET /reports/submitted-dates", middleware.RequireAuth(reportHandler.GetSubmittedDates))
+	mux.HandleFunc("GET /reports/check-date", middleware.RequireAuth(reportHandler.CheckReportDate))
 
 	// Super Admin protected routes
 	mux.HandleFunc("GET /reports", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderReportsList))

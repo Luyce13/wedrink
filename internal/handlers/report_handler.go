@@ -1,17 +1,18 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"wedrink/internal/middleware"
 	"wedrink/internal/models"
 	"wedrink/internal/render"
 	"wedrink/internal/repository"
 	"wedrink/internal/services"
+	"wedrink/internal/utils"
 )
 
 type ReportHandler struct {
@@ -28,8 +29,11 @@ func NewReportHandler(service *services.ReportService, renderer *render.Renderer
 
 func (h *ReportHandler) RenderSubmitForm(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
-	todayStr     := time.Now().Format("2006-01-02")
-	yesterdayStr := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	todayStr := utils.PKTodayStr()
+	yesterdayStr := utils.PKYesterdayStr()
+	if utils.IsBeforeMinDate(yesterdayStr) {
+		yesterdayStr = todayStr
+	}
 
 	existing, _ := h.service.GetReportByDate(r.Context(), todayStr)
 
@@ -134,6 +138,7 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Trigger", "reportSaved")
 		msg := fmt.Sprintf("Report for %s successfully saved!", report.ReportDate)
 		if input.AllowOverwrite {
 			msg = fmt.Sprintf("Report for %s updated successfully by Super Admin!", report.ReportDate)
@@ -285,7 +290,7 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Trigger", "refreshReportsList")
+		w.Header().Set("HX-Trigger", "reportSaved, refreshReportsList")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`<div class="p-3 bg-slate-900 border border-emerald-500/50 text-emerald-300 text-xs font-semibold rounded-lg">Report deleted successfully.</div>`))
 		return
@@ -313,4 +318,70 @@ func parseAmount(val string) (float64, error) {
 	}
 	clean := strings.ReplaceAll(val, ",", "")
 	return strconv.ParseFloat(clean, 64)
+}
+
+func (h *ReportHandler) GetSubmittedDates(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
+	month := strings.TrimSpace(r.URL.Query().Get("month"))
+	if month == "" {
+		month = utils.PKNow().Format("2006-01")
+	}
+
+	dates, err := h.service.GetSubmittedDatesForMonth(r.Context(), month)
+	if err != nil {
+		dates = []string{}
+	}
+
+	roleStr := ""
+	if user != nil {
+		roleStr = string(user.Role)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"month":    month,
+		"dates":    dates,
+		"userRole": roleStr,
+		"canEdit":  user != nil && user.CanEditReports(),
+	})
+}
+
+func (h *ReportHandler) CheckReportDate(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
+	dateStr := strings.TrimSpace(r.URL.Query().Get("reportDate"))
+	if dateStr == "" {
+		dateStr = strings.TrimSpace(r.URL.Query().Get("date"))
+	}
+	if dateStr == "" {
+		dateStr = utils.PKTodayStr()
+	}
+
+	isBeforeMin := utils.IsBeforeMinDate(dateStr)
+	isFuture := utils.IsFutureDate(dateStr)
+
+	var report *models.EODReport
+	var reportJSON string
+	if !isBeforeMin && !isFuture {
+		report, _ = h.service.GetReportByDate(r.Context(), dateStr)
+		if report != nil {
+			b, err := json.Marshal(report)
+			if err == nil {
+				reportJSON = string(b)
+			}
+		}
+	}
+
+	data := map[string]any{
+		"Date":           dateStr,
+		"MinDate":        utils.MinDateStr,
+		"IsBeforeMin":    isBeforeMin,
+		"IsFuture":       isFuture,
+		"ExistingReport": report,
+		"ReportJSON":     reportJSON,
+		"User":           user,
+		"CanEdit":        user != nil && user.CanEditReports(),
+	}
+
+	_ = h.renderer.RenderPartial(w, "date_status.html", data)
 }

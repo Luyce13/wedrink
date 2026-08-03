@@ -100,6 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }
+
+    // Update date status badge, load report figures, and manage Overwrite Mode lock state
+    handleDateStatusBadgeUpdate();
   });
 
   /* ─────────────────────────────────────────────────────
@@ -154,13 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─────────────────────────────────────────────────────
      TRIGGER PREVIEW (debounced)
   ───────────────────────────────────────────────────── */
-  let previewTimer;
   function triggerPreview() {
-    clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => {
-      // Update the sticky calc strip if it exists (client-side, no round-trip needed)
-      updateCalcStrip();
-    }, 80);
+    updateCalcStrip();
   }
 
   function updateCalcStrip() {
@@ -180,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sum expense amounts
     let totalExpenses = 0;
-    document.querySelectorAll('input[name="expenseAmount[]"]').forEach(inp => {
+    document.querySelectorAll('input[name="expenseAmount[]"], input[name="expense_amt[]"]').forEach(inp => {
       totalExpenses += parseInt(getRawValue(inp.value), 10) || 0;
     });
 
@@ -221,10 +219,191 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   /* ─────────────────────────────────────────────────────
-     CUSTOM DATE PICKER
-  /* ─────────────────────────────────────────────────────
-     CUSTOM ACCESSIBLE DATE PICKER
+     FORM LOCK & OVERWRITE MODE CONTROLLER
   ───────────────────────────────────────────────────── */
+  function toggleFormLock(lock) {
+    const formInputs = document.querySelectorAll(
+      '#totalSale, #creditSale, #bankTransfer, #counterCash, textarea[name="notes"], input[name="expenseDesc[]"], input[name="expenseAmount[]"], input[name="expense_desc[]"], input[name="expense_amt[]"]'
+    );
+    formInputs.forEach(el => {
+      el.readOnly = lock;
+      if (lock) {
+        el.classList.add('opacity-70', 'bg-slate-900/80', 'cursor-not-allowed');
+      } else {
+        el.classList.remove('opacity-70', 'bg-slate-900/80', 'cursor-not-allowed');
+      }
+    });
+
+    const addExpBtn = document.getElementById('add-expense-btn');
+    if (addExpBtn) {
+      addExpBtn.disabled = lock;
+      if (lock) addExpBtn.classList.add('opacity-50', 'pointer-events-none');
+      else addExpBtn.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
+    document.querySelectorAll('.del-btn').forEach(btn => {
+      btn.disabled = lock;
+      if (lock) btn.classList.add('opacity-50', 'pointer-events-none');
+      else btn.classList.remove('opacity-50', 'pointer-events-none');
+    });
+
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+      submitBtn.disabled = lock;
+      if (lock) submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      else submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  function handleDateStatusBadgeUpdate() {
+    const dateBadge = document.getElementById('date-status-badge');
+    if (!dateBadge) return;
+
+    const status = dateBadge.getAttribute('data-status');
+    const reportDataRaw = dateBadge.getAttribute('data-report');
+    const allowOverwriteCb = document.getElementById('allowOverwrite');
+    const overwriteWrap = document.getElementById('overwrite-toggle-wrap');
+
+    if (reportDataRaw && (status === 'locked' || status === 'exists')) {
+      try {
+        const report = JSON.parse(reportDataRaw);
+        const setVal = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.value = formatWithCommas(val || 0);
+        };
+        setVal('totalSale', report.total_sale);
+        setVal('creditSale', report.credit_sale);
+        setVal('bankTransfer', report.bank_transfer);
+        setVal('counterCash', report.counter_cash);
+
+        const notesEl = document.querySelector('textarea[name="notes"]');
+        if (notesEl) notesEl.value = report.notes || '';
+
+        const expContainer = document.getElementById('expenses-container');
+        if (expContainer && Array.isArray(report.expenses)) {
+          expContainer.innerHTML = '';
+          report.expenses.forEach((exp, idx) => {
+            const rowHtml = `
+              <div class="expense-row" data-index="${idx+1}">
+                <div class="row-badge">${idx+1}</div>
+                <div class="desc-input">
+                  <input type="text" name="expenseDesc[]" value="${escapeHTML(exp.description||'')}" class="glass-input text-xs desc-input" placeholder="Expense description">
+                </div>
+                <div class="amt-input">
+                  <input type="text" inputmode="numeric" name="expenseAmount[]" value="${formatWithCommas(exp.amount||0)}" class="glass-input number-input text-xs amt-input" placeholder="0">
+                </div>
+                <button type="button" class="del-btn" onclick="removeExpenseRow(this)">✕</button>
+              </div>`;
+            expContainer.insertAdjacentHTML('beforeend', rowHtml);
+          });
+          document.querySelectorAll('#expenses-container > .expense-row').forEach(bindExpenseRow);
+          reNumberRows();
+        }
+
+        if (window.triggerPreview) window.triggerPreview();
+      } catch (e) {}
+    } else if (status === 'available') {
+      const clearVal = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = '0';
+      };
+      clearVal('totalSale');
+      clearVal('creditSale');
+      clearVal('bankTransfer');
+      clearVal('counterCash');
+      const notesEl = document.querySelector('textarea[name="notes"]');
+      if (notesEl) notesEl.value = '';
+      const expContainer = document.getElementById('expenses-container');
+      if (expContainer) {
+        expContainer.innerHTML = '';
+        reNumberRows();
+      }
+      if (window.triggerPreview) window.triggerPreview();
+    }
+
+    let shouldLock = false;
+    if (status === 'locked' || status === 'invalid') {
+      shouldLock = true;
+      if (overwriteWrap) overwriteWrap.classList.add('hidden');
+      if (allowOverwriteCb) allowOverwriteCb.checked = false;
+    } else if (status === 'exists') {
+      if (overwriteWrap) overwriteWrap.classList.remove('hidden');
+      shouldLock = !(allowOverwriteCb && allowOverwriteCb.checked);
+    } else {
+      if (overwriteWrap) overwriteWrap.classList.add('hidden');
+      if (allowOverwriteCb) allowOverwriteCb.checked = false;
+      shouldLock = false;
+    }
+
+    toggleFormLock(shouldLock);
+    updateCalcStrip();
+  }
+
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'allowOverwrite') {
+      const dateBadge = document.getElementById('date-status-badge');
+      const status = dateBadge ? dateBadge.getAttribute('data-status') : '';
+      if (status === 'exists') {
+        toggleFormLock(!e.target.checked);
+      }
+    }
+  });
+  function getPKTodayStr() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' }).format(new Date());
+    } catch (e) {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+  }
+
+  function getPKTodayDate() {
+    const s = getPKTodayStr();
+    const p = s.split('-');
+    return new Date(+p[0], +p[1]-1, +p[2]);
+  }
+
+  const submittedDatesCache = new Map();
+  function clearSubmittedDatesCache() {
+    submittedDatesCache.clear();
+  }
+  window.clearSubmittedDatesCache = clearSubmittedDatesCache;
+
+  document.body.addEventListener('reportSaved', () => {
+    clearSubmittedDatesCache();
+    if (dpOpen) {
+      dpRenderGrid();
+    }
+    const reportDateInput = document.getElementById('reportDate');
+    if (reportDateInput && window.htmx) {
+      const statusContainer = document.getElementById('date-status-container');
+      if (statusContainer) {
+        htmx.ajax('GET', '/reports/check-date?reportDate=' + encodeURIComponent(reportDateInput.value), { target: '#date-status-container', swap: 'innerHTML' });
+      }
+    }
+  });
+  async function fetchSubmittedDates(monthStr) {
+    if (!monthStr) return { dates: new Set(), canEdit: false, userRole: '' };
+    if (submittedDatesCache.has(monthStr)) return submittedDatesCache.get(monthStr);
+    try {
+      const res = await fetch('/reports/submitted-dates?month=' + encodeURIComponent(monthStr), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const info = {
+          dates: new Set(data.dates || []),
+          canEdit: !!data.canEdit,
+          userRole: data.userRole || ''
+        };
+        submittedDatesCache.set(monthStr, info);
+        return info;
+      }
+    } catch (e) {}
+    const fallback = { dates: new Set(), canEdit: false, userRole: '' };
+    submittedDatesCache.set(monthStr, fallback);
+    return fallback;
+  }
   const WEEKDAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   const MONTH_LONG = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December'];
@@ -256,6 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const dpHidden  = document.getElementById('reportDate');
 
     if (!dpTrigger || !dpPanel) return;
+    if (dpTrigger._dpInited) return;
+    dpTrigger._dpInited = true;
 
     // Reset date selection state from hidden input
     const yesterday = new Date();
@@ -269,9 +450,6 @@ document.addEventListener('DOMContentLoaded', () => {
       dpSelected = yesterday;
     }
     dpSetDate(dpSelected, false);
-
-    if (dpTrigger._dpInited) return;
-    dpTrigger._dpInited = true;
 
     dpTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -310,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!dpPanel) return;
     dpOpen = true;
+    clearSubmittedDatesCache();
     dpPanel.classList.remove('hidden');
     dpSpinnerOpen = false;
     if (dpSpinView) dpSpinView.style.display = 'none';
@@ -340,7 +519,17 @@ document.addEventListener('DOMContentLoaded', () => {
     dpSelected = d ? new Date(d) : null;
     dpUpdateTrigger();
     const newVal   = dpSelected ? dpIso(dpSelected) : '';
-    if (dpHidden) dpHidden.value = newVal;
+    if (dpHidden) {
+      const changed = oldVal !== newVal;
+      dpHidden.value = newVal;
+      if (changed) {
+        dpHidden.dispatchEvent(new Event('change', { bubbles: true }));
+        const statusContainer = document.getElementById('date-status-container');
+        if (statusContainer && window.htmx) {
+          htmx.ajax('GET', '/reports/check-date?reportDate=' + newVal, { target: '#date-status-container', swap: 'innerHTML' });
+        }
+      }
+    }
 
     if (updateView && dpSelected) {
       dpViewYear  = dpSelected.getFullYear();
@@ -374,17 +563,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function dpRenderGrid() {
+  async function dpRenderGrid() {
     const dpGrid = document.getElementById('dp-grid');
     if (!dpGrid) return;
-    // Update the visible month/year label (inside the dp-spin-open trigger button)
+
+    // Enforce lower month bound (July 2026 = 2026-06 index)
+    if (dpViewYear < 2026 || (dpViewYear === 2026 && dpViewMonth < 6)) {
+      dpViewYear = 2026;
+      dpViewMonth = 6;
+    }
+
     const headerSpan = document.querySelector('#dp-spin-open > span');
     if (headerSpan) {
       const monthLongName = MONTH_LONG[dpViewMonth % 12] || '';
       headerSpan.textContent = `${monthLongName} ${dpViewYear}`;
     }
 
-    const today   = new Date();
+    const monthStr = `${dpViewYear}-${String(dpViewMonth+1).padStart(2,'0')}`;
+    const submittedInfo = await fetchSubmittedDates(monthStr);
+
+    const pkTodayStr = getPKTodayStr();
+    const pkTodayDate = getPKTodayDate();
     const first   = new Date(dpViewYear, dpViewMonth, 1);
     const offset  = first.getDay();
     const daysInM = new Date(dpViewYear, dpViewMonth+1, 0).getDate();
@@ -406,17 +605,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dpGrid.innerHTML = cells.map(c => {
       const cd  = new Date(c.y, c.m, c.d);
+      const iso = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
       const dow = cd.getDay();
       let cls = 'cal-day';
+      let isDisabled = false;
+
+      const isBeforeMin = iso < '2026-07-01';
+      const isFuture = iso > pkTodayStr;
+      const isSubmitted = submittedInfo.dates.has(iso);
+
       if (c.outside) cls += ' outside';
       else if (dow === 0 || dow === 6) cls += ' weekend';
-      if (!c.outside && dpIsSame(cd, today))    cls += ' today';
+
+      const isDashboard = !!document.getElementById('dashboard-content');
+
+      if (isDashboard) {
+        if (isBeforeMin || isFuture || !isSubmitted) {
+          cls += ' outside disabled no-report-disabled';
+          isDisabled = true;
+        } else {
+          cls += ' has-report-selectable';
+        }
+      } else {
+        if (isBeforeMin || isFuture) {
+          cls += ' outside disabled future-disabled';
+          isDisabled = true;
+        } else if (isSubmitted) {
+          if (!submittedInfo.canEdit) {
+            cls += ' already-submitted-disabled disabled';
+            isDisabled = true;
+          } else {
+            cls += ' already-submitted-manager';
+          }
+        }
+      }
+
+      if (!c.outside && dpIsSame(cd, pkTodayDate)) cls += ' today';
       if (dpSelected && dpIsSame(cd, dpSelected)) cls += ' selected';
       if (dpFocused  && dpIsSame(cd, dpFocused))  cls += ' focused';
-      return `<button type="button" class="${escapeHTML(cls)}" data-y="${Number(c.y)}" data-m="${Number(c.m)}" data-d="${Number(c.d)}">${Number(c.d)}</button>`;
+
+      const disAttr = isDisabled ? 'disabled="disabled"' : '';
+      let titleAttr = '';
+      if (isDashboard) {
+        titleAttr = isSubmitted ? 'title="View EOD Report"' : (isFuture ? 'title="Future Date"' : (isBeforeMin ? 'title="Prior to July 2026"' : 'title="No report for this date"'));
+      } else {
+        titleAttr = isSubmitted ? (submittedInfo.canEdit ? 'title="Report Submitted (Click to Edit)"' : 'title="Report Already Submitted"') : (isFuture ? 'title="Future Date"' : (isBeforeMin ? 'title="Prior to July 2026"' : ''));
+      }
+
+      return `<button type="button" class="${escapeHTML(cls)}" data-y="${Number(c.y)}" data-m="${Number(c.m)}" data-d="${Number(c.d)}" ${disAttr} ${titleAttr}>${Number(c.d)}</button>`;
     }).join('');
 
-    dpGrid.querySelectorAll('.cal-day').forEach(btn => {
+    dpGrid.querySelectorAll('.cal-day:not([disabled])').forEach(btn => {
       btn.addEventListener('click', () => {
         const y = +btn.dataset.y, m = +btn.dataset.m, d = +btn.dataset.d;
         dpSetDate(new Date(y, m, d), true);
@@ -426,9 +665,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function dpStepMonth(delta) {
-    dpViewMonth += delta;
-    if (dpViewMonth < 0)  { dpViewMonth = 11; dpViewYear--; }
-    if (dpViewMonth > 11) { dpViewMonth = 0;  dpViewYear++; }
+    let nextMonth = dpViewMonth + delta;
+    let nextYear = dpViewYear;
+    if (nextMonth < 0)  { nextMonth = 11; nextYear--; }
+    if (nextMonth > 11) { nextMonth = 0;  nextYear++; }
+
+    // Enforce July 2026 lower boundary
+    if (nextYear < 2026 || (nextYear === 2026 && nextMonth < 6)) {
+      return;
+    }
+
+    dpViewYear = nextYear;
+    dpViewMonth = nextMonth;
     dpRenderGrid();
   }
 
@@ -455,9 +703,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Spinner (month/year wheel) ──
   const ITEM_H = 32;
+  const MIN_YEAR = 2026;
   const CUR_YEAR = new Date().getFullYear();
   const YEAR_LIST = [];
-  for (let y = CUR_YEAR-20; y <= CUR_YEAR+5; y++) YEAR_LIST.push(y);
+  for (let y = MIN_YEAR; y <= Math.max(MIN_YEAR, CUR_YEAR + 5); y++) YEAR_LIST.push(y);
 
   let spMonthIdx = 0, spYearIdx = 0;
 

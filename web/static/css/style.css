@@ -243,6 +243,21 @@ html.theme-light .text-sky-300 {
   color: #0369a1 !important;
 }
 
+/* Light mode overwrite toggle pill styling */
+html.theme-light #overwrite-toggle-wrap label,
+html.theme-light .bg-amber-950\/60 {
+  background-color: #fffbeb !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+html.theme-light #overwrite-toggle-wrap label .text-amber-300 {
+  color: #b45309 !important;
+}
+html.theme-light #overwrite-toggle-wrap label:hover {
+  background-color: #fef3c7 !important;
+  border-color: #f59e0b !important;
+}
+
 /* ── Tanveer Developer Signature Badge (Light Mode) ── */
 html.theme-light .dev-sig-circle svg {
   color: #64748b !important;
@@ -634,6 +649,51 @@ html.theme-light input[type="date"]::-webkit-calendar-picker-indicator {
 .cal-day.today:not(.selected)  { border: 1.5px solid #38bdf8; color: #38bdf8; font-weight: 700; }
 .cal-day.selected { background-color: var(--cyan); color: var(--bg-main); font-weight: 700; box-shadow: 0 1px 6px rgba(0,180,216,0.4); }
 .cal-day.focused:not(.selected) { outline: 1.5px solid #38bdf8; outline-offset: -1.5px; }
+
+/* Disabled & Submitted Calendar Days */
+.cal-day.disabled,
+.cal-day.future-disabled,
+.cal-day.no-report-disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+.cal-day.has-report-selectable {
+  position: relative;
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+.cal-day.has-report-selectable::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #34d399;
+}
+.cal-day.already-submitted-disabled {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #f59e0b !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+.cal-day.already-submitted-manager {
+  position: relative;
+  background-color: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-weight: 700;
+}
+.cal-day.already-submitted-manager::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+}
 
 /* Footer row (clear / today) */
 .cal-footer {
