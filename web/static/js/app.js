@@ -531,22 +531,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ── helpers for dpSetDate ──────────────────────────────────────────
+
+  function dpNotifyDateChange(newVal) {
+    const statusContainer = document.getElementById('date-status-container');
+    if (statusContainer && window.htmx) {
+      htmx.ajax('GET', '/reports/check-date?reportDate=' + newVal, { target: '#date-status-container', swap: 'innerHTML' });
+    }
+  }
+
+  // Returns true if it handled navigation (so caller skips triggerPreview)
+  function dpHandleDashboardNav(newVal, oldVal) {
+    const dashContainer = document.getElementById('dashboard-content');
+    if (!dashContainer || !newVal || !oldVal || oldVal === newVal) return false;
+    if (!window.htmx) return false;
+    const url = '/?date=' + newVal + '&partial=true';
+    htmx.ajax('GET', url, { target: '#dashboard-content', swap: 'innerHTML' });
+    history.pushState({ path: '/?date=' + newVal }, '', '/?date=' + newVal);
+    return true;
+  }
+
   function dpSetDate(d, updateView) {
     const dpHidden = document.getElementById('reportDate');
     const oldVal   = dpHidden ? dpHidden.value : '';
 
     dpSelected = d ? new Date(d) : null;
     dpUpdateTrigger();
-    const newVal   = dpSelected ? dpIso(dpSelected) : '';
+    const newVal = dpSelected ? dpIso(dpSelected) : '';
+
     if (dpHidden) {
-      const changed = oldVal !== newVal;
       dpHidden.value = newVal;
-      if (changed) {
+      if (oldVal !== newVal) {
         dpHidden.dispatchEvent(new Event('change', { bubbles: true }));
-        const statusContainer = document.getElementById('date-status-container');
-        if (statusContainer && window.htmx) {
-          htmx.ajax('GET', '/reports/check-date?reportDate=' + newVal, { target: '#date-status-container', swap: 'innerHTML' });
-        }
+        dpNotifyDateChange(newVal);
       }
     }
 
@@ -556,16 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (dpOpen) dpRenderGrid();
 
-    const dashContainer = document.getElementById('dashboard-content');
-    if (dashContainer && newVal && oldVal && oldVal !== newVal) {
-      const url = '/?date=' + newVal + '&partial=true';
-      if (window.htmx) {
-        htmx.ajax('GET', url, { target: '#dashboard-content', swap: 'innerHTML' });
-        history.pushState({ path: '/?date=' + newVal }, '', '/?date=' + newVal);
-      }
-    } else {
-      triggerPreview();
-    }
+    if (!dpHandleDashboardNav(newVal, oldVal)) triggerPreview();
   }
 
   function dpUpdateTrigger() {
@@ -705,22 +713,31 @@ document.addEventListener('DOMContentLoaded', () => {
     dpRenderGrid();
   }
 
+  // ── helpers for dpHandleCalKey ────────────────────────────────────
+
+  const DP_ARROW_DELTA = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 };
+
+  // Returns true if the key was a special action (caller should return immediately)
+  function dpHandleCalSpecialKey(e) {
+    if (e.key === 'PageDown') { e.preventDefault(); dpStepMonth(1);  return true; }
+    if (e.key === 'PageUp')   { e.preventDefault(); dpStepMonth(-1); return true; }
+    if (e.key === 'Enter')    { e.preventDefault(); if (dpFocused) { dpSetDate(dpFocused, true); dpClose(); } return true; }
+    if (e.key === 'Escape')   { dpClose(); return true; }
+    if (e.key === 't' || e.key === 'T') { dpSetDate(new Date(), true); dpClose(); return true; }
+    if (e.key === 'm' || e.key === 'M') { dpOpenSpinner(); return true; }
+    return false;
+  }
+
   function dpHandleCalKey(e) {
     if (!dpFocused && dpSelected) dpFocused = new Date(dpSelected);
     if (!dpFocused) dpFocused = new Date(dpViewYear, dpViewMonth, 1);
 
-    if (e.key === 'ArrowRight') { e.preventDefault(); dpFocused.setDate(dpFocused.getDate()+1); }
-    else if (e.key === 'ArrowLeft')  { e.preventDefault(); dpFocused.setDate(dpFocused.getDate()-1); }
-    else if (e.key === 'ArrowDown')  { e.preventDefault(); dpFocused.setDate(dpFocused.getDate()+7); }
-    else if (e.key === 'ArrowUp')    { e.preventDefault(); dpFocused.setDate(dpFocused.getDate()-7); }
-    else if (e.key === 'PageDown')   { e.preventDefault(); dpStepMonth(1); return; }
-    else if (e.key === 'PageUp')     { e.preventDefault(); dpStepMonth(-1); return; }
-    else if (e.key === 'Enter')      { e.preventDefault(); if (dpFocused) { dpSetDate(dpFocused, true); dpClose(); } return; }
-    else if (e.key === 'Escape')     { dpClose(); return; }
-    else if (e.key === 't' || e.key === 'T') { dpSetDate(new Date(), true); dpClose(); return; }
-    else if (e.key === 'm' || e.key === 'M') { dpOpenSpinner(); return; }
-    else return;
+    if (dpHandleCalSpecialKey(e)) return;
 
+    const delta = DP_ARROW_DELTA[e.key];
+    if (delta === undefined) return;
+    e.preventDefault();
+    dpFocused.setDate(dpFocused.getDate() + delta);
     dpViewYear  = dpFocused.getFullYear();
     dpViewMonth = dpFocused.getMonth();
     dpRenderGrid();
@@ -945,6 +962,27 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─────────────────────────────────────────────────────
      GLOBAL KEYBOARD SHORTCUTS
   ───────────────────────────────────────────────────── */
+  // ── helpers for the global keydown handler ──────────────────────────
+
+  const ALT_KEY_MAP = { d:'dp-trigger', s:'totalSale', c:'creditSale', b:'bankTransfer', k:'counterCash', a:null };
+
+  function handleAltKeyShortcut(e) {
+    const k = e.key.toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(ALT_KEY_MAP, k)) return;
+    e.preventDefault();
+    if (k === 'a') { addExpenseRow(); return; }
+    const targetId = ALT_KEY_MAP[k];
+    if (targetId) document.getElementById(targetId)?.focus();
+  }
+
+  function handleDashboardArrowNav(e) {
+    const prevLink = document.getElementById('dash-prev-day');
+    const nextLink = document.getElementById('dash-next-day');
+    if (!prevLink || !nextLink) return;
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); prevLink.click(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); nextLink.click(); }
+  }
+
   document.addEventListener('keydown', e => {
     const tag = document.activeElement?.tagName;
     const isTyping = ['INPUT','TEXTAREA','SELECT'].includes(tag);
@@ -957,37 +995,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Escape → close modals / date picker
-    if (e.key === 'Escape') {
-      if (dpOpen) { dpClose(); return; }
-      closeModal();
-      return;
-    }
+    if (e.key === 'Escape') { if (dpOpen) { dpClose(); return; } closeModal(); return; }
 
     // ? → shortcuts modal (only when not typing)
     if (e.key === '?' && !isTyping) { e.preventDefault(); toggleShortcutsModal(); return; }
 
-    // Alt shortcuts work EVEN when a field is focused — that's the whole point
-    if (e.altKey) {
-      const map = { d:'dp-trigger', s:'totalSale', c:'creditSale', b:'bankTransfer', k:'counterCash', a:null };
-      const k = e.key.toLowerCase();
-      if (Object.prototype.hasOwnProperty.call(map, k)) {
-        e.preventDefault();
-        if (k === 'a') { addExpenseRow(); return; }
-        const targetId = map[k];
-        if (targetId) document.getElementById(targetId)?.focus();
-        return;
-      }
-    }
+    // Alt shortcuts work EVEN when a field is focused
+    if (e.altKey) { handleAltKeyShortcut(e); return; }
 
-    if (isTyping) return;  // non-Alt shortcuts only work outside input focus
+    if (isTyping) return;
 
     // Dashboard: left/right arrow to navigate dates
-    const prevLink = document.getElementById('dash-prev-day');
-    const nextLink = document.getElementById('dash-next-day');
-    if (prevLink && nextLink) {
-      if (e.key === 'ArrowLeft')  { e.preventDefault(); prevLink.click(); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); nextLink.click(); }
-    }
+    handleDashboardArrowNav(e);
   });
 
 
@@ -1394,24 +1413,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let touchStartY = 0;
     let touchStartTime = 0;
 
+    // Returns true if el is a hardcoded scroll-exempt container
+    function isScrollExemptElement(el) {
+      return el.classList && (
+        el.classList.contains('overflow-x-auto') ||
+        el.classList.contains('date-panel') ||
+        el.id === 'dp-panel' ||
+        el.id === 'global-shortcuts-modal' ||
+        el.id === 'report-modal-container'
+      );
+    }
+
     function isInsideHorizontallyScrollable(el) {
       let curr = el;
       while (curr && curr !== document.body && curr !== document.documentElement) {
         if (curr.nodeType === 1) {
-          const style = window.getComputedStyle(curr);
-          const overflowX = style.overflowX;
-          if ((overflowX === 'auto' || overflowX === 'scroll') && curr.scrollWidth > curr.clientWidth) {
-            return true;
-          }
-          if (curr.classList && (
-              curr.classList.contains('overflow-x-auto') ||
-              curr.classList.contains('date-panel') ||
-              curr.id === 'dp-panel' ||
-              curr.id === 'global-shortcuts-modal' ||
-              curr.id === 'report-modal-container'
-          )) {
-            return true;
-          }
+          const style    = window.getComputedStyle(curr);
+          const overflow = style.overflowX;
+          if ((overflow === 'auto' || overflow === 'scroll') && curr.scrollWidth > curr.clientWidth) return true;
+          if (isScrollExemptElement(curr)) return true;
         }
         curr = curr.parentElement;
       }
@@ -1426,63 +1446,66 @@ document.addEventListener('DOMContentLoaded', () => {
       touchStartTime = Date.now();
     }, { passive: true });
 
+    // ── helpers for touchend swipe navigation ───────────────────────────
+    const SWIPE_VALID_ROUTES = ['/', '/submit', '/reports', '/admin/users', '/profile'];
+
+    function isValidSwipe(deltaX, deltaY, duration) {
+      if (duration > 600) return false;
+      if (Math.abs(deltaX) < 45) return false;
+      if (Math.abs(deltaX) < 1.3 * Math.abs(deltaY)) return false;
+      return true;
+    }
+
+    function collectSwipeRoutes(navLinks) {
+      const routes = [];
+      navLinks.forEach(link => {
+        const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
+        if (href && !routes.includes(href) && SWIPE_VALID_ROUTES.includes(href)) routes.push(href);
+      });
+      return routes;
+    }
+
+    function resolveSwipeCurrentIndex(routes, pathname) {
+      const idx = routes.indexOf(pathname);
+      if (idx !== -1) return idx;
+      if (pathname === '' || pathname === '/')       return routes.indexOf('/');
+      if (pathname.startsWith('/submit'))            return routes.indexOf('/submit');
+      if (pathname.startsWith('/reports'))           return routes.indexOf('/reports');
+      if (pathname.startsWith('/admin/users'))       return routes.indexOf('/admin/users');
+      if (pathname.startsWith('/profile'))           return routes.indexOf('/profile');
+      return -1;
+    }
+
+    function computeSwipeTarget(routes, currentIndex, deltaX) {
+      if (deltaX < 0 && currentIndex < routes.length - 1) return { index: currentIndex + 1, dir: 'left' };
+      if (deltaX > 0 && currentIndex > 0)                 return { index: currentIndex - 1, dir: 'right' };
+      return null;
+    }
+
     document.addEventListener('touchend', (e) => {
       if (e.changedTouches.length !== 1) return;
 
+      const touch    = e.changedTouches[0];
+      const deltaX   = touch.clientX - touchStartX;
+      const deltaY   = touch.clientY - touchStartY;
       const duration = Date.now() - touchStartTime;
-      if (duration > 600) return;
 
-      const touch = e.changedTouches[0];
-      const deltaX = touch.clientX - touchStartX;
-      const deltaY = touch.clientY - touchStartY;
-
-      if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < 1.3 * Math.abs(deltaY)) {
-        return;
-      }
+      if (!isValidSwipe(deltaX, deltaY, duration)) return;
 
       const target = document.elementFromPoint(touch.clientX, touch.clientY) || e.target;
-      if (isInsideHorizontallyScrollable(target)) {
-        return;
-      }
+      if (isInsideHorizontallyScrollable(target)) return;
 
       const navLinks = Array.from(document.querySelectorAll('#mobile-nav-bar a.mobile-nav-item, nav a[href]'));
       if (navLinks.length === 0) return;
 
-      const routes = [];
-      navLinks.forEach(link => {
-        const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
-        if (href && !routes.includes(href) && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/profile')) {
-          routes.push(href);
-        }
-      });
-
+      const routes       = collectSwipeRoutes(navLinks);
       if (routes.length < 2) return;
 
-      const currentPath = window.location.pathname;
-      let currentIndex = routes.indexOf(currentPath);
-      if (currentIndex === -1) {
-        if (currentPath === '' || currentPath === '/') currentIndex = routes.indexOf('/');
-        else if (currentPath.startsWith('/submit')) currentIndex = routes.indexOf('/submit');
-        else if (currentPath.startsWith('/reports')) currentIndex = routes.indexOf('/reports');
-        else if (currentPath.startsWith('/admin/users')) currentIndex = routes.indexOf('/admin/users');
-        else if (currentPath.startsWith('/profile')) currentIndex = routes.indexOf('/profile');
-      }
-
+      const currentIndex = resolveSwipeCurrentIndex(routes, window.location.pathname);
       if (currentIndex === -1) return;
 
-      let targetIndex = -1;
-      let dir = 'left';
-      if (deltaX < 0 && currentIndex < routes.length - 1) {
-        targetIndex = currentIndex + 1;
-        dir = 'left';
-      } else if (deltaX > 0 && currentIndex > 0) {
-        targetIndex = currentIndex - 1;
-        dir = 'right';
-      }
-
-      if (targetIndex !== -1 && targetIndex !== currentIndex) {
-        window.navigateToTabInstant(routes[targetIndex], dir);
-      }
+      const swipe = computeSwipeTarget(routes, currentIndex, deltaX);
+      if (swipe) window.navigateToTabInstant(routes[swipe.index], swipe.dir);
     }, { passive: true });
   })();
 
