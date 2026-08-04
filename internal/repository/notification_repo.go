@@ -17,8 +17,19 @@ type NotificationRepository struct {
 }
 
 func NewNotificationRepository(db *mongo.Database) *NotificationRepository {
+	col := db.Collection("notifications")
+	// Ensure unique index on report_id so MongoDB enforces 1 notification per EOD Report
+	go func() {
+		idxCtx, idxCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer idxCancel()
+		_, _ = col.Indexes().CreateOne(idxCtx, mongo.IndexModel{
+			Keys:    bson.D{{Key: "report_id", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("idx_unique_notif_report_id"),
+		})
+	}()
+
 	return &NotificationRepository{
-		collection: db.Collection("notifications"),
+		collection: col,
 	}
 }
 
@@ -82,7 +93,7 @@ func (r *NotificationRepository) MarkAsRead(ctx context.Context, idStr string) e
 	return nil
 }
 
-func (r *NotificationRepository) FindByReportID(ctx context.Context, reportID string) (*models.Notification, error) {
+func (r *NotificationRepository) FindByReportID(ctx context.Context, reportID bson.ObjectID) (*models.Notification, error) {
 	filter := bson.M{"report_id": reportID}
 	var notif models.Notification
 	err := r.collection.FindOne(ctx, filter).Decode(&notif)
@@ -91,19 +102,6 @@ func (r *NotificationRepository) FindByReportID(ctx context.Context, reportID st
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to find notification by report_id: %w", err)
-	}
-	return &notif, nil
-}
-
-func (r *NotificationRepository) FindByReportDate(ctx context.Context, reportDate string) (*models.Notification, error) {
-	filter := bson.M{"report_date": reportDate}
-	var notif models.Notification
-	err := r.collection.FindOne(ctx, filter).Decode(&notif)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to find notification by report_date: %w", err)
 	}
 	return &notif, nil
 }

@@ -144,7 +144,7 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger async notification creation if notes are present (completely non-blocking)
 	if h.notifService != nil && report != nil && report.Notes != "" {
-		h.notifService.CreateNotificationAsync(report.ReportID, report.ReportDate, report.SubmittedBy, report.Notes)
+		h.notifService.CreateNotificationAsync(report.ID, report.ReportDate, report.SubmittedBy, report.Notes)
 	}
 
 	if r.Header.Get("HX-Request") == "true" {

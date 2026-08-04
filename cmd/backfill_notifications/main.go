@@ -80,9 +80,9 @@ func main() {
 			continue
 		}
 
-		existing, err := notifRepo.FindByReportDate(ctx, rep.ReportDate)
+		existing, err := notifRepo.FindByReportID(ctx, rep.ID)
 		if err != nil {
-			slog.Error("Backfill error checking report notification", "reportDate", rep.ReportDate, "error", err)
+			slog.Error("Backfill error checking report notification", "reportID", rep.ID.Hex(), "error", err)
 			continue
 		}
 
@@ -92,7 +92,7 @@ func main() {
 		}
 
 		notif := &models.Notification{
-			ReportID:    rep.ReportID,
+			ReportID:    rep.ID,
 			ReportDate:  rep.ReportDate,
 			SubmittedBy: rep.SubmittedBy,
 			Notes:       cleanNotes,

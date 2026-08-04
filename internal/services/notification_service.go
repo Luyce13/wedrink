@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"wedrink/internal/models"
 	"wedrink/internal/repository"
 )
@@ -19,23 +20,21 @@ func NewNotificationService(repo *repository.NotificationRepository) *Notificati
 	return &NotificationService{repo: repo}
 }
 
-// CreateNotificationAsync asynchronously creates an unread notification when a report has remarks/notes.
-// Runs in a detached background goroutine to guarantee zero impact on submission latency or HTTP response.
-func (s *NotificationService) CreateNotificationAsync(reportID, reportDate, submittedBy, notes string) {
+// CreateNotificationAsync asynchronously creates or updates an unread notification when a report has remarks/notes.
+// Bound directly to the EOD report's MongoDB ObjectID (_id).
+func (s *NotificationService) CreateNotificationAsync(reportID bson.ObjectID, reportDate, submittedBy, notes string) {
 	cleanNotes := strings.TrimSpace(notes)
 	if cleanNotes == "" {
 		return
 	}
 
-	// Launch async detached goroutine
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Check if notification already exists for this report date to update or create
-		existing, err := s.repo.FindByReportDate(ctx, reportDate)
+		existing, err := s.repo.FindByReportID(ctx, reportID)
 		if err != nil {
-			slog.Error("CreateNotificationAsync: failed to check existing notification", "reportDate", reportDate, "error", err)
+			slog.Error("CreateNotificationAsync: failed to check existing notification", "reportID", reportID.Hex(), "error", err)
 			return
 		}
 		if existing != nil {
@@ -44,9 +43,9 @@ func (s *NotificationService) CreateNotificationAsync(reportID, reportDate, subm
 			existing.IsRead = false
 			existing.CreatedAt = time.Now()
 			if err := s.repo.Update(ctx, existing); err != nil {
-				slog.Error("CreateNotificationAsync: failed to update notification", "reportDate", reportDate, "error", err)
+				slog.Error("CreateNotificationAsync: failed to update notification", "reportID", reportID.Hex(), "error", err)
 			} else {
-				slog.Info("CreateNotificationAsync: updated existing notification for date", "reportDate", reportDate)
+				slog.Info("CreateNotificationAsync: updated existing notification for report _id", "reportID", reportID.Hex())
 			}
 			return
 		}
@@ -61,9 +60,9 @@ func (s *NotificationService) CreateNotificationAsync(reportID, reportDate, subm
 		}
 
 		if err := s.repo.Create(ctx, notif); err != nil {
-			slog.Error("CreateNotificationAsync: failed to create notification", "reportDate", reportDate, "error", err)
+			slog.Error("CreateNotificationAsync: failed to create notification", "reportID", reportID.Hex(), "error", err)
 		} else {
-			slog.Info("CreateNotificationAsync: unread notification created successfully", "reportID", reportID, "date", reportDate)
+			slog.Info("CreateNotificationAsync: unread notification created successfully", "reportID", reportID.Hex(), "date", reportDate)
 		}
 	}()
 }
