@@ -14,9 +14,9 @@
         <input type="hidden" id="startDate" name="startDate" value="{{.StartDate}}">
         <button type="button" id="dp-from-trigger" class="date-trigger text-xs py-1.5 px-3 min-w-[8.5rem] w-36 justify-between bg-[#080e1e] border-[#1e2d4a]">
           <span id="dp-from-label" class="text-xs truncate">{{if .StartDate}}{{.StartDate}}{{else}}Select date{{end}}</span>
-          <svg class="dt-icon w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
+          <svg class="dt-icon w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
         </button>
-        <div id="dp-from-panel" class="date-panel hidden">
+        <div id="dp-from-panel" class="date-panel hidden !left-0 !right-auto">
           <div class="cal-grid-view">
             <div class="cal-header">
               <button type="button" id="dp-from-prev" class="cal-nav" aria-label="Previous month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg></button>
@@ -41,9 +41,9 @@
         <input type="hidden" id="endDate" name="endDate" value="{{.EndDate}}">
         <button type="button" id="dp-to-trigger" class="date-trigger text-xs py-1.5 px-3 min-w-[8.5rem] w-36 justify-between bg-[#080e1e] border-[#1e2d4a]">
           <span id="dp-to-label" class="text-xs truncate">{{if .EndDate}}{{.EndDate}}{{else}}Select date{{end}}</span>
-          <svg class="dt-icon w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
+          <svg class="dt-icon w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
         </button>
-        <div id="dp-to-panel" class="date-panel hidden">
+        <div id="dp-to-panel" class="date-panel hidden !left-0 !right-auto">
           <div class="cal-grid-view">
             <div class="cal-header">
               <button type="button" id="dp-to-prev" class="cal-nav" aria-label="Previous month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg></button>
@@ -145,6 +145,7 @@ window.initReportsCustomDatePickers = function() {
     const label   = document.getElementById(`dp-${prefix}-label`);
 
     if (!trigger || !panel || !hidden || !grid) return null;
+    if (trigger._inited) return trigger._renderFn || null;
 
     let viewYear = new Date().getFullYear();
     let viewMonth = new Date().getMonth();
@@ -244,6 +245,8 @@ window.initReportsCustomDatePickers = function() {
     document.getElementById(`dp-${prefix}-clear`)?.addEventListener('click', (e) => { e.stopPropagation(); hidden.value = ''; if (label) label.textContent = 'Select date'; panel.classList.add('hidden'); if (window.updateReportsFilterState) window.updateReportsFilterState(); if (window.refreshFilterPickers) window.refreshFilterPickers(); });
     document.getElementById(`dp-${prefix}-today`)?.addEventListener('click', (e) => { e.stopPropagation(); hidden.value = new Date().toISOString().split('T')[0]; if (label) label.textContent = hidden.value; panel.classList.add('hidden'); if (window.updateReportsFilterState) window.updateReportsFilterState(); if (window.refreshFilterPickers) window.refreshFilterPickers(); });
 
+    trigger._inited = true;
+    trigger._renderFn = render;
     return render;
   }
 
@@ -255,20 +258,23 @@ window.initReportsCustomDatePickers = function() {
     if (renderTo) renderTo();
   };
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#dp-from-panel') && !e.target.closest('#dp-from-trigger') &&
-        !e.target.closest('#dp-to-panel') && !e.target.closest('#dp-to-trigger')) {
-      document.getElementById('dp-from-panel')?.classList.add('hidden');
-      document.getElementById('dp-to-panel')?.classList.add('hidden');
-    }
-  });
+  if (!window._filterPickersDocClick) {
+    window._filterPickersDocClick = true;
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#dp-from-panel') && !e.target.closest('#dp-from-trigger') &&
+          !e.target.closest('#dp-to-panel') && !e.target.closest('#dp-to-trigger')) {
+        document.getElementById('dp-from-panel')?.classList.add('hidden');
+        document.getElementById('dp-to-panel')?.classList.add('hidden');
+      }
+    });
+  }
 };
 
-if (window.initReportsCustomDatePickers) window.initReportsCustomDatePickers();
-if (window.updateReportsFilterState) window.updateReportsFilterState();
+window.initReportsCustomDatePickers();
+window.updateReportsFilterState();
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.initReportsCustomDatePickers) window.initReportsCustomDatePickers();
-  if (window.updateReportsFilterState) window.updateReportsFilterState();
+  window.initReportsCustomDatePickers();
+  window.updateReportsFilterState();
 });
 </script>
 {{end}}
