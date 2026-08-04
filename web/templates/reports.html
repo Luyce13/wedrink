@@ -8,13 +8,58 @@
           hx-vals='{"partial": "true"}'
           autocomplete="off"
           class="flex flex-wrap items-end gap-3">
-      <div>
+      <!-- FROM Custom Datepicker -->
+      <div class="relative">
         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From</label>
-        <input type="date" name="startDate" value="{{.StartDate}}" oninput="updateReportsFilterState()" class="glass-input text-xs py-1.5 w-36" autocomplete="off">
+        <input type="hidden" id="startDate" name="startDate" value="{{.StartDate}}">
+        <button type="button" id="dp-from-trigger" class="date-trigger text-xs py-1.5 px-3 min-w-[8.5rem] w-36 justify-between bg-[#080e1e] border-[#1e2d4a]">
+          <span id="dp-from-label" class="text-xs truncate">{{if .StartDate}}{{.StartDate}}{{else}}Select date{{end}}</span>
+          <svg class="dt-icon w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
+        </button>
+        <div id="dp-from-panel" class="date-panel hidden">
+          <div class="cal-grid-view">
+            <div class="cal-header">
+              <button type="button" id="dp-from-prev" class="cal-nav" aria-label="Previous month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg></button>
+              <div class="cal-month-label"><span id="dp-from-month-text"></span></div>
+              <button type="button" id="dp-from-next" class="cal-nav" aria-label="Next month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke-width="2.5"/></svg></button>
+            </div>
+            <div class="cal-weekdays">
+              <div class="cal-weekday weekend">Su</div><div class="cal-weekday">Mo</div><div class="cal-weekday">Tu</div><div class="cal-weekday">We</div><div class="cal-weekday">Th</div><div class="cal-weekday">Fr</div><div class="cal-weekday weekend">Sa</div>
+            </div>
+            <div id="dp-from-grid" class="cal-grid"></div>
+            <div class="cal-footer">
+              <button type="button" id="dp-from-clear" class="cal-footer-btn">Clear</button>
+              <button type="button" id="dp-from-today" class="cal-footer-btn">Today</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
+
+      <!-- TO Custom Datepicker -->
+      <div class="relative">
         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To</label>
-        <input type="date" name="endDate" value="{{.EndDate}}" oninput="updateReportsFilterState()" class="glass-input text-xs py-1.5 w-36" autocomplete="off">
+        <input type="hidden" id="endDate" name="endDate" value="{{.EndDate}}">
+        <button type="button" id="dp-to-trigger" class="date-trigger text-xs py-1.5 px-3 min-w-[8.5rem] w-36 justify-between bg-[#080e1e] border-[#1e2d4a]">
+          <span id="dp-to-label" class="text-xs truncate">{{if .EndDate}}{{.EndDate}}{{else}}Select date{{end}}</span>
+          <svg class="dt-icon w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
+        </button>
+        <div id="dp-to-panel" class="date-panel hidden">
+          <div class="cal-grid-view">
+            <div class="cal-header">
+              <button type="button" id="dp-to-prev" class="cal-nav" aria-label="Previous month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg></button>
+              <div class="cal-month-label"><span id="dp-to-month-text"></span></div>
+              <button type="button" id="dp-to-next" class="cal-nav" aria-label="Next month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke-width="2.5"/></svg></button>
+            </div>
+            <div class="cal-weekdays">
+              <div class="cal-weekday weekend">Su</div><div class="cal-weekday">Mo</div><div class="cal-weekday">Tu</div><div class="cal-weekday">We</div><div class="cal-weekday">Th</div><div class="cal-weekday">Fr</div><div class="cal-weekday weekend">Sa</div>
+            </div>
+            <div id="dp-to-grid" class="cal-grid"></div>
+            <div class="cal-footer">
+              <button type="button" id="dp-to-clear" class="cal-footer-btn">Clear</button>
+              <button type="button" id="dp-to-today" class="cal-footer-btn">Today</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Sorting options -->
@@ -66,22 +111,8 @@ window.updateReportsFilterState = function() {
   const form = document.getElementById('reports-filter-form');
   if (!form) return;
 
-  const startInput = form.querySelector('[name="startDate"]');
-  const endInput   = form.querySelector('[name="endDate"]');
-  if (!startInput || !endInput) return;
-
-  // Set base bounds: July 1, 2026 -> Today
-  const todayIso = new Date().toISOString().split('T')[0];
-  const minDate  = '2026-07-01';
-
-  startInput.min = minDate;
-  startInput.max = endInput.value || todayIso;
-
-  endInput.min = startInput.value || minDate;
-  endInput.max = todayIso;
-
-  const startDate = startInput.value || '';
-  const endDate   = endInput.value || '';
+  const startDate = document.getElementById('startDate')?.value || '';
+  const endDate   = document.getElementById('endDate')?.value || '';
   const sortBy    = form.querySelector('[name="sortBy"]')?.value || 'date';
   const sortOrder = form.querySelector('[name="sortOrder"]')?.value || 'desc';
 
@@ -102,8 +133,141 @@ window.updateReportsFilterState = function() {
   }
 };
 
+window.initReportsCustomDatePickers = function() {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function setupPicker(prefix, hiddenId, isFrom) {
+    const trigger = document.getElementById(`dp-${prefix}-trigger`);
+    const panel   = document.getElementById(`dp-${prefix}-panel`);
+    const hidden  = document.getElementById(hiddenId);
+    const grid    = document.getElementById(`dp-${prefix}-grid`);
+    const monthText = document.getElementById(`dp-${prefix}-month-text`);
+    const label   = document.getElementById(`dp-${prefix}-label`);
+
+    if (!trigger || !panel || !hidden || !grid) return null;
+
+    let viewYear = new Date().getFullYear();
+    let viewMonth = new Date().getMonth();
+
+    if (hidden.value) {
+      const parts = hidden.value.split('-');
+      if (parts.length === 3) {
+        viewYear = +parts[0];
+        viewMonth = +parts[1] - 1;
+      }
+    }
+
+    function render() {
+      if (viewYear < 2026 || (viewYear === 2026 && viewMonth < 6)) {
+        viewYear = 2026;
+        viewMonth = 6;
+      }
+      if (monthText) monthText.textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+
+      const todayIso = new Date().toISOString().split('T')[0];
+      const minDate  = '2026-07-01';
+
+      const startDateVal = document.getElementById('startDate')?.value || '';
+      const endDateVal   = document.getElementById('endDate')?.value || '';
+
+      const first  = new Date(viewYear, viewMonth, 1);
+      const offset = first.getDay();
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const daysInPrev  = new Date(viewYear, viewMonth, 0).getDate();
+
+      const cells = [];
+      for (let i = offset - 1; i >= 0; i--) {
+        cells.push({ d: daysInPrev - i, outside: true });
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        cells.push({ d, outside: false });
+      }
+      while (cells.length % 7 !== 0) {
+        cells.push({ d: cells.length, outside: true });
+      }
+
+      grid.innerHTML = cells.map(c => {
+        if (c.outside) return `<button type="button" class="cal-day outside disabled" disabled>${c.d}</button>`;
+        const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(c.d).padStart(2, '0')}`;
+
+        let isDisabled = false;
+        let title = '';
+
+        if (iso < minDate) {
+          isDisabled = true;
+          title = 'Prior to July 2026';
+        } else if (iso > todayIso) {
+          isDisabled = true;
+          title = 'Future Date';
+        } else if (isFrom && endDateVal && iso > endDateVal) {
+          isDisabled = true;
+          title = 'Cannot be after To date';
+        } else if (!isFrom && startDateVal && iso < startDateVal) {
+          isDisabled = true;
+          title = 'Cannot be before From date';
+        }
+
+        let cls = 'cal-day';
+        if (isDisabled) cls += ' outside disabled future-disabled';
+        if (hidden.value === iso) cls += ' selected';
+        if (todayIso === iso) cls += ' today';
+
+        const disAttr = isDisabled ? 'disabled="disabled"' : '';
+        const titleAttr = title ? `title="${title}"` : '';
+
+        return `<button type="button" class="${cls}" data-iso="${iso}" ${disAttr} ${titleAttr}>${c.d}</button>`;
+      }).join('');
+
+      grid.querySelectorAll('.cal-day:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const iso = btn.dataset.iso;
+          hidden.value = iso;
+          if (label) label.textContent = iso;
+          panel.classList.add('hidden');
+          if (window.updateReportsFilterState) window.updateReportsFilterState();
+          if (window.refreshFilterPickers) window.refreshFilterPickers();
+        });
+      });
+    }
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.date-panel').forEach(p => { if (p !== panel) p.classList.add('hidden'); });
+      const willOpen = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !willOpen);
+      if (willOpen) render();
+    });
+
+    document.getElementById(`dp-${prefix}-prev`)?.addEventListener('click', (e) => { e.stopPropagation(); viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); });
+    document.getElementById(`dp-${prefix}-next`)?.addEventListener('click', (e) => { e.stopPropagation(); viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render(); });
+    document.getElementById(`dp-${prefix}-clear`)?.addEventListener('click', (e) => { e.stopPropagation(); hidden.value = ''; if (label) label.textContent = 'Select date'; panel.classList.add('hidden'); if (window.updateReportsFilterState) window.updateReportsFilterState(); if (window.refreshFilterPickers) window.refreshFilterPickers(); });
+    document.getElementById(`dp-${prefix}-today`)?.addEventListener('click', (e) => { e.stopPropagation(); hidden.value = new Date().toISOString().split('T')[0]; if (label) label.textContent = hidden.value; panel.classList.add('hidden'); if (window.updateReportsFilterState) window.updateReportsFilterState(); if (window.refreshFilterPickers) window.refreshFilterPickers(); });
+
+    return render;
+  }
+
+  const renderFrom = setupPicker('from', 'startDate', true);
+  const renderTo   = setupPicker('to', 'endDate', false);
+
+  window.refreshFilterPickers = function() {
+    if (renderFrom) renderFrom();
+    if (renderTo) renderTo();
+  };
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#dp-from-panel') && !e.target.closest('#dp-from-trigger') &&
+        !e.target.closest('#dp-to-panel') && !e.target.closest('#dp-to-trigger')) {
+      document.getElementById('dp-from-panel')?.classList.add('hidden');
+      document.getElementById('dp-to-panel')?.classList.add('hidden');
+    }
+  });
+};
+
+if (window.initReportsCustomDatePickers) window.initReportsCustomDatePickers();
 if (window.updateReportsFilterState) window.updateReportsFilterState();
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.initReportsCustomDatePickers) window.initReportsCustomDatePickers();
   if (window.updateReportsFilterState) window.updateReportsFilterState();
 });
 </script>
