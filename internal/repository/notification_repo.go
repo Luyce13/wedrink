@@ -152,7 +152,7 @@ func (r *NotificationRepository) MarkAsRead(ctx context.Context, idStr string) e
 	return nil
 }
 
-func (r *NotificationRepository) FindByReportID(ctx context.Context, reportID bson.ObjectID) (*models.Notification, error) {
+func (r *NotificationRepository) FindByReportID(ctx context.Context, reportID string) (*models.Notification, error) {
 	filter := bson.M{"report_id": reportID}
 	var notif models.Notification
 	err := r.collection.FindOne(ctx, filter).Decode(&notif)
@@ -182,7 +182,7 @@ func (r *NotificationRepository) Update(ctx context.Context, notif *models.Notif
 	return nil
 }
 
-func (r *NotificationRepository) DeleteByReportID(ctx context.Context, reportID bson.ObjectID) error {
+func (r *NotificationRepository) DeleteByReportID(ctx context.Context, reportID string) error {
 	filter := bson.M{"report_id": reportID}
 	_, err := r.collection.DeleteMany(ctx, filter)
 	if err != nil {

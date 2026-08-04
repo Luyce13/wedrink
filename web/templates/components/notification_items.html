@@ -12,8 +12,8 @@
     <div class="flex-1 min-w-0">
       <div class="flex items-center justify-between gap-1">
         <button type="button"
-                hx-get="/reports/detail?id={{$item.ReportID.Hex}}"
-                hx-target="#modal-container"
+                hx-get="/reports/detail?id={{$item.ReportID}}"
+                hx-target="#report-modal-container"
                 hx-swap="innerHTML"
                 class="text-xs font-bold text-sky-400 hover:underline truncate text-left">
           {{$item.ReportDate}}

@@ -144,7 +144,7 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// Save or update notification if remarks are present (completely safe, error-swallowed)
 	if h.notifService != nil && report != nil {
-		h.notifService.SaveNotification(r.Context(), report.ID, report.ReportDate, report.SubmittedBy, report.Notes)
+		h.notifService.SaveNotification(r.Context(), report.ID.Hex(), report.ReportDate, report.SubmittedBy, report.Notes)
 	}
 
 	if r.Header.Get("HX-Request") == "true" {

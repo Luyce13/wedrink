@@ -8,7 +8,7 @@ import (
 
 type Notification struct {
 	ID          bson.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	ReportID    bson.ObjectID `json:"report_id" bson:"report_id"`
+	ReportID    string        `json:"report_id" bson:"report_id"`
 	ReportDate  string        `json:"report_date" bson:"report_date"`
 	SubmittedBy string        `json:"submitted_by" bson:"submitted_by"`
 	Notes       string        `json:"notes" bson:"notes"`
