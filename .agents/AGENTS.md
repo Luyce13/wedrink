@@ -37,6 +37,7 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - `models.RoleSuperAdmin` (`"manager"` / `"super_admin"`): Full permission across all endpoints, including report editing/overwriting, deletion, and CSV export.
 - **Session Middleware**: Session state is passed via HTTP cookie `wedrink_session` (`username|role|fullname`).
 - **HTMX Authorization Failures**: If an unauthenticated or unauthorized request comes via HTMX (`HX-Request: true`), respond with HTTP 401/403 and set header `HX-Redirect: /login` or render HTMX error fragment (do not render a full HTML redirect page).
+- **Password-Protected Sensitive Actions**: Deleting a report row or user account MUST require current user password verification (`adminPassword`) via a glassmorphic confirmation modal prior to execution in `internal/handlers`.
 
 ---
 
@@ -47,6 +48,9 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - `/reports/expense-row` (GET): Returns `web/templates/components/expense_row.html`.
   - `/reports/detail` (GET): Returns `web/templates/report_modal.html`.
 - **Static Assets**: Dynamic static asset routes MUST include `Cache-Control: no-cache, no-store, must-revalidate` headers in Go (to bypass Cloudflare static caching during dev/deploys).
+- **HTMX Trigger Synchronization**: When triggering a client-side HTMX event via `HX-Trigger` headers (e.g. `reportSaved`), all database mutations associated with that event MUST be executed synchronously prior to returning the HTTP response. Never offload DB writes to un-awaited background goroutines if an HTMX trigger immediately re-fetches that state, as this causes a race condition resulting in "1 version behind" UI renders.
+- **Form Lock State & Edit Mode**: Asynchronous status checks (e.g. `GET /reports/check-date`) must accept `isEditMode` context so existing reports opened explicitly for editing return an unlocked state (`data-status="editing"`) and remain editable.
+- **Filter Bar State**: Apply and Reset filter buttons on `/reports` MUST default to `disabled` on page load and dynamically enable via JS (`updateReportsFilterState()`) only when filter/sort inputs (`startDate`, `endDate`, `sortBy`, `sortOrder`) are modified by the user.
 
 ---
 
@@ -57,7 +61,10 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 - **Unique Indexes**:
   - `eod_reports`: Unique index on `report_date`.
   - `users`: Unique index on `username`.
+  - `notifications`: Unique index on `report_id`.
 - **Report Overwrite**: Duplicate `report_date` submissions require `AllowOverwrite: true` set by a Manager; otherwise, return duplicate report error.
+- **ObjectID String Decoding**: Always set `ObjectIDAsHexString: true` in `options.BSONOptions` on `mongo.Connect` when mapping BSON ObjectID fields into Go `string` struct fields to prevent BSON decoding type errors (`decoding an object ID into a string is not supported by default`).
+- **Notification Upserting**: Notifications for store remarks MUST be bound to the report's `_id` (`EODReport.ID.Hex()`). Editing a report MUST upsert the existing notification record (updating notes text, timestamp, and resetting `is_read = false`) instead of inserting duplicate rows. Clearing notes text (`notes == ""`) MUST delete the notification.
 
 ---
 
@@ -75,3 +82,13 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - Default state: Circled T Monogram `Ⓣ` styled identically to the classic copyright symbol `©` (`<svg viewBox="0 0 24 24"><circle/><path d="M8 8.5h8M12 8.5v7"/></svg>`).
   - Hover / Interactive state: Smoothly expands on hover to display: `Designed & Built by Tanveer Abbas`.
   - Light & Dark mode support: Adaptive styling using theme tokens (Cyan glow in dark mode, Brand Red glow in light mode).
+
+---
+
+## 8. UI, Theme & Component Layout Rules
+
+- **2-State Theme Toggle**: Theme toggle strictly switches between Dark ↔ Light modes (`localStorage.wedrink_theme`). OS-level theme changes (`prefers-color-scheme`) MUST automatically clear `localStorage` and re-sync to the OS preference.
+- **Light Theme Color Contrast**: When overriding dark component styles in `html.theme-light`, container background utilities (such as `.bg-[#0f1c35]`) MUST be mapped to light backgrounds (`#ffffff`) alongside text utility overrides (`.text-sky-400` -> `#0284c7`). Bright neon dark-mode colors must always map to deep, high-contrast shades in light mode to maintain WCAG legibility.
+- **Datepicker Panel Alignment**: Left-aligned form field datepicker popover panels MUST specify `!left-0 !right-auto` so dropdowns align to the trigger button's left edge without overflowing off-screen.
+- **Responsive Mobile Popovers**: Header dropdown popovers MUST use responsive positioning (`fixed left-4 right-4 top-14 sm:absolute sm:right-0 sm:top-full sm:w-80`) to prevent clipping off the left/right edges of mobile viewports (< 640px).
+- **Dynamic Textarea Auto-Expansion**: Multiline textareas (e.g. Store Remarks) MUST dynamically auto-expand `scrollHeight` with a 160px (`max-h-[10rem]`) height limit, enabling vertical scrollbars thereafter.
