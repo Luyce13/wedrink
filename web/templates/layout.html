@@ -235,7 +235,7 @@
           <div id="notif-dropdown-container"
                class="hidden absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-[#0f1c35] border border-[#1e2d4a] rounded-xl shadow-2xl z-50 overflow-hidden"
                hx-get="/notifications/unread"
-               hx-trigger="load, notificationUpdated from:body"
+               hx-trigger="load, reportSaved from:body, notificationUpdated from:body"
                hx-swap="innerHTML"></div>
         </div>
         <script>

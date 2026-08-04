@@ -128,6 +128,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 
 	if existing != nil && input.AllowOverwrite {
 		report.ID = existing.ID
+		report.ReportID = existing.ReportID
 		report.CreatedAt = existing.CreatedAt
 		err = s.repo.Update(ctx, report)
 	} else {

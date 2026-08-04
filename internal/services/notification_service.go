@@ -32,14 +32,22 @@ func (s *NotificationService) CreateNotificationAsync(reportID, reportDate, subm
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Check if notification already exists for this report to prevent duplicates
-		existing, err := s.repo.FindByReportID(ctx, reportID)
+		// Check if notification already exists for this report date to update or create
+		existing, err := s.repo.FindByReportDate(ctx, reportDate)
 		if err != nil {
-			slog.Error("CreateNotificationAsync: failed to check existing notification", "reportID", reportID, "error", err)
+			slog.Error("CreateNotificationAsync: failed to check existing notification", "reportDate", reportDate, "error", err)
 			return
 		}
 		if existing != nil {
-			slog.Info("CreateNotificationAsync: notification already exists for report", "reportID", reportID)
+			existing.Notes = cleanNotes
+			existing.SubmittedBy = submittedBy
+			existing.IsRead = false
+			existing.CreatedAt = time.Now()
+			if err := s.repo.Update(ctx, existing); err != nil {
+				slog.Error("CreateNotificationAsync: failed to update notification", "reportDate", reportDate, "error", err)
+			} else {
+				slog.Info("CreateNotificationAsync: updated existing notification for date", "reportDate", reportDate)
+			}
 			return
 		}
 
@@ -53,7 +61,7 @@ func (s *NotificationService) CreateNotificationAsync(reportID, reportDate, subm
 		}
 
 		if err := s.repo.Create(ctx, notif); err != nil {
-			slog.Error("CreateNotificationAsync: failed to create notification", "reportID", reportID, "error", err)
+			slog.Error("CreateNotificationAsync: failed to create notification", "reportDate", reportDate, "error", err)
 		} else {
 			slog.Info("CreateNotificationAsync: unread notification created successfully", "reportID", reportID, "date", reportDate)
 		}

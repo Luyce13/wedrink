@@ -94,3 +94,33 @@ func (r *NotificationRepository) FindByReportID(ctx context.Context, reportID st
 	}
 	return &notif, nil
 }
+
+func (r *NotificationRepository) FindByReportDate(ctx context.Context, reportDate string) (*models.Notification, error) {
+	filter := bson.M{"report_date": reportDate}
+	var notif models.Notification
+	err := r.collection.FindOne(ctx, filter).Decode(&notif)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find notification by report_date: %w", err)
+	}
+	return &notif, nil
+}
+
+func (r *NotificationRepository) Update(ctx context.Context, notif *models.Notification) error {
+	filter := bson.M{"_id": notif.ID}
+	update := bson.M{
+		"$set": bson.M{
+			"notes":        notif.Notes,
+			"submitted_by": notif.SubmittedBy,
+			"is_read":      notif.IsRead,
+			"created_at":   notif.CreatedAt,
+		},
+	}
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update notification: %w", err)
+	}
+	return nil
+}
