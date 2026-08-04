@@ -47,6 +47,65 @@ func (r *NotificationRepository) Create(ctx context.Context, notif *models.Notif
 	return nil
 }
 
+type NotificationQueryParams struct {
+	Filter string // "unread" or "all"
+	Limit  int    // e.g. 10
+	Cursor string // bson.ObjectID hex string
+}
+
+type NotificationQueryResult struct {
+	Notifications []models.Notification
+	NextCursor    string
+	HasMore       bool
+	TriggerIdx    int
+}
+
+func (r *NotificationRepository) FindWithParams(ctx context.Context, params NotificationQueryParams) (*NotificationQueryResult, error) {
+	if params.Limit <= 0 {
+		params.Limit = 10
+	}
+
+	filter := bson.M{}
+	if params.Filter == "unread" {
+		filter["is_read"] = false
+	}
+
+	if params.Cursor != "" {
+		if oid, err := bson.ObjectIDFromHex(params.Cursor); err == nil {
+			filter["_id"] = bson.M{"$lt": oid}
+		}
+	}
+
+	opts := options.Find().
+		SetSort(bson.D{{Key: "_id", Value: -1}}).
+		SetLimit(int64(params.Limit + 1))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query notifications with params: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var notifs []models.Notification
+	if err := cursor.All(ctx, &notifs); err != nil {
+		return nil, fmt.Errorf("failed to decode notifications: %w", err)
+	}
+
+	result := &NotificationQueryResult{
+		Notifications: notifs,
+		HasMore:       false,
+	}
+
+	if len(notifs) > params.Limit {
+		result.HasMore = true
+		result.NextCursor = notifs[params.Limit-1].ID.Hex()
+		result.TriggerIdx = params.Limit
+		result.Notifications = notifs[:params.Limit]
+	}
+
+	return result, nil
+}
+
 func (r *NotificationRepository) FindUnread(ctx context.Context) ([]models.Notification, error) {
 	filter := bson.M{"is_read": false}
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})

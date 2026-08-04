@@ -161,6 +161,7 @@ func main() {
 
 	// Notification routes (Super Admin / Manager)
 	mux.HandleFunc("GET /notifications/unread", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.GetUnread))
+	mux.HandleFunc("GET /notifications/list", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.GetList))
 	mux.HandleFunc("GET /notifications/badge", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.GetBadge))
 	mux.HandleFunc("POST /notifications/mark-read", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.MarkAsRead))
 

@@ -71,6 +71,10 @@ func (s *NotificationService) SaveNotification(ctx context.Context, reportID bso
 	}
 }
 
+func (s *NotificationService) GetNotificationsWithParams(ctx context.Context, params repository.NotificationQueryParams) (*repository.NotificationQueryResult, error) {
+	return s.repo.FindWithParams(ctx, params)
+}
+
 func (s *NotificationService) GetUnreadNotifications(ctx context.Context) ([]models.Notification, error) {
 	return s.repo.FindUnread(ctx)
 }

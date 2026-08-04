@@ -1,0 +1,45 @@
+{{if .Notifications}}
+  {{range $idx, $item := .Notifications}}
+  {{$itemNum := add $idx 1}}
+  <div id="notif-item-{{$item.ID.Hex}}"
+       {{if and (eq $itemNum $.TriggerIdx) $.HasMore $.NextCursor}}
+         hx-get="/notifications/list?filter={{$.Filter}}&cursor={{$.NextCursor}}&append=true"
+         hx-trigger="intersect once"
+         hx-target="#notif-items-container"
+         hx-swap="beforeend"
+       {{end}}
+       class="p-2.5 bg-slate-900/90 border border-slate-800 rounded-xl hover:border-slate-700 transition flex items-start gap-2.5 group {{if $item.IsRead}}opacity-70 bg-slate-950/40{{end}}">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-1">
+        <button type="button"
+                hx-get="/reports/detail?id={{$item.ReportID.Hex}}"
+                hx-target="#modal-container"
+                hx-swap="innerHTML"
+                class="text-xs font-bold text-sky-400 hover:underline truncate text-left">
+          {{$item.ReportDate}}
+        </button>
+        <span class="text-[10px] text-slate-500 font-mono whitespace-nowrap">{{$item.SubmittedBy}}</span>
+      </div>
+      <p class="text-xs text-slate-200 mt-1 leading-relaxed break-words bg-slate-950/60 p-2 rounded-lg border border-slate-800/60 font-sans">{{$item.Notes}}</p>
+    </div>
+    {{if not $item.IsRead}}
+    <!-- Tick button to mark as read -->
+    <button type="button"
+            hx-post="/notifications/mark-read?id={{$item.ID.Hex}}&filter={{$.Filter}}"
+            hx-target="#notif-dropdown-container"
+            hx-swap="innerHTML"
+            title="Mark as read"
+            class="w-7 h-7 rounded-lg bg-emerald-950/60 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 flex items-center justify-center transition flex-shrink-0 mt-0.5 shadow-sm text-xs font-bold">
+      ✓
+    </button>
+    {{else}}
+    <span class="text-[10px] font-bold text-emerald-500/70 bg-emerald-950/30 px-1.5 py-0.5 rounded border border-emerald-900/40 mt-1">✓ Read</span>
+    {{end}}
+  </div>
+  {{end}}
+{{else if not .NextCursor}}
+  <div class="p-6 text-center text-slate-500 text-xs">
+    <div class="text-xl mb-1 opacity-50">✨</div>
+    {{if eq .Filter "unread"}}No unread store remarks{{else}}No store remarks found{{end}}
+  </div>
+{{end}}

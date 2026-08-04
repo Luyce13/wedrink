@@ -1,39 +1,27 @@
-<div id="notif-dropdown-content" class="p-3 space-y-2 max-h-80 overflow-y-auto">
-  {{if .Notifications}}
-    <div class="px-1 py-1 flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-      <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Store Remarks</span>
-      <span class="badge badge-info text-[10px]">{{.UnreadCount}} Unread</span>
-    </div>
-    {{range .Notifications}}
-    <div id="notif-item-{{.ID.Hex}}" class="p-2.5 bg-slate-900/90 border border-slate-800 rounded-xl hover:border-slate-700 transition flex items-start gap-2.5 group">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center justify-between gap-1">
-          <button type="button"
-                  hx-get="/reports/detail?id={{.ReportID.Hex}}"
-                  hx-target="#modal-container"
-                  hx-swap="innerHTML"
-                  class="text-xs font-bold text-sky-400 hover:underline truncate text-left">
-            {{.ReportDate}}
-          </button>
-          <span class="text-[10px] text-slate-500 font-mono whitespace-nowrap">{{.SubmittedBy}}</span>
-        </div>
-        <p class="text-xs text-slate-200 mt-1 leading-relaxed break-words bg-slate-950/60 p-2 rounded-lg border border-slate-800/60">{{.Notes}}</p>
-      </div>
-      <!-- Tick button to mark as read -->
+<div id="notif-dropdown-content" class="flex flex-col max-h-[26rem]">
+  <!-- Filter Tabs Header -->
+  <div class="px-3 py-2 flex items-center justify-between border-b border-slate-800 bg-slate-950/90 sticky top-0 z-10 backdrop-blur-md">
+    <div class="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
       <button type="button"
-              hx-post="/notifications/mark-read?id={{.ID.Hex}}"
+              hx-get="/notifications/list?filter=unread"
               hx-target="#notif-dropdown-container"
               hx-swap="innerHTML"
-              title="Mark as read"
-              class="w-7 h-7 rounded-lg bg-emerald-950/60 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 flex items-center justify-center transition flex-shrink-0 mt-0.5 shadow-sm text-xs font-bold">
-        ✓
+              class="px-2.5 py-1 rounded-md text-[11px] font-bold transition {{if eq .Filter `unread` }}bg-brand-600 text-white shadow-sm{{else}}text-slate-400 hover:text-slate-200{{end}}">
+        Unread {{if gt .UnreadCount 0}}<span class="ml-1 px-1.5 py-0.2 bg-rose-950 text-rose-300 rounded-full text-[10px]">{{.UnreadCount}}</span>{{end}}
+      </button>
+      <button type="button"
+              hx-get="/notifications/list?filter=all"
+              hx-target="#notif-dropdown-container"
+              hx-swap="innerHTML"
+              class="px-2.5 py-1 rounded-md text-[11px] font-bold transition {{if eq .Filter `all` }}bg-brand-600 text-white shadow-sm{{else}}text-slate-400 hover:text-slate-200{{end}}">
+        All Remarks
       </button>
     </div>
-    {{end}}
-  {{else}}
-    <div class="p-6 text-center text-slate-500 text-xs">
-      <div class="text-xl mb-1 opacity-50">✨</div>
-      No unread store remarks
-    </div>
-  {{end}}
+    <span class="text-[10px] text-slate-500 uppercase tracking-wider font-mono">Store Notes</span>
+  </div>
+
+  <!-- Scrollable Items Container -->
+  <div id="notif-items-container" class="p-3 space-y-2 overflow-y-auto flex-1">
+    {{template "notification_items.html" .}}
+  </div>
 </div>

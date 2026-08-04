@@ -7,6 +7,7 @@ import (
 
 	"wedrink/internal/middleware"
 	"wedrink/internal/render"
+	"wedrink/internal/repository"
 	"wedrink/internal/services"
 )
 
@@ -22,23 +23,50 @@ func NewNotificationHandler(notifService *services.NotificationService, renderer
 	}
 }
 
-// GetUnread (GET /notifications/unread) — returns the notification dropdown partial
+// GetUnread (GET /notifications/unread) — backward compatible redirect to GetList
 func (h *NotificationHandler) GetUnread(w http.ResponseWriter, r *http.Request) {
+	h.GetList(w, r)
+}
+
+// GetList (GET /notifications/list) — returns paginated notifications with filter (unread/all)
+func (h *NotificationHandler) GetList(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
 	if user == nil || !user.CanEditReports() {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	notifs, err := h.notifService.GetUnreadNotifications(r.Context())
+	filter := strings.TrimSpace(r.URL.Query().Get("filter"))
+	if filter == "" {
+		filter = "unread"
+	}
+	cursor := strings.TrimSpace(r.URL.Query().Get("cursor"))
+	isAppend := r.URL.Query().Get("append") == "true"
+
+	unreadCount, _ := h.notifService.GetUnreadCount(r.Context())
+
+	result, err := h.notifService.GetNotificationsWithParams(r.Context(), repository.NotificationQueryParams{
+		Filter: filter,
+		Limit:  10,
+		Cursor: cursor,
+	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to fetch notifications: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	data := map[string]any{
-		"Notifications": notifs,
-		"UnreadCount":   len(notifs),
+		"Notifications": result.Notifications,
+		"UnreadCount":   unreadCount,
+		"Filter":        filter,
+		"NextCursor":    result.NextCursor,
+		"HasMore":       result.HasMore,
+		"TriggerIdx":    result.TriggerIdx,
+	}
+
+	if isAppend {
+		_ = h.renderer.RenderPartial(w, "notification_items.html", data)
+		return
 	}
 
 	_ = h.renderer.RenderPartial(w, "notification_dropdown.html", data)
@@ -77,13 +105,20 @@ func (h *NotificationHandler) MarkAsRead(w http.ResponseWriter, r *http.Request)
 		id = strings.TrimSpace(r.URL.Query().Get("id"))
 	}
 
+	filter := strings.TrimSpace(r.FormValue("filter"))
+	if filter == "" {
+		filter = strings.TrimSpace(r.URL.Query().Get("filter"))
+	}
+	if filter == "" {
+		filter = "unread"
+	}
+
 	if id != "" {
 		_ = h.notifService.MarkAsRead(r.Context(), id)
 	}
 
-	// Set HTMX trigger header to refresh notification count dynamically
 	w.Header().Set("HX-Trigger", "notificationUpdated")
 
-	// Return updated unread dropdown
-	h.GetUnread(w, r)
+	r.URL.RawQuery = fmt.Sprintf("filter=%s", filter)
+	h.GetList(w, r)
 }
