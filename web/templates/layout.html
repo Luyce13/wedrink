@@ -111,7 +111,7 @@
     }
   </script>
 
-  <!-- Synchronous inline script to prevent theme flash (FOUC) and auto-sync with system -->
+  <!-- Theme: defaults to system, user can pick dark/light, OS changes always win -->
   <script>
       (function () {
         const storageKey = 'wedrink_theme';
@@ -121,58 +121,40 @@
           return mediaQuery.matches ? 'dark' : 'light';
         }
 
-        function applyTheme(themeMode) {
-          const mode = themeMode || localStorage.getItem(storageKey) || 'system';
-          const effective = (mode === 'system') ? getSystemTheme() : mode;
+        function applyTheme(mode) {
+          // Resolve effective theme: use stored preference or fall back to system
+          const effective = mode || localStorage.getItem(storageKey) || getSystemTheme();
           const isDark = effective === 'dark';
           document.documentElement.classList.toggle('theme-light', !isDark);
           document.documentElement.classList.toggle('dark', isDark);
           document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
 
-          const icon = document.getElementById('theme-icon');
+          const icon  = document.getElementById('theme-icon');
           const label = document.getElementById('theme-label');
           if (icon && label) {
-            if (mode === 'system') {
-              icon.textContent = '💻';
-              label.textContent = 'Auto (' + (isDark ? 'Dark' : 'Light') + ')';
-            } else if (mode === 'dark') {
-              icon.textContent = '🌙';
-              label.textContent = 'Dark';
-            } else {
-              icon.textContent = '☀️';
-              label.textContent = 'Light';
-            }
+            icon.textContent  = isDark ? '🌙' : '☀️';
+            label.textContent = isDark ? 'Dark' : 'Light';
           }
         }
 
+        // Toggle between dark ↔ light and persist the choice
         function toggleTheme() {
-          const saved = localStorage.getItem(storageKey) || 'system';
-          let next = 'dark';
-          if (saved === 'system') {
-            next = 'dark';
-          } else if (saved === 'dark') {
-            next = 'light';
-          } else {
-            next = 'system';
-          }
-          if (next === 'system') {
-            localStorage.removeItem(storageKey);
-          } else {
-            localStorage.setItem(storageKey, next);
-          }
+          const current  = localStorage.getItem(storageKey) || getSystemTheme();
+          const next     = current === 'dark' ? 'light' : 'dark';
+          localStorage.setItem(storageKey, next);
           applyTheme(next);
         }
 
-        window.applyTheme = applyTheme;
+        window.applyTheme  = applyTheme;
         window.toggleTheme = toggleTheme;
 
-        applyTheme(localStorage.getItem(storageKey) || 'system');
+        // Initial application — use stored pref or system default
+        applyTheme();
 
+        // OS theme change always wins: clear stored pref and follow system
         const handleSystemChange = () => {
-          const currentSaved = localStorage.getItem(storageKey);
-          if (!currentSaved || currentSaved === 'system') {
-            applyTheme('system');
-          }
+          localStorage.removeItem(storageKey);
+          applyTheme(getSystemTheme());
         };
 
         if (typeof mediaQuery.addEventListener === 'function') {
@@ -182,12 +164,13 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-          applyTheme(localStorage.getItem(storageKey) || 'system');
+          applyTheme();
         });
       })();
   </script>
 
   <!-- HTMX 2.0.4 & App logic -->
+
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="/static/js/app.js?v=20260804_v4" defer></script>
 </head>
