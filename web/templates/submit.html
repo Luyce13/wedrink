@@ -25,7 +25,7 @@
           <div id="date-status-container" class="flex items-center"
                hx-get="/reports/check-date"
                hx-trigger="load, change from:#reportDate"
-               hx-include="#reportDate"
+               hx-include="#reportDate, input[name='isEditMode']"
                hx-target="#date-status-container"
                hx-swap="innerHTML"></div>
         </div>

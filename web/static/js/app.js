@@ -325,6 +325,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function resolveLockState(status, allowOverwriteCb, overwriteWrap) {
+    const isEditMode = status === 'editing' || !!document.querySelector('input[name="isEditMode"]');
+    if (isEditMode) {
+      if (overwriteWrap) overwriteWrap.classList.add('hidden');
+      return false;
+    }
     if (status === 'locked' || status === 'invalid') {
       if (overwriteWrap)  overwriteWrap.classList.add('hidden');
       if (allowOverwriteCb) allowOverwriteCb.checked = false;

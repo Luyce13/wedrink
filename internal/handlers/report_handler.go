@@ -446,6 +446,8 @@ func (h *ReportHandler) CheckReportDate(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	isEditMode := r.FormValue("isEditMode") == "true" || r.URL.Query().Get("isEditMode") == "true"
+
 	data := map[string]any{
 		"Date":           dateStr,
 		"MinDate":        utils.MinDateStr,
@@ -455,6 +457,7 @@ func (h *ReportHandler) CheckReportDate(w http.ResponseWriter, r *http.Request) 
 		"ReportJSON":     reportJSON,
 		"User":           user,
 		"CanEdit":        user != nil && user.CanEditReports(),
+		"IsEditMode":     isEditMode,
 	}
 
 	_ = h.renderer.RenderPartial(w, "date_status.html", data)
