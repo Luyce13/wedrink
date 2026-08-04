@@ -287,7 +287,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setVal('counterCash',  report.counter_cash);
 
     const notesEl = document.querySelector('textarea[name="notes"]');
-    if (notesEl) notesEl.value = report.notes || '';
+    if (notesEl) {
+      notesEl.value = report.notes || '';
+      if (window.autoExpandTextarea) window.autoExpandTextarea(notesEl);
+    }
 
     const expContainer = document.getElementById('expenses-container');
     if (expContainer && Array.isArray(report.expenses)) {
@@ -312,13 +315,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.triggerPreview) window.triggerPreview();
   }
 
+  function autoExpandTextarea(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    const newHeight = Math.max(56, el.scrollHeight + 4);
+    el.style.height = newHeight + 'px';
+  }
+  window.autoExpandTextarea = autoExpandTextarea;
+
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.name === 'notes') {
+      autoExpandTextarea(e.target);
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const notesEl = document.querySelector('textarea[name="notes"]');
+    if (notesEl) autoExpandTextarea(notesEl);
+  });
+
   function clearForm() {
     ['totalSale', 'creditSale', 'bankTransfer', 'counterCash'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '0';
     });
     const notesEl = document.querySelector('textarea[name="notes"]');
-    if (notesEl) notesEl.value = '';
+    if (notesEl) {
+      notesEl.value = '';
+      autoExpandTextarea(notesEl);
+    }
     const expContainer = document.getElementById('expenses-container');
     if (expContainer) { expContainer.innerHTML = ''; reNumberRows(); }
     if (window.triggerPreview) window.triggerPreview();
