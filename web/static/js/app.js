@@ -111,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.initAlertAutoDismiss();
     // Re-init date picker if present in swapped DOM
     if (window.initDatePicker) window.initDatePicker();
+    if (window.initReportsPageDatePickers) window.initReportsPageDatePickers();
 
     // Smooth scroll alert banner into view if target is form alert container or login error
     const target = evt.detail?.target;
@@ -503,7 +504,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (parts.length === 3) {
         dpSelected = new Date(+parts[0], +parts[1]-1, +parts[2]);
       }
-    } else {
+    }
+    if (!(dpSelected instanceof Date) || isNaN(dpSelected.getTime())) {
       dpSelected = yesterday;
     }
     dpSetDate(dpSelected, false);
@@ -533,6 +535,147 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.initDatePicker();
 
+  window.initReportsPageDatePickers = function() {
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    function setupPicker(prefix, hiddenId, isFrom) {
+      const trigger = document.getElementById(`dp-${prefix}-trigger`);
+      const panel   = document.getElementById(`dp-${prefix}-panel`);
+      const hidden  = document.getElementById(hiddenId);
+      const grid    = document.getElementById(`dp-${prefix}-grid`);
+      const monthText = document.getElementById(`dp-${prefix}-month-text`);
+      const label   = document.getElementById(`dp-${prefix}-label`);
+
+      if (!trigger || !panel || !hidden || !grid) return null;
+      if (trigger._inited) return trigger._renderFn || null;
+
+      let viewYear = new Date().getFullYear();
+      let viewMonth = new Date().getMonth();
+
+      if (hidden.value) {
+        const parts = hidden.value.split('-');
+        if (parts.length === 3) {
+          viewYear = +parts[0];
+          viewMonth = +parts[1] - 1;
+        }
+      }
+
+      function render() {
+        if (viewYear < 2026 || (viewYear === 2026 && viewMonth < 6)) {
+          viewYear = 2026;
+          viewMonth = 6;
+        }
+        if (monthText) monthText.textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+
+        const todayIso = new Date().toISOString().split('T')[0];
+        const minDate  = '2026-07-01';
+        const startDateVal = document.getElementById('startDate')?.value || '';
+        const endDateVal   = document.getElementById('endDate')?.value || '';
+
+        const first  = new Date(viewYear, viewMonth, 1);
+        const offset = first.getDay();
+        const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+        const daysInPrev  = new Date(viewYear, viewMonth, 0).getDate();
+
+        const cells = [];
+        for (let i = offset - 1; i >= 0; i--) {
+          cells.push({ d: daysInPrev - i, outside: true });
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+          cells.push({ d, outside: false });
+        }
+        while (cells.length % 7 !== 0) {
+          cells.push({ d: cells.length + 1, outside: true });
+        }
+
+        grid.innerHTML = cells.map(c => {
+          if (c.outside) return `<button type="button" class="cal-day outside disabled" disabled>${c.d}</button>`;
+          const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(c.d).padStart(2, '0')}`;
+
+          let isDisabled = false;
+          let title = '';
+
+          if (iso < minDate) {
+            isDisabled = true;
+            title = 'Prior to July 2026';
+          } else if (iso > todayIso) {
+            isDisabled = true;
+            title = 'Future Date';
+          } else if (isFrom && endDateVal && iso > endDateVal) {
+            isDisabled = true;
+            title = 'Cannot be after To date';
+          } else if (!isFrom && startDateVal && iso < startDateVal) {
+            isDisabled = true;
+            title = 'Cannot be before From date';
+          }
+
+          let cls = 'cal-day';
+          if (isDisabled) cls += ' outside disabled future-disabled';
+          if (hidden.value === iso) cls += ' selected';
+          if (todayIso === iso) cls += ' today';
+
+          const disAttr = isDisabled ? 'disabled="disabled"' : '';
+          const titleAttr = title ? `title="${title}"` : '';
+
+          return `<button type="button" class="${cls}" data-iso="${iso}" ${disAttr} ${titleAttr}>${c.d}</button>`;
+        }).join('');
+
+        grid.querySelectorAll('.cal-day:not([disabled])').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const iso = btn.dataset.iso;
+            hidden.value = iso;
+            if (label) label.textContent = iso;
+            panel.classList.add('hidden');
+            if (window.updateReportsFilterState) window.updateReportsFilterState();
+            if (window.refreshFilterPickers) window.refreshFilterPickers();
+          });
+        });
+      }
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.date-panel').forEach(p => { if (p !== panel) p.classList.add('hidden'); });
+        const willOpen = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden', !willOpen);
+        if (willOpen) render();
+      });
+
+      document.getElementById(`dp-${prefix}-prev`)?.addEventListener('click', (e) => { e.stopPropagation(); viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); });
+      document.getElementById(`dp-${prefix}-next`)?.addEventListener('click', (e) => { e.stopPropagation(); viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render(); });
+      document.getElementById(`dp-${prefix}-clear`)?.addEventListener('click', (e) => { e.stopPropagation(); hidden.value = ''; if (label) label.textContent = 'Select date'; panel.classList.add('hidden'); if (window.updateReportsFilterState) window.updateReportsFilterState(); if (window.refreshFilterPickers) window.refreshFilterPickers(); });
+      document.getElementById(`dp-${prefix}-today`)?.addEventListener('click', (e) => { e.stopPropagation(); hidden.value = new Date().toISOString().split('T')[0]; if (label) label.textContent = hidden.value; panel.classList.add('hidden'); if (window.updateReportsFilterState) window.updateReportsFilterState(); if (window.refreshFilterPickers) window.refreshFilterPickers(); });
+
+      trigger._inited = true;
+      trigger._renderFn = render;
+      return render;
+    }
+
+    const renderFrom = setupPicker('from', 'startDate', true);
+    const renderTo   = setupPicker('to', 'endDate', false);
+
+    window.refreshFilterPickers = function() {
+      if (renderFrom) renderFrom();
+      if (renderTo) renderTo();
+    };
+
+    if (!window._filterPickersDocClick) {
+      window._filterPickersDocClick = true;
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#dp-from-panel') && !e.target.closest('#dp-from-trigger') &&
+            !e.target.closest('#dp-to-panel') && !e.target.closest('#dp-to-trigger')) {
+          document.getElementById('dp-from-panel')?.classList.add('hidden');
+          document.getElementById('dp-to-panel')?.classList.add('hidden');
+        }
+      });
+    }
+
+    if (window.updateReportsFilterState) window.updateReportsFilterState();
+  };
+
+  window.initReportsPageDatePickers();
+  window.initReportsCustomDatePickers = window.initReportsPageDatePickers;
+
   function dpToggle() {
     dpOpen ? dpClose() : dpOpenPicker();
   }
@@ -552,6 +695,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dpGridView) dpGridView.classList.remove('hidden');
     dpViewYear  = dpSelected ? dpSelected.getFullYear()  : new Date().getFullYear();
     dpViewMonth = dpSelected ? dpSelected.getMonth()     : new Date().getMonth();
+    if (!Number.isFinite(dpViewYear) || !Number.isFinite(dpViewMonth)) {
+      dpViewYear = new Date().getFullYear();
+      dpViewMonth = new Date().getMonth();
+    }
     dpFocused   = dpSelected ? new Date(dpSelected)      : null;
     dpRenderGrid();
     if (dpTrigger) dpTrigger.setAttribute('aria-expanded', 'true');
@@ -632,28 +779,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const dpGrid = document.getElementById('dp-grid');
     if (!dpGrid) return;
 
-    // Enforce lower month bound (July 2026 = 2026-06 index)
-    if (dpViewYear < 2026 || (dpViewYear === 2026 && dpViewMonth < 6)) {
-      dpViewYear = 2026;
-      dpViewMonth = 6;
+    try {
+      // Enforce lower month bound (July 2026 = 2026-06 index)
+      if (dpViewYear < 2026 || (dpViewYear === 2026 && dpViewMonth < 6)) {
+        dpViewYear = 2026;
+        dpViewMonth = 6;
+      }
+
+      const headerSpan = document.querySelector('#dp-spin-open > span');
+      if (headerSpan) {
+        const monthLongName = MONTH_LONG[dpViewMonth % 12] || '';
+        headerSpan.textContent = `${monthLongName} ${dpViewYear}`;
+      }
+
+      const monthStr = `${dpViewYear}-${String(dpViewMonth+1).padStart(2,'0')}`;
+      const submittedInfo = await fetchSubmittedDates(monthStr);
+
+      const pkTodayStr = getPKTodayStr();
+      const pkTodayDate = getPKTodayDate();
+    if (!Number.isFinite(dpViewYear) || !Number.isFinite(dpViewMonth)) {
+      dpViewYear = new Date().getFullYear();
+      dpViewMonth = new Date().getMonth();
     }
-
-    const headerSpan = document.querySelector('#dp-spin-open > span');
-    if (headerSpan) {
-      const monthLongName = MONTH_LONG[dpViewMonth % 12] || '';
-      headerSpan.textContent = `${monthLongName} ${dpViewYear}`;
-    }
-
-    const monthStr = `${dpViewYear}-${String(dpViewMonth+1).padStart(2,'0')}`;
-    const submittedInfo = await fetchSubmittedDates(monthStr);
-
-    const pkTodayStr = getPKTodayStr();
-    const pkTodayDate = getPKTodayDate();
     const first   = new Date(dpViewYear, dpViewMonth, 1);
-    const offset  = first.getDay();
-    const daysInM = new Date(dpViewYear, dpViewMonth+1, 0).getDate();
-    const daysInP = new Date(dpViewYear, dpViewMonth, 0).getDate();
-
+    const offset  = Number.isFinite(first.getDay()) ? first.getDay() : 0;
+    const daysInM = Number.isFinite(dpViewYear) && Number.isFinite(dpViewMonth)
+      ? new Date(dpViewYear, dpViewMonth+1, 0).getDate()
+      : new Date().getDate();
+    const daysInP = Number.isFinite(dpViewYear) && Number.isFinite(dpViewMonth)
+      ? new Date(dpViewYear, dpViewMonth, 0).getDate()
+      : new Date().getDate();
     const cells = [];
     for (let i = offset-1; i >= 0; i--) {
       const y = dpViewMonth === 0 ? dpViewYear-1 : dpViewYear;
@@ -668,7 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cells.push({d: nx++, y, m, outside: true});
     }
 
-    dpGrid.innerHTML = cells.map(c => dpBuildCell(c)).join('');
+    dpGrid.innerHTML = cells.map(c => dpBuildCell(c, submittedInfo, pkTodayStr, pkTodayDate)).join('');
 
     dpGrid.querySelectorAll('.cal-day:not([disabled])').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -677,9 +832,13 @@ document.addEventListener('DOMContentLoaded', () => {
         dpClose();
       });
     });
+  } catch (err) {
+      console.error('dpRenderGrid error:', err);
+      dpGrid.innerHTML = '<div class="text-xs text-rose-300 font-medium">Unable to render calendar.</div>';
+    }
   }
 
-  function dpBuildCellClasses(c, iso, dow, flags) {
+  function dpBuildCellClasses(c, iso, dow, flags, submittedInfo) {
     const { isBeforeMin, isFuture, isSubmitted, isDashboard } = flags;
     let cls = 'cal-day';
     if (c.outside) cls += ' outside';
@@ -697,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return cls;
   }
 
-  function dpBuildCellTitle(flags) {
+  function dpBuildCellTitle(flags, submittedInfo) {
     const { isBeforeMin, isFuture, isSubmitted, isDashboard } = flags;
     if (isDashboard) {
       if (isSubmitted)  return 'title="View EOD Report"';
@@ -711,7 +870,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return '';
   }
 
-  function dpBuildCell(c) {
+  function dpBuildCell(c, submittedInfo, pkTodayStr, pkTodayDate) {
+    submittedInfo = submittedInfo || { dates: new Set(), canEdit: false };
     const cd  = new Date(c.y, c.m, c.d);
     const iso = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
     const dow = cd.getDay();
@@ -723,14 +883,14 @@ document.addEventListener('DOMContentLoaded', () => {
       isDashboard,
     };
 
-    let cls = dpBuildCellClasses(c, iso, dow, flags);
+    let cls = dpBuildCellClasses(c, iso, dow, flags, submittedInfo);
     if (!c.outside && dpIsSame(cd, pkTodayDate)) cls += ' today';
     if (dpSelected && dpIsSame(cd, dpSelected))  cls += ' selected';
     if (dpFocused  && dpIsSame(cd, dpFocused))   cls += ' focused';
 
     const isDisabled = cls.includes('disabled');
     const disAttr    = isDisabled ? 'disabled="disabled"' : '';
-    const titleAttr  = dpBuildCellTitle(flags);
+    const titleAttr  = dpBuildCellTitle(flags, submittedInfo);
 
     return `<button type="button" class="${escapeHTML(cls)}" data-y="${Number(c.y)}" data-m="${Number(c.m)}" data-d="${Number(c.d)}" ${disAttr} ${titleAttr}>${Number(c.d)}</button>`;
   }
@@ -1358,6 +1518,8 @@ document.addEventListener('DOMContentLoaded', () => {
           // Re-bind HTMX & component listeners
           if (window.htmx) htmx.process(mainContainer);
           if (window.initAlertAutoDismiss) window.initAlertAutoDismiss();
+          if (window.initDatePicker) window.initDatePicker();
+          if (window.initReportsPageDatePickers) window.initReportsPageDatePickers();
           document.body.dispatchEvent(new Event('htmx:afterSwap'));
           window.scrollTo({ top: 0, behavior: 'instant' });
 
