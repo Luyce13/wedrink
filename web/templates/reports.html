@@ -3,24 +3,24 @@
 
   <!-- Filters + Sorting + Export -->
   <div class="bg-[#131f3a] border border-[#1e2d4a] px-4 py-3 rounded-lg">
-    <form hx-get="/reports" hx-target="#report-table-container" hx-swap="innerHTML"
-          hx-trigger="change, submit"
+    <form id="reports-filter-form" hx-get="/reports" hx-target="#report-table-container" hx-swap="innerHTML"
+          hx-trigger="submit"
           hx-vals='{"partial": "true"}'
           autocomplete="off"
           class="flex flex-wrap items-end gap-3">
       <div>
         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From</label>
-        <input type="date" name="startDate" value="{{.StartDate}}" class="glass-input text-xs py-1.5 w-36" autocomplete="off">
+        <input type="date" name="startDate" value="{{.StartDate}}" oninput="updateReportsFilterState()" class="glass-input text-xs py-1.5 w-36" autocomplete="off">
       </div>
       <div>
         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To</label>
-        <input type="date" name="endDate" value="{{.EndDate}}" class="glass-input text-xs py-1.5 w-36" autocomplete="off">
+        <input type="date" name="endDate" value="{{.EndDate}}" oninput="updateReportsFilterState()" class="glass-input text-xs py-1.5 w-36" autocomplete="off">
       </div>
 
       <!-- Sorting options -->
       <div>
         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sort By</label>
-        <select name="sortBy" class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-36 cursor-pointer" autocomplete="off">
+        <select name="sortBy" onchange="updateReportsFilterState()" class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-36 cursor-pointer" autocomplete="off">
           <option value="date" {{if eq .SortBy "date"}}selected{{end}}>Date</option>
           <option value="total_sale" {{if eq .SortBy "total_sale"}}selected{{end}}>Total Sales</option>
           <option value="credit_sale" {{if eq .SortBy "credit_sale"}}selected{{end}}>Card Sales</option>
@@ -32,15 +32,15 @@
 
       <div>
         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Order</label>
-        <select name="sortOrder" class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-44 cursor-pointer" autocomplete="off">
+        <select name="sortOrder" onchange="updateReportsFilterState()" class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-44 cursor-pointer" autocomplete="off">
           <option value="desc" {{if eq .SortOrder "desc"}}selected{{end}}>Descending</option>
           <option value="asc" {{if eq .SortOrder "asc"}}selected{{end}}>Ascending</option>
         </select>
       </div>
 
       <div class="flex gap-2">
-        <button type="submit" class="btn btn-primary text-xs py-1.5 px-3">Apply</button>
-        <a href="/reports" class="btn btn-[#080e1e] text-xs py-1.5 px-3 text-slate-400 border-[#1e2d4a] hover:text-white">Reset</a>
+        <button id="reports-apply-btn" type="submit" disabled class="btn btn-primary text-xs py-1.5 px-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none transition">Apply</button>
+        <a id="reports-reset-btn" href="/reports" class="btn btn-[#080e1e] text-xs py-1.5 px-3 text-slate-400 border-[#1e2d4a] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none transition">Reset</a>
       </div>
 
       {{if .User.CanExportData}}
@@ -60,4 +60,37 @@
   </div>
 
 </div>
+
+<script>
+window.updateReportsFilterState = function() {
+  const form = document.getElementById('reports-filter-form');
+  if (!form) return;
+
+  const startDate = form.querySelector('[name="startDate"]')?.value || '';
+  const endDate   = form.querySelector('[name="endDate"]')?.value || '';
+  const sortBy    = form.querySelector('[name="sortBy"]')?.value || 'date';
+  const sortOrder = form.querySelector('[name="sortOrder"]')?.value || 'desc';
+
+  const isModified = (startDate !== '') || (endDate !== '') || (sortBy !== 'date' && sortBy !== '') || (sortOrder !== 'desc');
+
+  const applyBtn = document.getElementById('reports-apply-btn');
+  const resetBtn = document.getElementById('reports-reset-btn');
+
+  if (applyBtn) applyBtn.disabled = !isModified;
+  if (resetBtn) {
+    if (isModified) {
+      resetBtn.removeAttribute('disabled');
+      resetBtn.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+    } else {
+      resetBtn.setAttribute('disabled', 'true');
+      resetBtn.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+    }
+  }
+};
+
+if (window.updateReportsFilterState) window.updateReportsFilterState();
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.updateReportsFilterState) window.updateReportsFilterState();
+});
+</script>
 {{end}}
