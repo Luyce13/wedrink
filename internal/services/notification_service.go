@@ -20,51 +20,55 @@ func NewNotificationService(repo *repository.NotificationRepository) *Notificati
 	return &NotificationService{repo: repo}
 }
 
-// CreateNotificationAsync asynchronously creates or updates an unread notification when a report has remarks/notes.
-// Bound directly to the EOD report's MongoDB ObjectID (_id).
-func (s *NotificationService) CreateNotificationAsync(reportID bson.ObjectID, reportDate, submittedBy, notes string) {
+// SaveNotification creates, updates, or cleans up a notification for a report.
+// Guarantees zero failure impact on report submission by catching and logging all DB errors internally.
+func (s *NotificationService) SaveNotification(ctx context.Context, reportID bson.ObjectID, reportDate, submittedBy, notes string) {
 	cleanNotes := strings.TrimSpace(notes)
-	if cleanNotes == "" {
+
+	bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	existing, err := s.repo.FindByReportID(bgCtx, reportID)
+	if err != nil {
+		slog.Error("SaveNotification: failed to check existing notification", "reportID", reportID.Hex(), "error", err)
 		return
 	}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		existing, err := s.repo.FindByReportID(ctx, reportID)
-		if err != nil {
-			slog.Error("CreateNotificationAsync: failed to check existing notification", "reportID", reportID.Hex(), "error", err)
-			return
-		}
+	if cleanNotes == "" {
 		if existing != nil {
-			existing.Notes = cleanNotes
-			existing.SubmittedBy = submittedBy
-			existing.IsRead = false
-			existing.CreatedAt = time.Now()
-			if err := s.repo.Update(ctx, existing); err != nil {
-				slog.Error("CreateNotificationAsync: failed to update notification", "reportID", reportID.Hex(), "error", err)
-			} else {
-				slog.Info("CreateNotificationAsync: updated existing notification for report _id", "reportID", reportID.Hex())
-			}
-			return
+			_ = s.repo.DeleteByReportID(bgCtx, reportID)
+			slog.Info("SaveNotification: removed empty notification for report", "reportID", reportID.Hex())
 		}
+		return
+	}
 
-		notif := &models.Notification{
-			ReportID:    reportID,
-			ReportDate:  reportDate,
-			SubmittedBy: submittedBy,
-			Notes:       cleanNotes,
-			IsRead:      false,
-			CreatedAt:   time.Now(),
-		}
-
-		if err := s.repo.Create(ctx, notif); err != nil {
-			slog.Error("CreateNotificationAsync: failed to create notification", "reportID", reportID.Hex(), "error", err)
+	if existing != nil {
+		existing.Notes = cleanNotes
+		existing.SubmittedBy = submittedBy
+		existing.IsRead = false
+		existing.CreatedAt = time.Now()
+		if err := s.repo.Update(bgCtx, existing); err != nil {
+			slog.Error("SaveNotification: failed to update notification", "reportID", reportID.Hex(), "error", err)
 		} else {
-			slog.Info("CreateNotificationAsync: unread notification created successfully", "reportID", reportID.Hex(), "date", reportDate)
+			slog.Info("SaveNotification: updated notification", "reportID", reportID.Hex(), "date", reportDate)
 		}
-	}()
+		return
+	}
+
+	notif := &models.Notification{
+		ReportID:    reportID,
+		ReportDate:  reportDate,
+		SubmittedBy: submittedBy,
+		Notes:       cleanNotes,
+		IsRead:      false,
+		CreatedAt:   time.Now(),
+	}
+
+	if err := s.repo.Create(bgCtx, notif); err != nil {
+		slog.Error("SaveNotification: failed to create notification", "reportID", reportID.Hex(), "error", err)
+	} else {
+		slog.Info("SaveNotification: created notification", "reportID", reportID.Hex(), "date", reportDate)
+	}
 }
 
 func (s *NotificationService) GetUnreadNotifications(ctx context.Context) ([]models.Notification, error) {

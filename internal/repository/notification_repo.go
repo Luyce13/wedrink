@@ -122,3 +122,12 @@ func (r *NotificationRepository) Update(ctx context.Context, notif *models.Notif
 	}
 	return nil
 }
+
+func (r *NotificationRepository) DeleteByReportID(ctx context.Context, reportID bson.ObjectID) error {
+	filter := bson.M{"report_id": reportID}
+	_, err := r.collection.DeleteMany(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to delete notification by report_id: %w", err)
+	}
+	return nil
+}
