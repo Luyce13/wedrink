@@ -94,6 +94,7 @@ html.theme-light .text-slate-200   { color: #0f172a !important; font-weight: 700
 html.theme-light .text-slate-300   { color: #1e293b !important; font-weight: 700 !important; }
 html.theme-light .text-slate-400   { color: #334155 !important; font-weight: 600 !important; }
 html.theme-light .text-slate-500   { color: #475569 !important; font-weight: 600 !important; }
+html.theme-light .text-sky-400     { color: #0284c7 !important; font-weight: 700 !important; }
 
 /* Keep text crisp white on brand red buttons, badges, and active nav tabs */
 html.theme-light .bg-\[\#e50811\],
