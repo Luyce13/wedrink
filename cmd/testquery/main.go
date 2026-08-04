@@ -16,7 +16,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)
 	}
-	defer mongoDB.Close(context.Background())
+	defer func() {
+		_ = mongoDB.Close(context.Background())
+	}()
 
 	repo := repository.NewReportRepository(mongoDB.Database)
 	ctx := context.Background()

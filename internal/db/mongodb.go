@@ -22,7 +22,11 @@ func Connect(cfg *config.Config) (*Database, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	clientOpts := options.Client().ApplyURI(cfg.MongoURI)
+	clientOpts := options.Client().
+		ApplyURI(cfg.MongoURI).
+		SetBSONOptions(&options.BSONOptions{
+			ObjectIDAsHexString: true,
+		})
 
 	client, err := mongo.Connect(clientOpts)
 	if err != nil {
