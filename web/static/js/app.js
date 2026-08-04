@@ -317,9 +317,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function autoExpandTextarea(el) {
     if (!el) return;
+    const minHeight = 56;  // ~2 lines
+    const maxHeight = 160; // ~6 lines limit
     el.style.height = 'auto';
-    const newHeight = Math.max(56, el.scrollHeight + 4);
-    el.style.height = newHeight + 'px';
+    const contentHeight = el.scrollHeight;
+    if (contentHeight > maxHeight) {
+      el.style.height = maxHeight + 'px';
+      el.style.overflowY = 'auto';
+    } else {
+      el.style.height = Math.max(minHeight, contentHeight + 4) + 'px';
+      el.style.overflowY = 'hidden';
+    }
   }
   window.autoExpandTextarea = autoExpandTextarea;
 

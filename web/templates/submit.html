@@ -193,7 +193,7 @@
         <label class="block text-[11px] font-bold text-slate-300 mb-1">Store Remarks / Notes <span class="font-normal text-slate-500">(optional)</span></label>
         <textarea name="notes" id="notes" rows="2" placeholder="Shift notes, comments…"
                   oninput="if(window.autoExpandTextarea) window.autoExpandTextarea(this)"
-                  class="glass-input text-xs min-h-[3.5rem] overflow-hidden transition-[height] duration-150 ease-out">{{if .Report}}{{.Report.Notes}}{{end}}</textarea>
+                  class="glass-input text-xs min-h-[3.5rem] max-h-[10rem] transition-[height] duration-150 ease-out">{{if .Report}}{{.Report.Notes}}{{end}}</textarea>
       </div>
 
     </div><!-- /p-4 -->
