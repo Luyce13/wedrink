@@ -202,7 +202,10 @@ func (h *ExportHandler) ExportExcel(w http.ResponseWriter, r *http.Request) {
 	sheetExpenses := "EOD Expenses"
 
 	// Rename default sheet
-	f.SetSheetName("Sheet1", sheetSummary)
+	if err := f.SetSheetName("Sheet1", sheetSummary); err != nil {
+		http.Error(w, fmt.Sprintf("Excel sheet rename error: %v", err), http.StatusInternalServerError)
+		return
+	}
 
 	// Create second sheet for Expenses
 	_, err = f.NewSheet(sheetExpenses)

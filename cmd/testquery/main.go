@@ -26,6 +26,10 @@ func main() {
 		SortOrder: "desc",
 		Limit:     5,
 	})
+	if err != nil {
+		fmt.Printf("FindWithParams error: %v\n", err)
+		return
+	}
 	fmt.Printf("Top 5 TotalSale desc reports:\n")
 	for _, r := range reports {
 		fmt.Printf("  Date: %s, TotalSale: %.0f, Expenses: %.0f\n", r.ReportDate, r.TotalSale, r.OtherPayments)

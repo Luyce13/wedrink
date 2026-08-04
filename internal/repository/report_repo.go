@@ -212,7 +212,7 @@ func (r *ReportRepository) FindWithParams(ctx context.Context, params ReportQuer
 		filter["report_date"] = bson.M{"$lte": params.EndDate}
 	}
 
-	sortKey := "report_date"
+	var sortKey string
 	switch params.SortBy {
 	case "total_sale":
 		sortKey = "total_sale"

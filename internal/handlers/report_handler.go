@@ -347,14 +347,6 @@ func (h *ReportHandler) renderError(w http.ResponseWriter, r *http.Request, msg 
 	http.Error(w, msg, http.StatusBadRequest)
 }
 
-func parseAmount(val string) (float64, error) {
-	val = strings.TrimSpace(val)
-	if val == "" {
-		return 0, nil
-	}
-	clean := strings.ReplaceAll(val, ",", "")
-	return strconv.ParseFloat(clean, 64)
-}
 
 func (h *ReportHandler) GetSubmittedDates(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
