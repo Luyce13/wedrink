@@ -109,7 +109,7 @@ func main() {
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService, renderer)
-	reportHandler := handlers.NewReportHandler(reportService, renderer)
+	reportHandler := handlers.NewReportHandler(reportService, authService, renderer)
 	dashboardHandler := handlers.NewDashboardHandler(reportService, renderer)
 	exportHandler := handlers.NewExportHandler(reportService)
 	userHandler := handlers.NewUserHandler(userService, renderer)
@@ -149,6 +149,7 @@ func main() {
 	mux.HandleFunc("GET /reports", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderReportsList))
 	mux.HandleFunc("GET /reports/detail", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderDetailModal))
 	mux.HandleFunc("GET /reports/edit", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderEditForm))
+	mux.HandleFunc("GET /reports/delete-confirm", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderDeleteConfirmModal))
 	mux.HandleFunc("DELETE /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
 	mux.HandleFunc("POST /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
 	mux.HandleFunc("GET /export/csv", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportCSV))

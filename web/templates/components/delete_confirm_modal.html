@@ -1,0 +1,60 @@
+{{define "delete_confirm_modal"}}
+<div id="delete-confirm-modal"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+     onclick="if(event.target===this)this.remove()">
+  <div class="bg-[#0f1a2e] border border-[#1e2d4a] rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5"
+       onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-rose-950/60 flex items-center justify-center text-rose-400 text-lg flex-shrink-0">🗑️</div>
+      <div>
+        <h2 class="text-base font-bold text-white">Delete Report</h2>
+        <p class="text-xs text-slate-400 mt-0.5">{{.ReportDate}}</p>
+      </div>
+    </div>
+
+    <!-- Warning -->
+    <p class="text-sm text-slate-300">
+      This action is <span class="text-rose-400 font-semibold">permanent</span> and cannot be undone.
+      Enter your password to confirm.
+    </p>
+
+    <!-- Form -->
+    <form hx-post="/reports/delete?id={{.ReportID}}"
+          hx-target="#report-row-{{.ReportID}}"
+          hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful){document.getElementById('delete-confirm-modal')?.remove();}"
+          hx-on::response-error="htmx.find('#delete-pw-error').innerHTML=event.detail.xhr.responseText;"
+          class="space-y-4">
+
+      <div class="space-y-1.5">
+        <label for="delete-password-input" class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Your Password</label>
+        <input id="delete-password-input"
+               type="password"
+               name="adminPassword"
+               autocomplete="current-password"
+               required
+               placeholder="Enter your password"
+               class="w-full px-3 py-2.5 bg-[#0b1329] border border-[#1e2d4a] rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30 transition">
+      </div>
+
+      <!-- Error target -->
+      <div id="delete-pw-error"></div>
+
+      <!-- Actions -->
+      <div class="flex gap-3 pt-1">
+        <button type="button"
+                onclick="document.getElementById('delete-confirm-modal').remove()"
+                class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition">
+          Cancel
+        </button>
+        <button type="submit"
+                class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-rose-700 hover:bg-rose-600 transition">
+          Delete
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}

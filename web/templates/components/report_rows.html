@@ -38,7 +38,11 @@
       <button type="button" hx-get="/reports/detail?id={{if $rep.ReportID}}{{$rep.ReportID}}{{else}}{{$rep.ReportDate}}{{end}}" hx-target="#report-modal-container" hx-swap="innerHTML" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold rounded transition">View</button>
       {{if $.User.CanEditReports}}
       <a href="/reports/edit?id={{if $rep.ReportID}}{{$rep.ReportID}}{{else}}{{$rep.ReportDate}}{{end}}" class="px-2 py-1 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 hover:text-indigo-100 text-[11px] font-semibold rounded transition">Edit</a>
-      <button type="button" hx-post="/reports/delete?id={{if $rep.ReportID}}{{$rep.ReportID}}{{else}}{{$rep.ReportDate}}{{end}}" hx-target="closest tr" hx-swap="outerHTML" onclick="if (!confirm('Delete report for {{$rep.ReportDate}}?')) return false;" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-rose-100 text-[11px] font-semibold rounded transition">Del</button>
+      <button type="button"
+              hx-get="/reports/delete-confirm?id={{if $rep.ReportID}}{{$rep.ReportID}}{{else}}{{$rep.ReportDate}}{{end}}&date={{$rep.ReportDate}}"
+              hx-target="body"
+              hx-swap="beforeend"
+              class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-rose-100 text-[11px] font-semibold rounded transition">Del</button>
       {{end}}
     </div>
   </td>

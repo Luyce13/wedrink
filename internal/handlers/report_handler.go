@@ -17,14 +17,16 @@ import (
 )
 
 type ReportHandler struct {
-	service  *services.ReportService
-	renderer *render.Renderer
+	service     *services.ReportService
+	authService *services.AuthService
+	renderer    *render.Renderer
 }
 
-func NewReportHandler(service *services.ReportService, renderer *render.Renderer) *ReportHandler {
+func NewReportHandler(service *services.ReportService, authService *services.AuthService, renderer *render.Renderer) *ReportHandler {
 	return &ReportHandler{
-		service:  service,
-		renderer: renderer,
+		service:     service,
+		authService: authService,
+		renderer:    renderer,
 	}
 }
 
@@ -272,10 +274,47 @@ func (h *ReportHandler) RenderDetailModal(w http.ResponseWriter, r *http.Request
 	_ = h.renderer.RenderPartial(w, "report_modal.html", data)
 }
 
+// RenderDeleteConfirmModal (GET /reports/delete-confirm) — renders the password modal partial
+func (h *ReportHandler) RenderDeleteConfirmModal(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
+	if user == nil || !user.CanEditReports() {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		date = id
+	}
+
+	data := map[string]any{
+		"ReportID":   id,
+		"ReportDate": date,
+	}
+	_ = h.renderer.RenderPartial(w, "delete_confirm_modal.html", data)
+}
+
 func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
 	if user == nil || !user.CanEditReports() {
 		http.Error(w, "Forbidden: Super Admin role required to delete reports.", http.StatusForbidden)
+		return
+	}
+
+	// Password verification — required before any deletion
+	adminPassword := strings.TrimSpace(r.FormValue("adminPassword"))
+	if adminPassword == "" {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`<p class="text-rose-400 text-sm font-semibold">Password is required to delete a report.</p>`))
+		return
+	}
+	_, authErr := h.authService.Authenticate(r.Context(), user.Username, adminPassword)
+	if authErr != nil {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`<p class="text-rose-400 text-sm font-semibold">Incorrect password. Deletion cancelled.</p>`))
 		return
 	}
 
