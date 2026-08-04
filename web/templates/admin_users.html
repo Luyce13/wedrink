@@ -129,51 +129,71 @@
 </div>
 
 <!-- Delete User Modal (Requires Current Admin Password) -->
-<div id="delete-user-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onclick="if(event.target===this) closeDeleteUserModal();">
-  <div class="glass-card w-full max-w-sm bg-slate-950 border-rose-900/60 shadow-2xl p-5 space-y-4">
-    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-      <h3 class="text-sm font-bold text-rose-400 flex items-center gap-2">
-        ⚠ Confirm Delete Account
-      </h3>
-      <button type="button" onclick="closeDeleteUserModal()" class="text-slate-400 hover:text-white text-xs">✕</button>
+<div id="delete-user-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onclick="if(event.target===this) window.closeDeleteUserModal();">
+  <div class="glass-card bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5" onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+      <div>
+        <h2 class="text-base font-bold text-white">Delete User Account</h2>
+        <p class="text-xs text-slate-400 mt-0.5 font-mono" id="delete-display-username"></p>
+      </div>
+      <button type="button" onclick="window.closeDeleteUserModal()" class="p-1 text-slate-400 hover:text-white rounded transition text-xs font-semibold">✕</button>
     </div>
 
-    <form action="/admin/users/delete" method="POST" class="space-y-3">
-      <input type="hidden" id="delete-target-username" name="username" value="">
-      <p class="text-xs text-slate-300">Are you sure you want to delete user <strong id="delete-display-username" class="text-amber-400 font-mono"></strong>?</p>
+    <!-- Warning -->
+    <p class="text-sm text-slate-300">
+      This action is <span class="text-rose-400 font-semibold">permanent</span> and cannot be undone.
+      Enter your password to confirm.
+    </p>
 
-      <div>
-        <label for="deleteAdminPassword" class="block text-xs font-bold text-rose-300 mb-1">Your Admin Password <span class="text-rose-400">*</span></label>
-        <input type="password" id="deleteAdminPassword" name="adminPassword" required placeholder="Enter your current password to authorize" class="glass-input text-xs">
+    <!-- Form -->
+    <form action="/admin/users/delete" method="POST" class="space-y-4">
+      <input type="hidden" id="delete-target-username" name="username" value="">
+
+      <div class="space-y-1.5">
+        <label for="deleteAdminPassword" class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Your Password</label>
+        <input id="deleteAdminPassword"
+               type="password"
+               name="adminPassword"
+               autocomplete="current-password"
+               required
+               placeholder="Enter your password"
+               class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30 transition">
       </div>
 
-      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-        <button type="button" onclick="closeDeleteUserModal()" class="btn bg-slate-800 text-slate-300 text-xs py-1.5 px-3">Cancel</button>
-        <button type="submit" class="btn bg-rose-900 hover:bg-rose-800 text-rose-100 text-xs py-1.5 px-4 font-bold">Delete Account</button>
+      <!-- Actions -->
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="window.closeDeleteUserModal()" class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition">
+          Cancel
+        </button>
+        <button type="submit" class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-rose-700 hover:bg-rose-600 transition">
+          Delete
+        </button>
       </div>
     </form>
   </div>
 </div>
 
 <script>
-function validateCreateForm(form) {
+window.validateCreateForm = function(form) {
   if (form.password.value !== form.confirmPassword.value) {
     alert("Password and Confirm Password do not match!");
     form.confirmPassword.focus();
     return false;
   }
   return true;
-}
+};
 
-function openDeleteUserModal(username) {
+window.openDeleteUserModal = function(username) {
   document.getElementById('delete-target-username').value = username;
   document.getElementById('delete-display-username').innerText = '@' + username;
   document.getElementById('deleteAdminPassword').value = '';
   document.getElementById('delete-user-modal').classList.remove('hidden');
-}
+};
 
-function closeDeleteUserModal() {
+window.closeDeleteUserModal = function() {
   document.getElementById('delete-user-modal').classList.add('hidden');
-}
+};
 </script>
 {{end}}
