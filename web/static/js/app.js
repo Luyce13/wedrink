@@ -274,87 +274,87 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ── helpers for handleDateStatusBadgeUpdate ──────────────────────────────
+
+  function fillFormFromReport(report) {
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = formatWithCommas(val || 0);
+    };
+    setVal('totalSale',    report.total_sale);
+    setVal('creditSale',   report.credit_sale);
+    setVal('bankTransfer', report.bank_transfer);
+    setVal('counterCash',  report.counter_cash);
+
+    const notesEl = document.querySelector('textarea[name="notes"]');
+    if (notesEl) notesEl.value = report.notes || '';
+
+    const expContainer = document.getElementById('expenses-container');
+    if (expContainer && Array.isArray(report.expenses)) {
+      expContainer.innerHTML = '';
+      report.expenses.forEach((exp, idx) => {
+        const rowHtml = `
+          <div class="expense-row" data-index="${idx+1}">
+            <div class="row-badge">${idx+1}</div>
+            <div class="desc-input">
+              <input type="text" name="expenseDesc[]" value="${escapeHTML(exp.description||'')}" class="glass-input text-xs desc-input" placeholder="Expense description">
+            </div>
+            <div class="amt-input">
+              <input type="text" inputmode="numeric" name="expenseAmount[]" value="${formatWithCommas(exp.amount||0)}" class="glass-input number-input text-xs amt-input" placeholder="0">
+            </div>
+            <button type="button" class="del-btn" onclick="removeExpenseRow(this)">✕</button>
+          </div>`;
+        expContainer.insertAdjacentHTML('beforeend', rowHtml);
+      });
+      document.querySelectorAll('#expenses-container > .expense-row').forEach(bindExpenseRow);
+      reNumberRows();
+    }
+    if (window.triggerPreview) window.triggerPreview();
+  }
+
+  function clearForm() {
+    ['totalSale', 'creditSale', 'bankTransfer', 'counterCash'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '0';
+    });
+    const notesEl = document.querySelector('textarea[name="notes"]');
+    if (notesEl) notesEl.value = '';
+    const expContainer = document.getElementById('expenses-container');
+    if (expContainer) { expContainer.innerHTML = ''; reNumberRows(); }
+    if (window.triggerPreview) window.triggerPreview();
+  }
+
+  function resolveLockState(status, allowOverwriteCb, overwriteWrap) {
+    if (status === 'locked' || status === 'invalid') {
+      if (overwriteWrap)  overwriteWrap.classList.add('hidden');
+      if (allowOverwriteCb) allowOverwriteCb.checked = false;
+      return true;
+    }
+    if (status === 'exists') {
+      if (overwriteWrap) overwriteWrap.classList.remove('hidden');
+      return !(allowOverwriteCb && allowOverwriteCb.checked);
+    }
+    if (overwriteWrap)  overwriteWrap.classList.add('hidden');
+    if (allowOverwriteCb) allowOverwriteCb.checked = false;
+    return false;
+  }
+
   function handleDateStatusBadgeUpdate() {
     const dateBadge = document.getElementById('date-status-badge');
     if (!dateBadge) return;
 
-    const status = dateBadge.getAttribute('data-status');
-    const reportDataRaw = dateBadge.getAttribute('data-report');
+    const status         = dateBadge.getAttribute('data-status');
+    const reportDataRaw  = dateBadge.getAttribute('data-report');
     const allowOverwriteCb = document.getElementById('allowOverwrite');
-    const overwriteWrap = document.getElementById('overwrite-toggle-wrap');
+    const overwriteWrap    = document.getElementById('overwrite-toggle-wrap');
 
     if (reportDataRaw && (status === 'locked' || status === 'exists')) {
-      try {
-        const report = JSON.parse(reportDataRaw);
-        const setVal = (id, val) => {
-          const el = document.getElementById(id);
-          if (el) el.value = formatWithCommas(val || 0);
-        };
-        setVal('totalSale', report.total_sale);
-        setVal('creditSale', report.credit_sale);
-        setVal('bankTransfer', report.bank_transfer);
-        setVal('counterCash', report.counter_cash);
-
-        const notesEl = document.querySelector('textarea[name="notes"]');
-        if (notesEl) notesEl.value = report.notes || '';
-
-        const expContainer = document.getElementById('expenses-container');
-        if (expContainer && Array.isArray(report.expenses)) {
-          expContainer.innerHTML = '';
-          report.expenses.forEach((exp, idx) => {
-            const rowHtml = `
-              <div class="expense-row" data-index="${idx+1}">
-                <div class="row-badge">${idx+1}</div>
-                <div class="desc-input">
-                  <input type="text" name="expenseDesc[]" value="${escapeHTML(exp.description||'')}" class="glass-input text-xs desc-input" placeholder="Expense description">
-                </div>
-                <div class="amt-input">
-                  <input type="text" inputmode="numeric" name="expenseAmount[]" value="${formatWithCommas(exp.amount||0)}" class="glass-input number-input text-xs amt-input" placeholder="0">
-                </div>
-                <button type="button" class="del-btn" onclick="removeExpenseRow(this)">✕</button>
-              </div>`;
-            expContainer.insertAdjacentHTML('beforeend', rowHtml);
-          });
-          document.querySelectorAll('#expenses-container > .expense-row').forEach(bindExpenseRow);
-          reNumberRows();
-        }
-
-        if (window.triggerPreview) window.triggerPreview();
-      } catch (e) {}
+      try { fillFormFromReport(JSON.parse(reportDataRaw)); } catch (e) {}
     } else if (status === 'available') {
-      const clearVal = (id) => {
-        const el = document.getElementById(id);
-        if (el) el.value = '0';
-      };
-      clearVal('totalSale');
-      clearVal('creditSale');
-      clearVal('bankTransfer');
-      clearVal('counterCash');
-      const notesEl = document.querySelector('textarea[name="notes"]');
-      if (notesEl) notesEl.value = '';
-      const expContainer = document.getElementById('expenses-container');
-      if (expContainer) {
-        expContainer.innerHTML = '';
-        reNumberRows();
-      }
-      if (window.triggerPreview) window.triggerPreview();
+      clearForm();
     }
 
-    let shouldLock = false;
-    if (status === 'locked' || status === 'invalid') {
-      shouldLock = true;
-      if (overwriteWrap) overwriteWrap.classList.add('hidden');
-      if (allowOverwriteCb) allowOverwriteCb.checked = false;
-    } else if (status === 'exists') {
-      if (overwriteWrap) overwriteWrap.classList.remove('hidden');
-      shouldLock = !(allowOverwriteCb && allowOverwriteCb.checked);
-    } else {
-      if (overwriteWrap) overwriteWrap.classList.add('hidden');
-      if (allowOverwriteCb) allowOverwriteCb.checked = false;
-      shouldLock = false;
-    }
-
-    toggleFormLock(shouldLock);
+    toggleFormLock(resolveLockState(status, allowOverwriteCb, overwriteWrap));
     updateCalcStrip();
   }
 
@@ -622,57 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cells.push({d: nx++, y, m, outside: true});
     }
 
-    dpGrid.innerHTML = cells.map(c => {
-      const cd  = new Date(c.y, c.m, c.d);
-      const iso = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
-      const dow = cd.getDay();
-      let cls = 'cal-day';
-      let isDisabled = false;
-
-      const isBeforeMin = iso < '2026-07-01';
-      const isFuture = iso > pkTodayStr;
-      const isSubmitted = submittedInfo.dates.has(iso);
-
-      if (c.outside) cls += ' outside';
-      else if (dow === 0 || dow === 6) cls += ' weekend';
-
-      const isDashboard = !!document.getElementById('dashboard-content');
-
-      if (isDashboard) {
-        if (isBeforeMin || isFuture || !isSubmitted) {
-          cls += ' outside disabled no-report-disabled';
-          isDisabled = true;
-        } else {
-          cls += ' has-report-selectable';
-        }
-      } else {
-        if (isBeforeMin || isFuture) {
-          cls += ' outside disabled future-disabled';
-          isDisabled = true;
-        } else if (isSubmitted) {
-          if (!submittedInfo.canEdit) {
-            cls += ' already-submitted-disabled disabled';
-            isDisabled = true;
-          } else {
-            cls += ' already-submitted-manager';
-          }
-        }
-      }
-
-      if (!c.outside && dpIsSame(cd, pkTodayDate)) cls += ' today';
-      if (dpSelected && dpIsSame(cd, dpSelected)) cls += ' selected';
-      if (dpFocused  && dpIsSame(cd, dpFocused))  cls += ' focused';
-
-      const disAttr = isDisabled ? 'disabled="disabled"' : '';
-      let titleAttr = '';
-      if (isDashboard) {
-        titleAttr = isSubmitted ? 'title="View EOD Report"' : (isFuture ? 'title="Future Date"' : (isBeforeMin ? 'title="Prior to July 2026"' : 'title="No report for this date"'));
-      } else {
-        titleAttr = isSubmitted ? (submittedInfo.canEdit ? 'title="Report Submitted (Click to Edit)"' : 'title="Report Already Submitted"') : (isFuture ? 'title="Future Date"' : (isBeforeMin ? 'title="Prior to July 2026"' : ''));
-      }
-
-      return `<button type="button" class="${escapeHTML(cls)}" data-y="${Number(c.y)}" data-m="${Number(c.m)}" data-d="${Number(c.d)}" ${disAttr} ${titleAttr}>${Number(c.d)}</button>`;
-    }).join('');
+    dpGrid.innerHTML = cells.map(c => dpBuildCell(c)).join('');
 
     dpGrid.querySelectorAll('.cal-day:not([disabled])').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -681,6 +631,62 @@ document.addEventListener('DOMContentLoaded', () => {
         dpClose();
       });
     });
+  }
+
+  function dpBuildCellClasses(c, iso, dow, flags) {
+    const { isBeforeMin, isFuture, isSubmitted, isDashboard } = flags;
+    let cls = 'cal-day';
+    if (c.outside) cls += ' outside';
+    else if (dow === 0 || dow === 6) cls += ' weekend';
+
+    if (isDashboard) {
+      if (isBeforeMin || isFuture || !isSubmitted) cls += ' outside disabled no-report-disabled';
+      else cls += ' has-report-selectable';
+    } else {
+      if (isBeforeMin || isFuture) cls += ' outside disabled future-disabled';
+      else if (isSubmitted) {
+        cls += submittedInfo.canEdit ? ' already-submitted-manager' : ' already-submitted-disabled disabled';
+      }
+    }
+    return cls;
+  }
+
+  function dpBuildCellTitle(flags) {
+    const { isBeforeMin, isFuture, isSubmitted, isDashboard } = flags;
+    if (isDashboard) {
+      if (isSubmitted)  return 'title="View EOD Report"';
+      if (isFuture)     return 'title="Future Date"';
+      if (isBeforeMin)  return 'title="Prior to July 2026"';
+      return 'title="No report for this date"';
+    }
+    if (isSubmitted)    return submittedInfo.canEdit ? 'title="Report Submitted (Click to Edit)"' : 'title="Report Already Submitted"';
+    if (isFuture)       return 'title="Future Date"';
+    if (isBeforeMin)    return 'title="Prior to July 2026"';
+    return '';
+  }
+
+  function dpBuildCell(c) {
+    const cd  = new Date(c.y, c.m, c.d);
+    const iso = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
+    const dow = cd.getDay();
+    const isDashboard = !!document.getElementById('dashboard-content');
+    const flags = {
+      isBeforeMin:  iso < '2026-07-01',
+      isFuture:     iso > pkTodayStr,
+      isSubmitted:  submittedInfo.dates.has(iso),
+      isDashboard,
+    };
+
+    let cls = dpBuildCellClasses(c, iso, dow, flags);
+    if (!c.outside && dpIsSame(cd, pkTodayDate)) cls += ' today';
+    if (dpSelected && dpIsSame(cd, dpSelected))  cls += ' selected';
+    if (dpFocused  && dpIsSame(cd, dpFocused))   cls += ' focused';
+
+    const isDisabled = cls.includes('disabled');
+    const disAttr    = isDisabled ? 'disabled="disabled"' : '';
+    const titleAttr  = dpBuildCellTitle(flags);
+
+    return `<button type="button" class="${escapeHTML(cls)}" data-y="${Number(c.y)}" data-m="${Number(c.m)}" data-d="${Number(c.d)}" ${disAttr} ${titleAttr}>${Number(c.d)}</button>`;
   }
 
   function dpStepMonth(delta) {
@@ -863,14 +869,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (e.key === 'Backspace' && e.shiftKey) {
           e.preventDefault();
           rowEl.remove(); reNumberRows(); triggerPreview();
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          const next = rowEl.nextElementSibling?.querySelector('input[name="expenseAmount[]"]');
-          if (next) next.focus();
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          const prev = rowEl.previousElementSibling?.querySelector('input[name="expenseAmount[]"]');
-          if (prev) prev.focus();
+        } else {
+          focusNeighbourInput(e, rowEl, 'input[name="expenseAmount[]"]');
         }
       });
     }
@@ -880,16 +880,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Backspace' && e.shiftKey) {
           e.preventDefault();
           rowEl.remove(); reNumberRows(); triggerPreview();
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          const next = rowEl.nextElementSibling?.querySelector('input[name="expenseDesc[]"]');
-          if (next) next.focus();
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          const prev = rowEl.previousElementSibling?.querySelector('input[name="expenseDesc[]"]');
-          if (prev) prev.focus();
+        } else {
+          focusNeighbourInput(e, rowEl, 'input[name="expenseDesc[]"]');
         }
       });
+    }
+  }
+
+  function focusNeighbourInput(e, rowEl, selector) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = rowEl.nextElementSibling?.querySelector(selector);
+      if (next) next.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = rowEl.previousElementSibling?.querySelector(selector);
+      if (prev) prev.focus();
     }
   }
 
