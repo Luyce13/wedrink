@@ -66,8 +66,22 @@ window.updateReportsFilterState = function() {
   const form = document.getElementById('reports-filter-form');
   if (!form) return;
 
-  const startDate = form.querySelector('[name="startDate"]')?.value || '';
-  const endDate   = form.querySelector('[name="endDate"]')?.value || '';
+  const startInput = form.querySelector('[name="startDate"]');
+  const endInput   = form.querySelector('[name="endDate"]');
+  if (!startInput || !endInput) return;
+
+  // Set base bounds: July 1, 2026 -> Today
+  const todayIso = new Date().toISOString().split('T')[0];
+  const minDate  = '2026-07-01';
+
+  startInput.min = minDate;
+  startInput.max = endInput.value || todayIso;
+
+  endInput.min = startInput.value || minDate;
+  endInput.max = todayIso;
+
+  const startDate = startInput.value || '';
+  const endDate   = endInput.value || '';
   const sortBy    = form.querySelector('[name="sortBy"]')?.value || 'date';
   const sortOrder = form.querySelector('[name="sortOrder"]')?.value || 'desc';
 
