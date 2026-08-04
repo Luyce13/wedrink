@@ -64,6 +64,18 @@ html.theme-light .bg-\[\#080e1e\]\/50,
 html.theme-light .bg-\[\#080e1e\]\/60,
 html.theme-light .bg-\[\#080e1e\]\/80,
 html.theme-light .bg-slate-900\/50     { background-color: #f8fafc !important; }
+
+/* ── Notification Dropdown Light Theme Overrides ── */
+html.theme-light .bg-\[\#0f1c35\]      { background-color: #ffffff !important; border-color: #cbd5e1 !important; box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important; }
+html.theme-light .bg-slate-900\/90   { background-color: #f8fafc !important; border-color: #e2e8f0 !important; }
+html.theme-light .bg-slate-950\/60   { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; }
+html.theme-light .bg-slate-950\/90   { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+html.theme-light .bg-slate-950\/40   { background-color: #f8fafc !important; }
+html.theme-light .bg-brand-600,
+html.theme-light .bg-brand-600 *     { color: #ffffff !important; }
+html.theme-light .bg-emerald-950\/60 { background-color: #ecfdf5 !important; border-color: #a7f3d0 !important; color: #047857 !important; }
+html.theme-light .bg-emerald-950\/30 { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #15803d !important; }
+html.theme-light .bg-rose-950        { background-color: #ffe4e6 !important; color: #9f1239 !important; }
 html.theme-light .bg-\[\#1e2d4a\]\/50,
 html.theme-light .bg-\[\#1e2d4a\]\/60  { background-color: #e2e8f0 !important; }
 
