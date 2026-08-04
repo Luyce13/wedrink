@@ -55,10 +55,13 @@ func main() {
 	_ = userRepo.SeedDefaultUsers(ctxSeed)
 	cancelSeed()
 
+	notifRepo := repository.NewNotificationRepository(mongoDB.Database)
+
 	// Services
 	authService := services.NewAuthService(userRepo)
 	reportService := services.NewReportService(reportRepo)
 	userService := services.NewUserService(userRepo)
+	notifService := services.NewNotificationService(notifRepo)
 
 	// HTML Template setup with custom FuncMap
 	funcMap := template.FuncMap{
@@ -109,10 +112,11 @@ func main() {
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService, renderer)
-	reportHandler := handlers.NewReportHandler(reportService, authService, renderer)
+	reportHandler := handlers.NewReportHandler(reportService, authService, notifService, renderer)
 	dashboardHandler := handlers.NewDashboardHandler(reportService, renderer)
 	exportHandler := handlers.NewExportHandler(reportService)
 	userHandler := handlers.NewUserHandler(userService, renderer)
+	notifHandler := handlers.NewNotificationHandler(notifService, renderer)
 
 	sessionMgr := middleware.NewSessionManager(cfg.SessionSecret)
 
@@ -154,6 +158,11 @@ func main() {
 	mux.HandleFunc("POST /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
 	mux.HandleFunc("GET /export/csv", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportCSV))
 	mux.HandleFunc("GET /export/excel", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportExcel))
+
+	// Notification routes (Super Admin / Manager)
+	mux.HandleFunc("GET /notifications/unread", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.GetUnread))
+	mux.HandleFunc("GET /notifications/badge", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.GetBadge))
+	mux.HandleFunc("POST /notifications/mark-read", middleware.RequireRole(models.RoleSuperAdmin)(notifHandler.MarkAsRead))
 
 	// User Management (Super Admin)
 	mux.HandleFunc("GET /admin/users", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.RenderUserList))

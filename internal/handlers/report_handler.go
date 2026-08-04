@@ -17,16 +17,18 @@ import (
 )
 
 type ReportHandler struct {
-	service     *services.ReportService
-	authService *services.AuthService
-	renderer    *render.Renderer
+	service      *services.ReportService
+	authService  *services.AuthService
+	notifService *services.NotificationService
+	renderer     *render.Renderer
 }
 
-func NewReportHandler(service *services.ReportService, authService *services.AuthService, renderer *render.Renderer) *ReportHandler {
+func NewReportHandler(service *services.ReportService, authService *services.AuthService, notifService *services.NotificationService, renderer *render.Renderer) *ReportHandler {
 	return &ReportHandler{
-		service:     service,
-		authService: authService,
-		renderer:    renderer,
+		service:      service,
+		authService:  authService,
+		notifService: notifService,
+		renderer:     renderer,
 	}
 }
 
@@ -138,6 +140,11 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.renderError(w, r, err.Error())
 		return
+	}
+
+	// Trigger async notification creation if notes are present (completely non-blocking)
+	if h.notifService != nil && report != nil && report.Notes != "" {
+		h.notifService.CreateNotificationAsync(report.ReportID, report.ReportDate, report.SubmittedBy, report.Notes)
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
