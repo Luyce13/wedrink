@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"wedrink/internal/models"
 )
 
@@ -29,13 +31,18 @@ func (sm *SessionManager) AuthMiddleware(next http.Handler) http.Handler {
 			if errUnescape != nil || val == "" {
 				val = cookie.Value
 			}
-			// Format: username|role|fullname
+			// Format: username|role|fullname|id
 			parts := strings.Split(val, "|")
 			if len(parts) >= 3 {
 				user := &models.User{
 					Username: parts[0],
 					Role:     models.Role(parts[1]),
 					FullName: parts[2],
+				}
+				if len(parts) >= 4 && parts[3] != "" {
+					if objID, errID := bson.ObjectIDFromHex(parts[3]); errID == nil {
+						user.ID = objID
+					}
 				}
 				ctx := context.WithValue(r.Context(), UserContextKey, user)
 				r = r.WithContext(ctx)

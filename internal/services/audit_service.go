@@ -20,6 +20,7 @@ func NewAuditService(repo repository.AuditRepo) *AuditService {
 }
 
 type RecordAuditInput struct {
+	ActorID    string
 	Actor      string
 	Role       string
 	Action     string
@@ -41,8 +42,14 @@ func (s *AuditService) Record(ctx context.Context, input RecordAuditInput) {
 		userAgent = input.Req.UserAgent()
 	}
 
+	actorID := input.ActorID
+	if actorID == "000000000000000000000000" {
+		actorID = ""
+	}
+
 	log := &models.AuditLog{
 		Timestamp:  time.Now(),
+		ActorID:    actorID,
 		Actor:      input.Actor,
 		Role:       input.Role,
 		Action:     input.Action,

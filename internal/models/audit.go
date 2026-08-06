@@ -10,6 +10,7 @@ import (
 type AuditLog struct {
 	ID         bson.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Timestamp  time.Time     `json:"timestamp" bson:"timestamp"`
+	ActorID    string        `json:"actor_id,omitempty" bson:"actor_id,omitempty"` // User ID (_id.Hex())
 	Actor      string        `json:"actor" bson:"actor"`               // Username of person performing action
 	Role       string        `json:"role" bson:"role"`                 // Role of actor (staff/super_admin)
 	Action     string        `json:"action" bson:"action"`             // e.g. "report.submit", "report.delete", "user.create"

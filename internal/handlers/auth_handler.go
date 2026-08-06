@@ -62,8 +62,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set session cookie (username|role|fullname)
-	rawCookie := fmt.Sprintf("%s|%s|%s", user.Username, string(user.Role), user.FullName)
+	// Set session cookie (username|role|fullname|id)
+	rawCookie := fmt.Sprintf("%s|%s|%s|%s", user.Username, string(user.Role), user.FullName, user.ID.Hex())
 	cookieValue := url.QueryEscape(rawCookie)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "wedrink_session",

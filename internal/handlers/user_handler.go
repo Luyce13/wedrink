@@ -57,7 +57,8 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	fullName := r.FormValue("fullName")
 	role := r.FormValue("role")
 
-	_, err := h.userService.CreateUser(r.Context(), username, password, confirmPassword, fullName, role, r)
+	ctxUser := middleware.GetUser(r)
+	_, err := h.userService.CreateUser(r.Context(), ctxUser, username, password, confirmPassword, fullName, role, r)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
 		if isHTMX(r) {
@@ -114,7 +115,7 @@ func (h *UserHandler) HandleEditUser(w http.ResponseWriter, r *http.Request) {
 	confirmPassword := r.FormValue("confirmPassword")
 	adminPassword := r.FormValue("adminPassword")
 
-	updatedUser, err := h.userService.UpdateUser(r.Context(), ctxUser.Username, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword, r)
+	updatedUser, err := h.userService.UpdateUser(r.Context(), ctxUser, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword, r)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
 		if isHTMX(r) {
@@ -154,7 +155,7 @@ func (h *UserHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	targetUsername := r.FormValue("username")
 	adminPassword := r.FormValue("adminPassword")
 
-	err := h.userService.DeleteUser(r.Context(), targetUsername, ctxUser.Username, adminPassword, r)
+	err := h.userService.DeleteUser(r.Context(), targetUsername, ctxUser, adminPassword, r)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
 		if isHTMX(r) {

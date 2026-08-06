@@ -132,6 +132,7 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 		ExpenseDescs:    descs,
 		ExpenseAmounts:  amts,
 		Notes:           r.FormValue("notes"),
+		SubmittedByID:   user.ID.Hex(),
 		SubmittedBy:     user.FullName,
 		SubmittedByRole: string(user.Role),
 		AllowOverwrite:  allowOverwrite,
@@ -338,7 +339,7 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, authErr := h.authService.Authenticate(r.Context(), user.Username, adminPassword, r)
+	adminUser, authErr := h.authService.VerifyPassword(r.Context(), user.Username, adminPassword)
 	if authErr != nil {
 		errMsg := "Incorrect password. Deletion cancelled."
 		if isHTMX(r) {
@@ -349,7 +350,8 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if delErr := h.service.DeleteReport(r.Context(), id, user.Username, r); delErr != nil {
+	actorID := adminUser.ID.Hex()
+	if delErr := h.service.DeleteReport(r.Context(), id, adminUser.Username, string(adminUser.Role), actorID, r); delErr != nil {
 		slog.Error("HandleDelete: failed to delete report from DB", "id", id, "error", delErr)
 		errMsg := "Failed to delete report from database."
 		if isHTMX(r) {

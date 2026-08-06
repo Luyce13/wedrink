@@ -52,6 +52,7 @@ type SubmitReportInput struct {
 	ExpenseDescs    []string
 	ExpenseAmounts  []string
 	Notes           string
+	SubmittedByID   string
 	SubmittedBy     string
 	SubmittedByRole string
 	AllowOverwrite  bool
@@ -174,6 +175,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 		err = s.repo.Update(ctx, report)
 		if err == nil && s.auditService != nil {
 			s.auditService.Record(ctx, RecordAuditInput{
+				ActorID:    input.SubmittedByID,
 				Actor:      input.SubmittedBy,
 				Role:       input.SubmittedByRole,
 				Action:     "report.overwrite",
@@ -187,6 +189,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 		err = s.repo.Create(ctx, report)
 		if err == nil && s.auditService != nil {
 			s.auditService.Record(ctx, RecordAuditInput{
+				ActorID:    input.SubmittedByID,
 				Actor:      input.SubmittedBy,
 				Role:       input.SubmittedByRole,
 				Action:     "report.submit",
@@ -238,12 +241,14 @@ func (s *ReportService) GetMonthlySummary(ctx context.Context, yearMonth string)
 	return s.repo.CalculateMonthlySummary(ctx, yearMonth)
 }
 
-func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actor string, req *http.Request) error {
+func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actorUsername string, actorRole string, actorID string, req *http.Request) error {
 	oldReport, _ := s.repo.FindByID(ctx, idStr)
-	err := s.repo.Delete(ctx, idStr, actor)
+	err := s.repo.Delete(ctx, idStr, actorUsername)
 	if err == nil && s.auditService != nil {
 		s.auditService.Record(ctx, RecordAuditInput{
-			Actor:      actor,
+			ActorID:    actorID,
+			Actor:      actorUsername,
+			Role:       actorRole,
 			Action:     "report.delete",
 			ResourceID: idStr,
 			Req:        req,

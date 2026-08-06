@@ -29,7 +29,7 @@ func (s *UserService) GetUserByUsername(ctx context.Context, username string) (*
 	return s.userRepo.FindByUsername(ctx, username)
 }
 
-func (s *UserService) CreateUser(ctx context.Context, username, password, confirmPassword, fullName, role string, req *http.Request) (*models.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, actor *models.User, username, password, confirmPassword, fullName, role string, req *http.Request) (*models.User, error) {
 	cleanUsername := strings.ToLower(strings.TrimSpace(username))
 	if cleanUsername == "" {
 		return nil, models.ErrUsernameRequired
@@ -76,7 +76,18 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, confir
 	}
 
 	if s.auditService != nil {
+		actorID := ""
+		actorName := ""
+		actorRole := ""
+		if actor != nil {
+			actorID = actor.ID.Hex()
+			actorName = actor.Username
+			actorRole = string(actor.Role)
+		}
 		s.auditService.Record(ctx, RecordAuditInput{
+			ActorID:    actorID,
+			Actor:      actorName,
+			Role:       actorRole,
 			Action:     "user.create",
 			ResourceID: user.Username,
 			Req:        req,
@@ -87,7 +98,7 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, confir
 	return user, nil
 }
 
-func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword string, req *http.Request) (*models.User, error) {
+func (s *UserService) UpdateUser(ctx context.Context, actor *models.User, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword string, req *http.Request) (*models.User, error) {
 	cleanTarget := strings.ToLower(strings.TrimSpace(targetUsername))
 	user, err := s.userRepo.FindByUsername(ctx, cleanTarget)
 	if err != nil || user == nil {
@@ -118,7 +129,11 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 		}
 
 		// Verify current admin's password before allowing password reset/change
-		cleanAdmin := strings.ToLower(strings.TrimSpace(currentAdminUsername))
+		actorUsername := ""
+		if actor != nil {
+			actorUsername = actor.Username
+		}
+		cleanAdmin := strings.ToLower(strings.TrimSpace(actorUsername))
 		adminUser, errAdmin := s.userRepo.FindByUsername(ctx, cleanAdmin)
 		if errAdmin != nil || adminUser == nil {
 			return nil, fmt.Errorf("failed to verify admin credentials")
@@ -147,8 +162,18 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 	}
 
 	if s.auditService != nil {
+		actorID := ""
+		actorName := ""
+		actorRole := ""
+		if actor != nil {
+			actorID = actor.ID.Hex()
+			actorName = actor.Username
+			actorRole = string(actor.Role)
+		}
 		s.auditService.Record(ctx, RecordAuditInput{
-			Actor:      currentAdminUsername,
+			ActorID:    actorID,
+			Actor:      actorName,
+			Role:       actorRole,
 			Action:     "user.update",
 			ResourceID: user.Username,
 			Req:        req,
@@ -159,9 +184,13 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 	return user, nil
 }
 
-func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdminUsername, adminPassword string, req *http.Request) error {
+func (s *UserService) DeleteUser(ctx context.Context, targetUsername string, actor *models.User, adminPassword string, req *http.Request) error {
 	cleanTarget := strings.ToLower(strings.TrimSpace(targetUsername))
-	cleanAdmin := strings.ToLower(strings.TrimSpace(currentAdminUsername))
+	actorUsername := ""
+	if actor != nil {
+		actorUsername = actor.Username
+	}
+	cleanAdmin := strings.ToLower(strings.TrimSpace(actorUsername))
 
 	if cleanTarget == cleanAdmin {
 		return models.ErrCannotDeleteSelf
@@ -185,8 +214,18 @@ func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdm
 	oldUser, _ := s.userRepo.FindByUsername(ctx, cleanTarget)
 	err := s.userRepo.Delete(ctx, cleanTarget, cleanAdmin)
 	if err == nil && s.auditService != nil {
+		actorID := ""
+		actorName := ""
+		actorRole := ""
+		if actor != nil {
+			actorID = actor.ID.Hex()
+			actorName = actor.Username
+			actorRole = string(actor.Role)
+		}
 		s.auditService.Record(ctx, RecordAuditInput{
-			Actor:      cleanAdmin,
+			ActorID:    actorID,
+			Actor:      actorName,
+			Role:       actorRole,
 			Action:     "user.delete",
 			ResourceID: cleanTarget,
 			Req:        req,

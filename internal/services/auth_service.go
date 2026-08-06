@@ -53,11 +53,28 @@ func (s *AuthService) Authenticate(ctx context.Context, username, password strin
 
 	if s.auditService != nil {
 		s.auditService.Record(ctx, RecordAuditInput{
-			Actor:  user.Username,
-			Role:   string(user.Role),
-			Action: "auth.login_success",
-			Req:    req,
+			ActorID: user.ID.Hex(),
+			Actor:   user.Username,
+			Role:    string(user.Role),
+			Action:  "auth.login_success",
+			Req:     req,
 		})
+	}
+
+	return user, nil
+}
+
+// VerifyPassword verifies user credentials for sensitive actions (e.g. deletions) without creating a login audit log.
+func (s *AuthService) VerifyPassword(ctx context.Context, username, password string) (*models.User, error) {
+	cleanUsername := strings.ToLower(strings.TrimSpace(username))
+	user, err := s.userRepo.FindByUsername(ctx, cleanUsername)
+	if err != nil || user == nil {
+		return nil, models.ErrInvalidCredentials
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return nil, models.ErrInvalidCredentials
 	}
 
 	return user, nil
