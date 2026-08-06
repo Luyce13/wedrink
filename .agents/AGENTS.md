@@ -13,6 +13,12 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - $\text{Difference} = \text{CounterCash} - \text{ExpectedCash}$
 - All monetary float values MUST be rounded using `math.Round` prior to calculation and database persistence to prevent floating point drift.
 - Currency display formatting MUST use Indian Numbering System (`en-IN` style, e.g., `1,25,000` for 125000) as rendered by template func `fmtNum` in `main.go`.
+- **Non-Negative Monetary Invariant**: Monetary inputs (`TotalSale`, `CreditSale`, `BankTransfer`, `CounterCash`, and expense `Amount`) MUST NEVER accept negative values. This invariant MUST be enforced across all 5 layers of the stack:
+  1. **HTML Layer:** Input elements MUST specify `min="0"`.
+  2. **JS Masking Layer:** `formatWithCommas` and `getRawValue` in `app.js` MUST strip minus signs (`replace(/[,-]/g, '')`).
+  3. **Domain Layer:** `models/errors.go` defines `ErrNegativeAmount`.
+  4. **Service Layer:** `report_service.go` checks parsed amounts and returns `ErrNegativeAmount` if `< 0`.
+  5. **Repository Layer:** `report_repo.go` invokes `validateNonNegativeReport` before any MongoDB `Create`, `Update`, or `UpsertByDate` operation.
 
 ---
 
@@ -20,11 +26,11 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 
 - **Clean Architecture Hierarchy**:
   - `cmd/server/main.go`: Entry point, DI container, HTTP routing setup.
-  - `internal/handlers`: HTTP handlers (parses input, validates HTTP status, delegates to services, renders HTML via `render.Renderer`).
+  - `internal/handlers`: HTTP handlers (parses input, validates HTTP status, delegates to services, renders HTML via `render.Renderer`). Handlers MUST use shared helpers in `internal/handlers/htmx_helpers.go` (`renderPage`, `renderPartial`, `renderHTMXError`, `isHTMX`) rather than raw inline HTML strings or ignored template errors.
   - `internal/services`: Pure domain logic, financial math, workflow rules (no direct HTTP or DB calls).
-  - `internal/repository`: MongoDB query operations using `go.mongodb.org/mongo-driver/v2`.
+  - `internal/repository`: MongoDB query operations using `go.mongodb.org/mongo-driver/v2`. All data mutation services MUST accept repository interface abstractions (`ReportRepo`, `UserRepo`, `NotificationRepo`) to enable mock unit testing.
   - `internal/db`: MongoDB client connection, ping checks, index creation.
-  - `internal/models`: Domain models and BSON struct tags (`EODReport`, `ExpenseItem`, `User`, `MonthlySummary`).
+  - `internal/models`: Domain models, sentinel errors (`errors.go`), and BSON struct tags (`EODReport`, `ExpenseItem`, `User`, `MonthlySummary`).
 - **Dependencies**: Never call MongoDB directly from handlers or services; always go through `repository`.
 - **Framework-Free**: Do NOT add third-party Go web frameworks (e.g., Gin, Fiber, Echo) unless explicitly requested by the user. Use Go standard library `net/http` router (`http.NewServeMux`).
 
@@ -51,6 +57,11 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 - **HTMX Trigger Synchronization**: When triggering a client-side HTMX event via `HX-Trigger` headers (e.g. `reportSaved`), all database mutations associated with that event MUST be executed synchronously prior to returning the HTTP response. Never offload DB writes to un-awaited background goroutines if an HTMX trigger immediately re-fetches that state, as this causes a race condition resulting in "1 version behind" UI renders.
 - **Form Lock State & Edit Mode**: Asynchronous status checks (e.g. `GET /reports/check-date`) must accept `isEditMode` context so existing reports opened explicitly for editing return an unlocked state (`data-status="editing"`) and remain editable.
 - **Filter Bar State**: Apply and Reset filter buttons on `/reports` MUST default to `disabled` on page load and dynamically enable via JS (`updateReportsFilterState()`) only when filter/sort inputs (`startDate`, `endDate`, `sortBy`, `sortOrder`) are modified by the user.
+- **Management Page Actions & Error Banners**: Deletion or management form submissions MUST redirect cleanly via `?error=...` or `?success=...` (or `HX-Redirect`). This displays top-page alert banners without breaking table layouts or modal states.
+- **SPA `pageCache` & Alert Sanitization**:
+  - The client SPA switcher (`pageCache` in `app.js`) MUST NEVER cache HTML strings containing `.alert-banner` elements (`sanitizeHTMLForCache`).
+  - Query parameters `?success=` and `?error=` MUST be stripped via `history.replaceState` immediately on page load (`cleanAlertQueryParams`).
+  - `htmx:beforeHistorySave` MUST remove alert banners from HTMX history DOM snapshots.
 
 ---
 
@@ -71,7 +82,7 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 ## 6. Code Style & Logging
 
 - **Logging**: Use `log/slog` structured logging throughout `internal/`.
-- **Testing / Seeding**: Default demo accounts (`staff` / `staffpassword`, `manager` / `managerpassword`) are auto-seeded on initial run.
+- **Testing / Seeding**: Default demo accounts (`staff` / `staffpassword`, `manager` / `managerpassword`) are auto-seeded on initial run when `AUTO_SEED=true`.
 
 ---
 
@@ -89,6 +100,6 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 
 - **2-State Theme Toggle**: Theme toggle strictly switches between Dark ↔ Light modes (`localStorage.wedrink_theme`). OS-level theme changes (`prefers-color-scheme`) MUST automatically clear `localStorage` and re-sync to the OS preference.
 - **Light Theme Color Contrast**: When overriding dark component styles in `html.theme-light`, container background utilities (such as `.bg-[#0f1c35]`) MUST be mapped to light backgrounds (`#ffffff`) alongside text utility overrides (`.text-sky-400` -> `#0284c7`). Bright neon dark-mode colors must always map to deep, high-contrast shades in light mode to maintain WCAG legibility.
-- **Datepicker Panel Alignment**: Left-aligned form field datepicker popover panels MUST specify `!left-0 !right-auto` so dropdowns align to the trigger button's left edge without overflowing off-screen.
+- **Dynamic Viewport Datepicker Alignment**: Datepicker popover panels MUST use real-time viewport boundary detection (`autoAlignPanel(panel, trigger)` in `app.js`). When `rect.left + panelWidth > window.innerWidth - 12`, the panel automatically aligns to `right: 0; left: auto; transform-origin: top right;` to prevent off-screen clipping.
 - **Responsive Mobile Popovers**: Header dropdown popovers MUST use responsive positioning (`fixed left-4 right-4 top-14 sm:absolute sm:right-0 sm:top-full sm:w-80`) to prevent clipping off the left/right edges of mobile viewports (< 640px).
 - **Dynamic Textarea Auto-Expansion**: Multiline textareas (e.g. Store Remarks) MUST dynamically auto-expand `scrollHeight` with a 160px (`max-h-[10rem]`) height limit, enabling vertical scrollbars thereafter.
