@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -28,7 +29,7 @@ func (s *UserService) GetUserByUsername(ctx context.Context, username string) (*
 	return s.userRepo.FindByUsername(ctx, username)
 }
 
-func (s *UserService) CreateUser(ctx context.Context, username, password, confirmPassword, fullName, role string) (*models.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, username, password, confirmPassword, fullName, role string, req *http.Request) (*models.User, error) {
 	cleanUsername := strings.ToLower(strings.TrimSpace(username))
 	if cleanUsername == "" {
 		return nil, models.ErrUsernameRequired
@@ -78,6 +79,7 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, confir
 		s.auditService.Record(ctx, RecordAuditInput{
 			Action:     "user.create",
 			ResourceID: user.Username,
+			Req:        req,
 			NewState:   user,
 		})
 	}
@@ -85,7 +87,7 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, confir
 	return user, nil
 }
 
-func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword string) (*models.User, error) {
+func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword string, req *http.Request) (*models.User, error) {
 	cleanTarget := strings.ToLower(strings.TrimSpace(targetUsername))
 	user, err := s.userRepo.FindByUsername(ctx, cleanTarget)
 	if err != nil || user == nil {
@@ -149,6 +151,7 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 			Actor:      currentAdminUsername,
 			Action:     "user.update",
 			ResourceID: user.Username,
+			Req:        req,
 			NewState:   user,
 		})
 	}
@@ -156,7 +159,7 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 	return user, nil
 }
 
-func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdminUsername, adminPassword string) error {
+func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdminUsername, adminPassword string, req *http.Request) error {
 	cleanTarget := strings.ToLower(strings.TrimSpace(targetUsername))
 	cleanAdmin := strings.ToLower(strings.TrimSpace(currentAdminUsername))
 
@@ -186,6 +189,7 @@ func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdm
 			Actor:      cleanAdmin,
 			Action:     "user.delete",
 			ResourceID: cleanTarget,
+			Req:        req,
 			OldState:   oldUser,
 			NewState:   nil,
 		})

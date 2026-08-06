@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +55,7 @@ type SubmitReportInput struct {
 	SubmittedBy     string
 	SubmittedByRole string
 	AllowOverwrite  bool
+	Req             *http.Request
 }
 
 func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitReportInput) (*models.EODReport, error) {
@@ -176,6 +178,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 				Role:       input.SubmittedByRole,
 				Action:     "report.overwrite",
 				ResourceID: report.ReportDate,
+				Req:        input.Req,
 				OldState:   existing,
 				NewState:   report,
 			})
@@ -188,6 +191,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 				Role:       input.SubmittedByRole,
 				Action:     "report.submit",
 				ResourceID: report.ReportDate,
+				Req:        input.Req,
 				OldState:   nil,
 				NewState:   report,
 			})
@@ -234,7 +238,7 @@ func (s *ReportService) GetMonthlySummary(ctx context.Context, yearMonth string)
 	return s.repo.CalculateMonthlySummary(ctx, yearMonth)
 }
 
-func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actor string) error {
+func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actor string, req *http.Request) error {
 	oldReport, _ := s.repo.FindByID(ctx, idStr)
 	err := s.repo.Delete(ctx, idStr, actor)
 	if err == nil && s.auditService != nil {
@@ -242,6 +246,7 @@ func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actor st
 			Actor:      actor,
 			Action:     "report.delete",
 			ResourceID: idStr,
+			Req:        req,
 			OldState:   oldReport,
 			NewState:   nil,
 		})

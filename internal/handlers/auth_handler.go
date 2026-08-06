@@ -46,7 +46,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	user, err := h.authService.Authenticate(r.Context(), username, password)
+	user, err := h.authService.Authenticate(r.Context(), username, password, r)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
 		if isHTMX(r) {

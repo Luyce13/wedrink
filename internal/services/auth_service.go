@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,7 +21,7 @@ func NewAuthService(userRepo repository.UserRepo, auditService *AuditService) *A
 	return &AuthService{userRepo: userRepo, auditService: auditService}
 }
 
-func (s *AuthService) Authenticate(ctx context.Context, username, password string) (*models.User, error) {
+func (s *AuthService) Authenticate(ctx context.Context, username, password string, req *http.Request) (*models.User, error) {
 	cleanUsername := strings.ToLower(strings.TrimSpace(username))
 	user, err := s.userRepo.FindByUsername(ctx, cleanUsername)
 	if err != nil {
@@ -32,6 +33,7 @@ func (s *AuthService) Authenticate(ctx context.Context, username, password strin
 			s.auditService.Record(ctx, RecordAuditInput{
 				Actor:  cleanUsername,
 				Action: "auth.login_failed",
+				Req:    req,
 			})
 		}
 		return nil, models.ErrInvalidCredentials
@@ -43,6 +45,7 @@ func (s *AuthService) Authenticate(ctx context.Context, username, password strin
 			s.auditService.Record(ctx, RecordAuditInput{
 				Actor:  cleanUsername,
 				Action: "auth.login_failed",
+				Req:    req,
 			})
 		}
 		return nil, models.ErrInvalidCredentials
@@ -53,6 +56,7 @@ func (s *AuthService) Authenticate(ctx context.Context, username, password strin
 			Actor:  user.Username,
 			Role:   string(user.Role),
 			Action: "auth.login_success",
+			Req:    req,
 		})
 	}
 

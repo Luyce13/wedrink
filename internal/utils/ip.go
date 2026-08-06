@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -14,13 +13,6 @@ func GetClientIP(r *http.Request) string {
 	if r == nil {
 		return "127.0.0.1"
 	}
-
-	// Log all headers for diagnostic inspection
-	headerMap := make(map[string]string)
-	for k, v := range r.Header {
-		headerMap[k] = strings.Join(v, ", ")
-	}
-	slog.Info("GetClientIP request headers", "remoteAddr", r.RemoteAddr, "headers", headerMap)
 
 	// 1. Cloudflare Tunnel primary header
 	if cfIP := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cfIP != "" {
