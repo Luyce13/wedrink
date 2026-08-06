@@ -251,7 +251,10 @@ window.initReportsCustomDatePickers = function() {
       document.querySelectorAll('.date-panel').forEach(p => { if (p !== panel) p.classList.add('hidden'); });
       const willOpen = panel.classList.contains('hidden');
       panel.classList.toggle('hidden', !willOpen);
-      if (willOpen) render();
+      if (willOpen) {
+        if (window.autoAlignPanel) window.autoAlignPanel(panel, trigger);
+        render();
+      }
     });
 
     document.getElementById(`dp-${prefix}-prev`)?.addEventListener('click', (e) => { e.stopPropagation(); viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); });

@@ -697,24 +697,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const rect = trigger.getBoundingClientRect();
     const panelWidth = Math.min(272, window.innerWidth - 16);
 
-    const spaceOnRight = window.innerWidth - rect.left;
-    const spaceOnLeft  = rect.right;
+    // Search from parentElement so trigger button class names are ignored
+    const parent = trigger.parentElement || trigger;
+    const container = parent.closest('form, .glass-card, [class*="bg-[#131f3a]"], [class*="bg-[#0f1c35]"], main, body');
+    const containerRight = container ? container.getBoundingClientRect().right : window.innerWidth;
+    const containerLeft  = container ? container.getBoundingClientRect().left  : 0;
 
+    const spaceOnRight = Math.min(window.innerWidth, containerRight) - rect.left;
+    const spaceOnLeft  = rect.right - Math.max(0, containerLeft);
+
+    // Prefer aligning left:0 if it fits inside card/container boundaries
     if (spaceOnRight >= panelWidth) {
       panel.style.setProperty('left', '0', 'important');
       panel.style.setProperty('right', 'auto', 'important');
       panel.style.transformOrigin = 'top left';
     } else if (spaceOnLeft >= panelWidth) {
+      // Align right:0 so panel expands leftward staying strictly inside container
       panel.style.setProperty('left', 'auto', 'important');
       panel.style.setProperty('right', '0', 'important');
       panel.style.transformOrigin = 'top right';
     } else {
-      const shiftLeft = Math.max(8 - rect.left, -(panelWidth - trigger.offsetWidth));
-      panel.style.setProperty('left', `${shiftLeft}px`, 'important');
-      panel.style.setProperty('right', 'auto', 'important');
-      panel.style.transformOrigin = 'top left';
+      // Clamped fallback: align right:0
+      panel.style.setProperty('left', 'auto', 'important');
+      panel.style.setProperty('right', '0', 'important');
+      panel.style.transformOrigin = 'top right';
     }
   }
+  window.autoAlignPanel = autoAlignPanel;
 
   function dpToggle() {
     dpOpen ? dpClose() : dpOpenPicker();
