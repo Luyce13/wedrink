@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -56,7 +57,7 @@ func (h *ReportHandler) RenderSubmitForm(w http.ResponseWriter, r *http.Request)
 		"Difference":     0.0,
 	}
 
-	_ = h.renderer.RenderPage(w, "submit.html", data)
+	renderPage(w, h.renderer, "submit.html", data)
 }
 
 func (h *ReportHandler) RenderEditForm(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +95,7 @@ func (h *ReportHandler) RenderEditForm(w http.ResponseWriter, r *http.Request) {
 		"Difference":     report.Difference,
 	}
 
-	_ = h.renderer.RenderPage(w, "submit.html", data)
+	renderPage(w, h.renderer, "submit.html", data)
 }
 
 func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +148,7 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 		h.notifService.SaveNotification(r.Context(), report.ID.Hex(), report.ReportDate, report.SubmittedBy, report.Notes)
 	}
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Trigger", "reportSaved")
 		msg := fmt.Sprintf("Report for %s successfully saved!", report.ReportDate)
 		if input.AllowOverwrite {
@@ -158,7 +159,7 @@ func (h *ReportHandler) HandleSubmit(w http.ResponseWriter, r *http.Request) {
 			"Report":  report,
 			"Message": msg,
 		}
-		_ = h.renderer.RenderPartial(w, "alert_success.html", data)
+		renderPartial(w, h.renderer, "alert_success.html", data)
 		return
 	}
 
@@ -243,20 +244,22 @@ func (h *ReportHandler) RenderReportsList(w http.ResponseWriter, r *http.Request
 		"NextCursor": nextCursor,
 		"TriggerIdx": triggerIdx,
 		"ActiveTab":  "reports",
+		"Success":    r.URL.Query().Get("success"),
+		"Error":      r.URL.Query().Get("error"),
 	}
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		if isAppend {
-			_ = h.renderer.RenderPartial(w, "report_rows.html", data)
+			renderPartial(w, h.renderer, "report_rows.html", data)
 			return
 		}
 		if r.URL.Query().Get("partial") == "true" {
-			_ = h.renderer.RenderPartial(w, "report_table.html", data)
+			renderPartial(w, h.renderer, "report_table.html", data)
 			return
 		}
 	}
 
-	_ = h.renderer.RenderPage(w, "reports.html", data)
+	renderPage(w, h.renderer, "reports.html", data)
 }
 
 func (h *ReportHandler) RenderDetailModal(w http.ResponseWriter, r *http.Request) {
@@ -278,7 +281,7 @@ func (h *ReportHandler) RenderDetailModal(w http.ResponseWriter, r *http.Request
 		"User":   user,
 	}
 
-	_ = h.renderer.RenderPartial(w, "report_modal.html", data)
+	renderPartial(w, h.renderer, "report_modal.html", data)
 }
 
 // RenderDeleteConfirmModal (GET /reports/delete-confirm) — renders the password modal partial
@@ -299,7 +302,7 @@ func (h *ReportHandler) RenderDeleteConfirmModal(w http.ResponseWriter, r *http.
 		"ReportID":   id,
 		"ReportDate": date,
 	}
-	_ = h.renderer.RenderPartial(w, "delete_confirm_modal.html", data)
+	renderPartial(w, h.renderer, "delete_confirm_modal.html", data)
 }
 
 func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
@@ -309,85 +312,66 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Password verification — required before any deletion
-	adminPassword := strings.TrimSpace(r.FormValue("adminPassword"))
-	if adminPassword == "" {
-		w.Header().Set("Content-Type", "text/html")
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`<p class="text-rose-400 text-sm font-semibold">Password is required to delete a report.</p>`))
-		return
-	}
-	_, authErr := h.authService.Authenticate(r.Context(), user.Username, adminPassword)
-	if authErr != nil {
-		w.Header().Set("Content-Type", "text/html")
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`<p class="text-rose-400 text-sm font-semibold">Incorrect password. Deletion cancelled.</p>`))
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
 
-	id := r.URL.Query().Get("id")
+	id := r.FormValue("id")
+	if id == "" {
+		id = r.URL.Query().Get("id")
+	}
 	if id == "" {
 		id = strings.TrimPrefix(r.URL.Path, "/reports/delete/")
 	}
 
-	report, err := h.service.GetReportByID(r.Context(), id)
-	if err != nil {
-		slog.Error("HandleDelete: failed to fetch report", "id", id, "error", err)
+	// Password verification — required before any deletion
+	adminPassword := strings.TrimSpace(r.FormValue("adminPassword"))
+	if adminPassword == "" {
+		errMsg := "Password is required to delete a report."
+		if isHTMX(r) {
+			w.Header().Set("HX-Redirect", fmt.Sprintf("/reports?error=%s", url.QueryEscape(errMsg)))
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("/reports?error=%s", url.QueryEscape(errMsg)), http.StatusSeeOther)
+		return
+	}
+
+	_, authErr := h.authService.Authenticate(r.Context(), user.Username, adminPassword)
+	if authErr != nil {
+		errMsg := "Incorrect password. Deletion cancelled."
+		if isHTMX(r) {
+			w.Header().Set("HX-Redirect", fmt.Sprintf("/reports?error=%s", url.QueryEscape(errMsg)))
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("/reports?error=%s", url.QueryEscape(errMsg)), http.StatusSeeOther)
+		return
 	}
 
 	if delErr := h.service.DeleteReport(r.Context(), id); delErr != nil {
 		slog.Error("HandleDelete: failed to delete report from DB", "id", id, "error", delErr)
-	} else {
-		slog.Info("HandleDelete: report deleted from DB", "id", id)
-	}
-
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Trigger", "reportSaved, refreshReportsList")
-		w.WriteHeader(http.StatusOK)
-
-		reportDate := id
-		submittedBy := "System"
-		submittedByRole := "admin"
-		var totalSale, creditSale, bankTransfer, otherPayments, expectedCash, counterCash float64
-
-		if report != nil {
-			reportDate = report.ReportDate
-			submittedBy = report.SubmittedBy
-			submittedByRole = report.SubmittedByRole
-			totalSale = report.TotalSale
-			creditSale = report.CreditSale
-			bankTransfer = report.BankTransfer
-			otherPayments = report.OtherPayments
-			expectedCash = report.ExpectedCash
-			counterCash = report.CounterCash
+		errMsg := "Failed to delete report from database."
+		if isHTMX(r) {
+			w.Header().Set("HX-Redirect", fmt.Sprintf("/reports?error=%s", url.QueryEscape(errMsg)))
+			return
 		}
-
-		data := map[string]any{
-			"ID":              id,
-			"ReportDate":      reportDate,
-			"SubmittedBy":     submittedBy,
-			"SubmittedByRole": submittedByRole,
-			"TotalSale":       totalSale,
-			"CreditSale":      creditSale,
-			"BankTransfer":    bankTransfer,
-			"OtherPayments":   otherPayments,
-			"ExpectedCash":    expectedCash,
-			"CounterCash":     counterCash,
-		}
-		_ = h.renderer.RenderPartial(w, "report_deleted_row.html", data)
+		http.Redirect(w, r, fmt.Sprintf("/reports?error=%s", url.QueryEscape(errMsg)), http.StatusSeeOther)
 		return
 	}
 
-	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+	slog.Info("HandleDelete: report deleted from DB", "id", id)
+
+	successMsg := "Report deleted successfully."
+	if isHTMX(r) {
+		w.Header().Set("HX-Redirect", fmt.Sprintf("/reports?success=%s", url.QueryEscape(successMsg)))
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/reports?success=%s", url.QueryEscape(successMsg)), http.StatusSeeOther)
 }
 
 func (h *ReportHandler) renderError(w http.ResponseWriter, r *http.Request, msg string) {
-	if r.Header.Get("HX-Request") == "true" {
-		w.WriteHeader(http.StatusOK)
-		data := map[string]any{
-			"Error": msg,
-		}
-		_ = h.renderer.RenderPartial(w, "alert_error.html", data)
+	if isHTMX(r) {
+		renderHTMXError(w, h.renderer, msg)
 		return
 	}
 	http.Error(w, msg, http.StatusBadRequest)
@@ -460,5 +444,5 @@ func (h *ReportHandler) CheckReportDate(w http.ResponseWriter, r *http.Request) 
 		"IsEditMode":     isEditMode,
 	}
 
-	_ = h.renderer.RenderPartial(w, "date_status.html", data)
+	renderPartial(w, h.renderer, "date_status.html", data)
 }

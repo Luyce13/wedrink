@@ -569,7 +569,8 @@ html.theme-light input[type="date"]::-webkit-calendar-picker-indicator {
 .date-panel {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
+  left: 0;
+  right: auto;
   z-index: 200;
   background-color: #0f1c35;
   border: 1px solid var(--border-mid);
@@ -577,9 +578,18 @@ html.theme-light input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 20px 40px rgba(0,0,0,0.6);
   padding: 0.75rem;
   width: 272px;
-  transform-origin: top right;
+  max-width: calc(100vw - 2rem);
+  transform-origin: top left;
 }
 .date-panel.hidden { display: none; }
+
+@media (max-width: 639px) {
+  .date-panel {
+    left: 0 !important;
+    right: auto !important;
+    max-width: calc(100vw - 1.5rem) !important;
+  }
+}
 
 /* Calendar header */
 .cal-header {

@@ -150,5 +150,18 @@ func (r *UserRepository) SeedDefaultUsers(ctx context.Context) error {
 		slog.Info("Seeded default user: admin / adminpassword (super_admin)")
 	}
 
+	// Seed staff user
+	staff, err := r.FindByUsername(ctx, "staff")
+	if err == nil && staff == nil {
+		staffHash, _ := bcrypt.GenerateFromPassword([]byte("staffpassword"), bcrypt.DefaultCost)
+		_ = r.Create(ctx, &models.User{
+			Username:     "staff",
+			PasswordHash: string(staffHash),
+			FullName:     "Staff Cashier",
+			Role:         models.RoleStaff,
+		})
+		slog.Info("Seeded default user: staff / staffpassword (staff)")
+	}
+
 	return nil
 }

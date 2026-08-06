@@ -108,7 +108,7 @@
           <div class="form-row">
             <label for="totalSale">Total Sales <span class="kbd-hint">[Alt+S]</span></label>
             <div class="input-wrap">
-              <input type="text" inputmode="numeric" id="totalSale" name="totalSale" required
+              <input type="text" inputmode="numeric" id="totalSale" name="totalSale" required min="0"
                      value="{{if .Report}}{{printf "%.0f" .Report.TotalSale}}{{end}}"
                      placeholder="0" autocomplete="off"
                      class="glass-input number-input">
@@ -118,7 +118,7 @@
           <div class="form-row">
             <label for="creditSale">Credit Card Sales <span class="kbd-hint">[Alt+C]</span></label>
             <div class="input-wrap">
-              <input type="text" inputmode="numeric" id="creditSale" name="creditSale" required
+              <input type="text" inputmode="numeric" id="creditSale" name="creditSale" required min="0"
                      value="{{if .Report}}{{printf "%.0f" .Report.CreditSale}}{{end}}"
                      placeholder="0" autocomplete="off"
                      class="glass-input number-input">
@@ -128,7 +128,7 @@
           <div class="form-row">
             <label for="bankTransfer">Bank Transfers <span class="kbd-hint">[Alt+B]</span></label>
             <div class="input-wrap">
-              <input type="text" inputmode="numeric" id="bankTransfer" name="bankTransfer" required
+              <input type="text" inputmode="numeric" id="bankTransfer" name="bankTransfer" required min="0"
                      value="{{if .Report}}{{printf "%.0f" .Report.BankTransfer}}{{end}}"
                      placeholder="0" autocomplete="off"
                      class="glass-input number-input">
@@ -160,7 +160,7 @@
                        placeholder="Description" class="glass-input text-xs" autocomplete="off">
               </div>
               <div class="amt-input">
-                <input type="text" inputmode="numeric" name="expenseAmount[]"
+                <input type="text" inputmode="numeric" name="expenseAmount[]" min="0"
                        value="{{printf "%.0f" .Amount}}"
                        placeholder="0" class="glass-input number-input text-xs">
               </div>
@@ -180,7 +180,7 @@
         <div class="form-row">
           <label for="counterCash">Actual Till Cash <span class="kbd-hint">[Alt+K]</span></label>
           <div class="input-wrap">
-            <input type="text" inputmode="numeric" id="counterCash" name="counterCash" required
+            <input type="text" inputmode="numeric" id="counterCash" name="counterCash" required min="0"
                    value="{{if .Report}}{{printf "%.0f" .Report.CounterCash}}{{end}}"
                    placeholder="0" autocomplete="off"
                    class="glass-input number-input">

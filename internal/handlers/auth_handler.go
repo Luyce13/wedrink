@@ -34,7 +34,7 @@ func (h *AuthHandler) RenderLogin(w http.ResponseWriter, r *http.Request) {
 		"Title": "Login - Wedrink EOD System",
 		"Error": "",
 	}
-	_ = h.renderer.RenderPage(w, "login.html", data)
+	renderPage(w, h.renderer, "login.html", data)
 }
 
 func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +49,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authService.Authenticate(r.Context(), username, password)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
-		if r.Header.Get("HX-Request") == "true" {
-			w.WriteHeader(http.StatusOK)
-			_, _ = fmt.Fprintf(w, `<div class="alert-banner p-3 bg-rose-950/90 border border-rose-500/60 text-rose-200 text-xs font-semibold rounded mb-5 flex items-center gap-2"><svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>%s</span></div>`, safeErr)
+		if isHTMX(r) {
+			renderHTMXError(w, h.renderer, safeErr)
 			return
 		}
 
@@ -59,7 +58,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			"Title": "Login - Wedrink EOD System",
 			"Error": err.Error(),
 		}
-		_ = h.renderer.RenderPage(w, "login.html", data)
+		renderPage(w, h.renderer, "login.html", data)
 		return
 	}
 
@@ -75,7 +74,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Redirect", "/")
 		w.WriteHeader(http.StatusOK)
 		return
@@ -94,7 +93,7 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 	})
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Redirect", "/login")
 		w.WriteHeader(http.StatusOK)
 		return

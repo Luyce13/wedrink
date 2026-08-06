@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -13,11 +14,30 @@ import (
 	"wedrink/internal/utils"
 )
 
-type ReportService struct {
-	repo *repository.ReportRepository
+// parseAmount cleans and parses a monetary string value to float64.
+// Empty strings are treated as zero. Commas are stripped for en-IN formatting.
+// Negative values are rejected.
+func parseAmount(val string) (float64, error) {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return 0, nil
+	}
+	clean := strings.ReplaceAll(val, ",", "")
+	amt, err := strconv.ParseFloat(clean, 64)
+	if err != nil {
+		return 0, err
+	}
+	if amt < 0 {
+		return 0, models.ErrNegativeAmount
+	}
+	return amt, nil
 }
 
-func NewReportService(repo *repository.ReportRepository) *ReportService {
+type ReportService struct {
+	repo repository.ReportRepo
+}
+
+func NewReportService(repo repository.ReportRepo) *ReportService {
 	return &ReportService{repo: repo}
 }
 
@@ -37,35 +57,47 @@ type SubmitReportInput struct {
 
 func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitReportInput) (*models.EODReport, error) {
 	if strings.TrimSpace(input.ReportDate) == "" {
-		return nil, fmt.Errorf("report date is required")
+		return nil, models.ErrReportDateRequired
 	}
 
 	if utils.IsBeforeMinDate(input.ReportDate) {
-		return nil, fmt.Errorf("date cannot be prior to July 2026 (%s)", utils.MinDateStr)
+		return nil, fmt.Errorf("%w: %s (minimum: %s)", models.ErrDateBeforeMinimum, input.ReportDate, utils.MinDateStr)
 	}
 
 	if utils.IsFutureDate(input.ReportDate) {
-		return nil, fmt.Errorf("cannot submit EOD report for future date %s", input.ReportDate)
+		return nil, fmt.Errorf("%w: %s", models.ErrFutureDate, input.ReportDate)
 	}
 
 	totalSale, err := parseAmount(input.TotalSale)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Total Sale amount")
+		if errors.Is(err, models.ErrNegativeAmount) {
+			return nil, fmt.Errorf("%w: Total Sale cannot be negative", models.ErrNegativeAmount)
+		}
+		return nil, fmt.Errorf("%w: Total Sale", models.ErrInvalidAmount)
 	}
 
 	creditSale, err := parseAmount(input.CreditSale)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Credit Card Sale amount")
+		if errors.Is(err, models.ErrNegativeAmount) {
+			return nil, fmt.Errorf("%w: Credit Card Sale cannot be negative", models.ErrNegativeAmount)
+		}
+		return nil, fmt.Errorf("%w: Credit Card Sale", models.ErrInvalidAmount)
 	}
 
 	bankTransfer, err := parseAmount(input.BankTransfer)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Bank Transfer amount")
+		if errors.Is(err, models.ErrNegativeAmount) {
+			return nil, fmt.Errorf("%w: Bank Transfer cannot be negative", models.ErrNegativeAmount)
+		}
+		return nil, fmt.Errorf("%w: Bank Transfer", models.ErrInvalidAmount)
 	}
 
 	counterCash, err := parseAmount(input.CounterCash)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Counter Cash amount")
+		if errors.Is(err, models.ErrNegativeAmount) {
+			return nil, fmt.Errorf("%w: Counter Cash cannot be negative", models.ErrNegativeAmount)
+		}
+		return nil, fmt.Errorf("%w: Counter Cash", models.ErrInvalidAmount)
 	}
 
 	// Process expenses
@@ -80,8 +112,14 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 		}
 		if desc != "" && amtStr != "" {
 			amt, err := parseAmount(amtStr)
-			if err == nil && amt > 0 {
-				posAmt := math.Round(math.Abs(amt))
+			if err != nil {
+				if errors.Is(err, models.ErrNegativeAmount) {
+					return nil, fmt.Errorf("%w: Expense amount cannot be negative (%s)", models.ErrNegativeAmount, desc)
+				}
+				return nil, fmt.Errorf("%w: Expense amount (%s)", models.ErrInvalidAmount, desc)
+			}
+			if amt > 0 {
+				posAmt := math.Round(amt)
 				totalExpenses += posAmt
 				expenses = append(expenses, models.ExpenseItem{
 					ID:          fmt.Sprintf("exp_%d", time.Now().UnixNano()+int64(i)),
@@ -107,7 +145,7 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 	}
 
 	if existing != nil && !input.AllowOverwrite {
-		return nil, fmt.Errorf("a report for date %s already exists. Contact a Manager to edit.", input.ReportDate)
+		return nil, fmt.Errorf("%w: %s. Contact a Manager to edit", models.ErrDuplicateReport, input.ReportDate)
 	}
 
 	report := &models.EODReport{
@@ -179,12 +217,4 @@ func (s *ReportService) DeleteReport(ctx context.Context, idStr string) error {
 	return s.repo.Delete(ctx, idStr)
 }
 
-func parseAmount(val string) (float64, error) {
-	val = strings.TrimSpace(val)
-	if val == "" {
-		return 0, nil
-	}
-	// Remove commas or currency formatting if any
-	clean := strings.ReplaceAll(val, ",", "")
-	return strconv.ParseFloat(clean, 64)
-}
+

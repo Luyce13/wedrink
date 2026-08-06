@@ -12,10 +12,10 @@ import (
 )
 
 type UserService struct {
-	userRepo *repository.UserRepository
+	userRepo repository.UserRepo
 }
 
-func NewUserService(userRepo *repository.UserRepository) *UserService {
+func NewUserService(userRepo repository.UserRepo) *UserService {
 	return &UserService{userRepo: userRepo}
 }
 
@@ -30,20 +30,20 @@ func (s *UserService) GetUserByUsername(ctx context.Context, username string) (*
 func (s *UserService) CreateUser(ctx context.Context, username, password, confirmPassword, fullName, role string) (*models.User, error) {
 	cleanUsername := strings.ToLower(strings.TrimSpace(username))
 	if cleanUsername == "" {
-		return nil, fmt.Errorf("username is required")
+		return nil, models.ErrUsernameRequired
 	}
 
 	cleanPassword := strings.TrimSpace(password)
 	cleanConfirm := strings.TrimSpace(confirmPassword)
 
 	if cleanPassword == "" {
-		return nil, fmt.Errorf("password is required")
+		return nil, models.ErrPasswordRequired
 	}
 	if cleanPassword != cleanConfirm {
-		return nil, fmt.Errorf("password and confirm password do not match")
+		return nil, models.ErrPasswordMismatch
 	}
 	if len(cleanPassword) < 4 {
-		return nil, fmt.Errorf("password must be at least 4 characters")
+		return nil, models.ErrPasswordTooShort
 	}
 
 	cleanFullName := strings.TrimSpace(fullName)
@@ -80,7 +80,7 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 	cleanTarget := strings.ToLower(strings.TrimSpace(targetUsername))
 	user, err := s.userRepo.FindByUsername(ctx, cleanTarget)
 	if err != nil || user == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, models.ErrUserNotFound
 	}
 
 	if strings.TrimSpace(fullName) != "" {
@@ -100,10 +100,10 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 
 	if cleanNewPass != "" || cleanConfirmPass != "" {
 		if cleanNewPass != cleanConfirmPass {
-			return nil, fmt.Errorf("new password and confirm password do not match")
+			return nil, models.ErrPasswordMismatch
 		}
 		if len(cleanNewPass) < 4 {
-			return nil, fmt.Errorf("new password must be at least 4 characters")
+			return nil, models.ErrPasswordTooShort
 		}
 
 		// Verify current admin's password before allowing password reset/change
@@ -115,12 +115,12 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 
 		cleanAdminPass := strings.TrimSpace(adminPassword)
 		if cleanAdminPass == "" {
-			return nil, fmt.Errorf("current admin password is required to change or reset password")
+			return nil, models.ErrAdminPasswordRequired
 		}
 
 		errPass := bcrypt.CompareHashAndPassword([]byte(adminUser.PasswordHash), []byte(cleanAdminPass))
 		if errPass != nil {
-			return nil, fmt.Errorf("incorrect current admin password. Password update denied")
+			return nil, models.ErrIncorrectAdminPassword
 		}
 
 		hash, err := bcrypt.GenerateFromPassword([]byte(cleanNewPass), bcrypt.DefaultCost)
@@ -143,12 +143,12 @@ func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdm
 	cleanAdmin := strings.ToLower(strings.TrimSpace(currentAdminUsername))
 
 	if cleanTarget == cleanAdmin {
-		return fmt.Errorf("you cannot delete your own admin account")
+		return models.ErrCannotDeleteSelf
 	}
 
 	cleanAdminPass := strings.TrimSpace(adminPassword)
 	if cleanAdminPass == "" {
-		return fmt.Errorf("current admin password is required to delete a user")
+		return models.ErrAdminPasswordRequired
 	}
 
 	adminUser, errAdmin := s.userRepo.FindByUsername(ctx, cleanAdmin)
@@ -158,7 +158,7 @@ func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdm
 
 	errPass := bcrypt.CompareHashAndPassword([]byte(adminUser.PasswordHash), []byte(cleanAdminPass))
 	if errPass != nil {
-		return fmt.Errorf("incorrect admin password. User deletion denied")
+		return models.ErrIncorrectAdminPassword
 	}
 
 	return s.userRepo.Delete(ctx, cleanTarget)

@@ -25,7 +25,26 @@ func NewReportRepository(db *mongo.Database) *ReportRepository {
 	}
 }
 
+func validateNonNegativeReport(report *models.EODReport) error {
+	if report == nil {
+		return fmt.Errorf("report cannot be nil")
+	}
+	if report.TotalSale < 0 || report.CreditSale < 0 || report.BankTransfer < 0 || report.CounterCash < 0 || report.OtherPayments < 0 {
+		return models.ErrNegativeAmount
+	}
+	for _, exp := range report.Expenses {
+		if exp.Amount < 0 {
+			return models.ErrNegativeAmount
+		}
+	}
+	return nil
+}
+
 func (r *ReportRepository) Create(ctx context.Context, report *models.EODReport) error {
+	if err := validateNonNegativeReport(report); err != nil {
+		return err
+	}
+
 	now := time.Now()
 	report.CreatedAt = now
 	report.UpdatedAt = now
@@ -44,6 +63,10 @@ func (r *ReportRepository) Create(ctx context.Context, report *models.EODReport)
 }
 
 func (r *ReportRepository) Update(ctx context.Context, report *models.EODReport) error {
+	if err := validateNonNegativeReport(report); err != nil {
+		return err
+	}
+
 	report.UpdatedAt = time.Now()
 	filter := bson.M{"_id": report.ID}
 	update := bson.M{"$set": report}
@@ -59,6 +82,10 @@ func (r *ReportRepository) Update(ctx context.Context, report *models.EODReport)
 }
 
 func (r *ReportRepository) UpsertByDate(ctx context.Context, report *models.EODReport) error {
+	if err := validateNonNegativeReport(report); err != nil {
+		return err
+	}
+
 	report.UpdatedAt = time.Now()
 	
 	existing, err := r.FindByDate(ctx, report.ReportDate)

@@ -42,6 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─────────────────────────────────────────────────────
      ALERT AUTO-DISMISS & MANUAL CLOSE (4 SECONDS FADE OUT)
   ───────────────────────────────────────────────────── */
+  function cleanAlertQueryParams() {
+    if (window.location.search.includes('success=') || window.location.search.includes('error=')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('success');
+      url.searchParams.delete('error');
+      const cleanPath = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '');
+      history.replaceState({}, '', cleanPath);
+    }
+  }
+
   window.dismissAlert = function(el) {
     if (!el || el._isDismissing) return;
     el._isDismissing = true;
@@ -53,16 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 360);
 
-    // Strip success and error query parameters from URL without reloading
-    if (window.location.search.includes('success=') || window.location.search.includes('error=')) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('success');
-      url.searchParams.delete('error');
-      history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
-    }
+    cleanAlertQueryParams();
   };
 
   window.initAlertAutoDismiss = function() {
+    cleanAlertQueryParams();
+
     const alertSelectors = [
       '.alert-banner',
       '.alert-box',
@@ -95,6 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─────────────────────────────────────────────────────
      HTMX HOOKS
   ───────────────────────────────────────────────────── */
+  document.body.addEventListener('htmx:beforeHistorySave', function() {
+    document.querySelectorAll('.alert-banner, .alert-box, .alert-dismissible').forEach(el => {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+  });
+
   document.body.addEventListener('htmx:beforeSwap', function(evt) {
     if (evt.detail.xhr.status === 400 || evt.detail.xhr.status === 401 || evt.detail.xhr.status === 422) {
       evt.detail.shouldSwap = true;
@@ -132,13 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
   ───────────────────────────────────────────────────── */
   function formatWithCommas(n) {
     if (n === '' || n === null || n === undefined) return '';
-    const num = parseInt(String(n).replace(/,/g, ''), 10);
+    const cleanStr = String(n).replace(/[,-]/g, '');
+    const num = parseInt(cleanStr, 10);
     if (isNaN(num)) return '';
-    return num.toLocaleString('en-IN');   // e.g. 1,00,000
+    return Math.max(0, num).toLocaleString('en-IN');   // e.g. 1,00,000
   }
 
   function getRawValue(displayVal) {
-    return String(displayVal).replace(/,/g, '');
+    return String(displayVal).replace(/[,-]/g, '');
   }
 
   function initCommaInput(el) {
@@ -638,7 +651,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.date-panel').forEach(p => { if (p !== panel) p.classList.add('hidden'); });
         const willOpen = panel.classList.contains('hidden');
         panel.classList.toggle('hidden', !willOpen);
-        if (willOpen) render();
+        if (willOpen) {
+          autoAlignPanel(panel, trigger);
+          render();
+        }
       });
 
       document.getElementById(`dp-${prefix}-prev`)?.addEventListener('click', (e) => { e.stopPropagation(); viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); });
@@ -676,6 +692,21 @@ document.addEventListener('DOMContentLoaded', () => {
   window.initReportsPageDatePickers();
   window.initReportsCustomDatePickers = window.initReportsPageDatePickers;
 
+  function autoAlignPanel(panel, trigger) {
+    if (!panel || !trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const panelWidth = 272;
+    if (rect.left + panelWidth > window.innerWidth - 12) {
+      panel.style.setProperty('left', 'auto', 'important');
+      panel.style.setProperty('right', '0', 'important');
+      panel.style.transformOrigin = 'top right';
+    } else {
+      panel.style.setProperty('left', '0', 'important');
+      panel.style.setProperty('right', 'auto', 'important');
+      panel.style.transformOrigin = 'top left';
+    }
+  }
+
   function dpToggle() {
     dpOpen ? dpClose() : dpOpenPicker();
   }
@@ -689,6 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dpPanel) return;
     dpOpen = true;
     clearSubmittedDatesCache();
+    autoAlignPanel(dpPanel, dpTrigger);
     dpPanel.classList.remove('hidden');
     dpSpinnerOpen = false;
     if (dpSpinView) dpSpinView.style.display = 'none';
@@ -1457,10 +1489,24 @@ document.addEventListener('DOMContentLoaded', () => {
   (function initTouchSwipeNavigation() {
     const pageCache = new Map();
 
-    // Cache initial page main content
+    function sanitizeHTMLForCache(htmlString) {
+      if (!htmlString || typeof htmlString !== 'string') return htmlString;
+      if (!htmlString.includes('alert-')) return htmlString;
+      const temp = document.createElement('div');
+      temp.innerHTML = htmlString;
+      temp.querySelectorAll('.alert-banner, .alert-box, .alert-dismissible').forEach(el => el.remove());
+      return temp.innerHTML;
+    }
+
+    // Invalidate SPA cache whenever data mutations occur
+    ['reportSaved', 'refreshReportsList'].forEach(evt => {
+      document.addEventListener(evt, () => pageCache.clear());
+    });
+
+    // Cache initial page main content (only if clean, non-error/success URL)
     const mainEl = document.getElementById('app-main-content') || document.querySelector('main');
-    if (mainEl) {
-      pageCache.set(window.location.pathname, mainEl.innerHTML);
+    if (mainEl && !window.location.search.includes('error=') && !window.location.search.includes('success=')) {
+      pageCache.set(window.location.pathname, sanitizeHTMLForCache(mainEl.innerHTML));
     }
 
     // Background pre-fetch of tab pages for instant (0ms) switching
@@ -1476,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const doc = parser.parseFromString(html, 'text/html');
               const fetchedMain = doc.querySelector('#app-main-content') || doc.querySelector('main');
               if (fetchedMain) {
-                pageCache.set(href, fetchedMain.innerHTML);
+                pageCache.set(href, sanitizeHTMLForCache(fetchedMain.innerHTML));
               }
             })
             .catch(() => {});
@@ -1507,12 +1553,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const inClass = direction === 'left' ? 'slide-in-right' : 'slide-in-left';
 
       const renderContent = (newHTML) => {
+        const cleanHTML = sanitizeHTMLForCache(newHTML);
         mainContainer.className = mainContainer.className.replace(/slide-\S+/g, '').trim();
         mainContainer.classList.add(outClass);
 
         setTimeout(() => {
-          mainContainer.innerHTML = newHTML;
-          pageCache.set(targetRoute, newHTML);
+          mainContainer.innerHTML = cleanHTML;
+          pageCache.set(targetRoute, cleanHTML);
           history.pushState({ path: targetRoute }, '', targetRoute);
 
           // Re-bind HTMX & component listeners
@@ -1708,5 +1755,32 @@ document.addEventListener('DOMContentLoaded', () => {
       if (swipe) window.navigateToTabInstant(routes[swipe.index], swipe.dir);
     }, { passive: true });
   })();
+
+  // Global User Management Modal Helpers
+  window.openDeleteUserModal = function(username) {
+    const targetInput = document.getElementById('delete-target-username');
+    const displayUsername = document.getElementById('delete-display-username');
+    const passInput = document.getElementById('deleteAdminPassword');
+    const modal = document.getElementById('delete-user-modal');
+
+    if (targetInput) targetInput.value = username;
+    if (displayUsername) displayUsername.innerText = '@' + username;
+    if (passInput) passInput.value = '';
+    if (modal) modal.classList.remove('hidden');
+  };
+
+  window.closeDeleteUserModal = function() {
+    const modal = document.getElementById('delete-user-modal');
+    if (modal) modal.classList.add('hidden');
+  };
+
+  window.validateCreateForm = function(form) {
+    if (form && form.password && form.confirmPassword && form.password.value !== form.confirmPassword.value) {
+      alert("Password and Confirm Password do not match!");
+      form.confirmPassword.focus();
+      return false;
+    }
+    return true;
+  };
 
 });

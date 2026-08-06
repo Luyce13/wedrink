@@ -53,10 +53,10 @@ func (h *DashboardHandler) RenderDashboard(w http.ResponseWriter, r *http.Reques
 		"ActiveTab":  "dashboard",
 	}
 
-	if r.Header.Get("HX-Request") == "true" && r.URL.Query().Get("partial") == "true" {
-		_ = h.renderer.RenderPartial(w, "dashboard_content.html", data)
+	if isHTMX(r) && r.URL.Query().Get("partial") == "true" {
+		renderPartial(w, h.renderer, "dashboard_content.html", data)
 		return
 	}
 
-	_ = h.renderer.RenderPage(w, "dashboard.html", data)
+	renderPage(w, h.renderer, "dashboard.html", data)
 }

@@ -41,7 +41,7 @@ func (h *UserHandler) RenderUserList(w http.ResponseWriter, r *http.Request) {
 		"Error":     r.URL.Query().Get("error"),
 	}
 
-	_ = h.renderer.RenderPage(w, "admin_users.html", data)
+	renderPage(w, h.renderer, "admin_users.html", data)
 }
 
 // HandleCreateUser (POST /admin/users/create)
@@ -60,16 +60,15 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	_, err := h.userService.CreateUser(r.Context(), username, password, confirmPassword, fullName, role)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
-		if r.Header.Get("HX-Request") == "true" {
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = fmt.Fprintf(w, `<div class="alert-banner p-3 mb-4 text-xs font-semibold text-rose-300 bg-rose-950/90 border border-rose-800 rounded flex items-center justify-between"><span>⚠ %s</span><button type="button" onclick="dismissAlert(this.parentElement)" class="text-rose-400 hover:text-white px-1">✕</button></div>`, safeErr)
+		if isHTMX(r) {
+			renderHTMXError(w, h.renderer, safeErr)
 			return
 		}
 		http.Redirect(w, r, fmt.Sprintf("/admin/users?error=%s", url.QueryEscape(err.Error())), http.StatusSeeOther)
 		return
 	}
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Redirect", "/admin/users?success=User+created+successfully")
 		return
 	}
@@ -92,7 +91,7 @@ func (h *UserHandler) RenderEditUserModal(w http.ResponseWriter, r *http.Request
 		"TargetUser":  user,
 	}
 
-	_ = h.renderer.RenderPartial(w, "user_edit_modal.html", data)
+	renderPartial(w, h.renderer, "user_edit_modal.html", data)
 }
 
 // HandleEditUser (POST /admin/users/edit)
@@ -118,9 +117,8 @@ func (h *UserHandler) HandleEditUser(w http.ResponseWriter, r *http.Request) {
 	updatedUser, err := h.userService.UpdateUser(r.Context(), ctxUser.Username, targetUsername, fullName, role, newPassword, confirmPassword, adminPassword)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
-		if r.Header.Get("HX-Request") == "true" {
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = fmt.Fprintf(w, `<div class="alert-banner p-3 mb-4 text-xs font-semibold text-rose-300 bg-rose-950/90 border border-rose-800 rounded flex items-center justify-between"><span>⚠ %s</span><button type="button" onclick="dismissAlert(this.parentElement)" class="text-rose-400 hover:text-white px-1">✕</button></div>`, safeErr)
+		if isHTMX(r) {
+			renderHTMXError(w, h.renderer, safeErr)
 			return
 		}
 		http.Redirect(w, r, fmt.Sprintf("/admin/users?error=%s", url.QueryEscape(err.Error())), http.StatusSeeOther)
@@ -132,7 +130,7 @@ func (h *UserHandler) HandleEditUser(w http.ResponseWriter, r *http.Request) {
 		ctxUser.FullName = updatedUser.FullName
 	}
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Redirect", "/admin/users?success=User+updated+successfully")
 		return
 	}
@@ -159,16 +157,15 @@ func (h *UserHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	err := h.userService.DeleteUser(r.Context(), targetUsername, ctxUser.Username, adminPassword)
 	if err != nil {
 		safeErr := html.EscapeString(err.Error())
-		if r.Header.Get("HX-Request") == "true" {
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = fmt.Fprintf(w, `<div class="alert-banner p-3 mb-4 text-xs font-semibold text-rose-300 bg-rose-950/90 border border-rose-800 rounded flex items-center justify-between"><span>⚠ %s</span><button type="button" onclick="dismissAlert(this.parentElement)" class="text-rose-400 hover:text-white px-1">✕</button></div>`, safeErr)
+		if isHTMX(r) {
+			renderHTMXError(w, h.renderer, safeErr)
 			return
 		}
 		http.Redirect(w, r, fmt.Sprintf("/admin/users?error=%s", url.QueryEscape(err.Error())), http.StatusSeeOther)
 		return
 	}
 
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Redirect", "/admin/users?success=User+deleted+successfully")
 		return
 	}

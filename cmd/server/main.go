@@ -50,10 +50,14 @@ func main() {
 	userRepo := repository.NewUserRepository(mongoDB.Database)
 	reportRepo := repository.NewReportRepository(mongoDB.Database)
 
-	// Seed default users (staff / staffpassword, manager / managerpassword)
-	ctxSeed, cancelSeed := context.WithTimeout(context.Background(), 5*time.Second)
-	_ = userRepo.SeedDefaultUsers(ctxSeed)
-	cancelSeed()
+	// Seed default users only when AUTO_SEED=true (opt-in, not automatic)
+	if cfg.AutoSeed {
+		ctxSeed, cancelSeed := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := userRepo.SeedDefaultUsers(ctxSeed); err != nil {
+			slog.Warn("Default user seeding encountered an error", "error", err)
+		}
+		cancelSeed()
+	}
 
 	notifRepo := repository.NewNotificationRepository(mongoDB.Database)
 

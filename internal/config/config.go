@@ -13,6 +13,7 @@ type Config struct {
 	MongoDBName   string
 	SessionSecret string
 	Env           string
+	AutoSeed      bool
 }
 
 func LoadConfig() *Config {
@@ -30,12 +31,15 @@ func LoadConfig() *Config {
 		loadDotEnv(p)
 	}
 
+	autoSeed := getEnv("AUTO_SEED", "false")
+
 	return &Config{
 		Port:          getEnv("PORT", "8080"),
 		MongoURI:      getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDBName:   getEnv("MONGO_DB_NAME", "wedrink"),
 		SessionSecret: getEnv("SESSION_SECRET", "wedrink-secret-session-key-2026-change-me"),
 		Env:           getEnv("ENV", "development"),
+		AutoSeed:      autoSeed == "true" || autoSeed == "1",
 	}
 }
 

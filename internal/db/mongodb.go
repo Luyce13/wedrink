@@ -48,19 +48,23 @@ func Connect(cfg *config.Config) (*Database, error) {
 		defer idxCancel()
 
 		reportsCol := db.Collection("eod_reports")
-		_, _ = reportsCol.Indexes().CreateOne(idxCtx, mongo.IndexModel{
+		if _, err := reportsCol.Indexes().CreateOne(idxCtx, mongo.IndexModel{
 			Keys:    bson.D{{Key: "report_date", Value: 1}},
 			Options: options.Index().SetUnique(true).SetName("idx_unique_report_date"),
-		})
+		}); err != nil {
+			slog.Error("Failed to create idx_unique_report_date index", "error", err)
+		}
 
 		usersCol := db.Collection("users")
-		_, _ = usersCol.Indexes().CreateOne(idxCtx, mongo.IndexModel{
+		if _, err := usersCol.Indexes().CreateOne(idxCtx, mongo.IndexModel{
 			Keys: bson.D{{Key: "username", Value: 1}},
 			Options: options.Index().SetUnique(true).SetName("idx_unique_username").SetCollation(&options.Collation{
 				Locale:   "en",
 				Strength: 2,
 			}),
-		})
+		}); err != nil {
+			slog.Error("Failed to create idx_unique_username index", "error", err)
+		}
 	}()
 
 	return &Database{

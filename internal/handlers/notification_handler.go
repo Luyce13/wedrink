@@ -65,11 +65,11 @@ func (h *NotificationHandler) GetList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isAppend {
-		_ = h.renderer.RenderPartial(w, "notification_items.html", data)
+		renderPartial(w, h.renderer, "notification_items.html", data)
 		return
 	}
 
-	_ = h.renderer.RenderPartial(w, "notification_dropdown.html", data)
+	renderPartial(w, h.renderer, "notification_dropdown.html", data)
 }
 
 // GetBadge (GET /notifications/badge) — returns only the header bell badge HTML snippet
@@ -89,7 +89,7 @@ func (h *NotificationHandler) GetBadge(w http.ResponseWriter, r *http.Request) {
 		"UnreadCount": count,
 	}
 
-	_ = h.renderer.RenderPartial(w, "notification_badge.html", data)
+	renderPartial(w, h.renderer, "notification_badge.html", data)
 }
 
 // MarkAsRead (POST /notifications/mark-read) — marks notification as read via HTMX

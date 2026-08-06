@@ -1,6 +1,20 @@
 {{define "content"}}
 <div class="space-y-4">
 
+  {{if .Success}}
+  <div class="alert-banner p-4 text-xs font-semibold text-emerald-300 bg-emerald-950/80 border border-emerald-800 rounded-lg flex items-center justify-between shadow-lg">
+    <span>✓ {{.Success}}</span>
+    <button type="button" onclick="dismissAlert(this.parentElement)" class="text-emerald-400 hover:text-white text-sm px-2">✕</button>
+  </div>
+  {{end}}
+
+  {{if .Error}}
+  <div class="alert-banner p-4 text-xs font-semibold text-rose-300 bg-rose-950/80 border border-rose-800 rounded-lg flex items-center justify-between shadow-lg">
+    <span>⚠ {{.Error}}</span>
+    <button type="button" onclick="dismissAlert(this.parentElement)" class="text-rose-400 hover:text-white text-sm px-2">✕</button>
+  </div>
+  {{end}}
+
   <!-- Filters + Sorting + Export -->
   <div class="bg-[#131f3a] border border-[#1e2d4a] px-4 py-3 rounded-lg">
     <form id="reports-filter-form" hx-get="/reports" hx-target="#report-table-container" hx-swap="innerHTML"
@@ -16,7 +30,7 @@
           <span id="dp-from-label" class="text-xs truncate">{{if .StartDate}}{{.StartDate}}{{else}}Select date{{end}}</span>
           <svg class="dt-icon w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
         </button>
-        <div id="dp-from-panel" class="date-panel hidden !left-0 !right-auto">
+        <div id="dp-from-panel" class="date-panel hidden">
           <div class="cal-grid-view">
             <div class="cal-header">
               <button type="button" id="dp-from-prev" class="cal-nav" aria-label="Previous month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg></button>
@@ -43,7 +57,7 @@
           <span id="dp-to-label" class="text-xs truncate">{{if .EndDate}}{{.EndDate}}{{else}}Select date{{end}}</span>
           <svg class="dt-icon w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/></svg>
         </button>
-        <div id="dp-to-panel" class="date-panel hidden !left-0 !right-auto">
+        <div id="dp-to-panel" class="date-panel hidden">
           <div class="cal-grid-view">
             <div class="cal-header">
               <button type="button" id="dp-to-prev" class="cal-nav" aria-label="Previous month"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke-width="2.5"/></svg></button>

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -22,10 +23,12 @@ func NewNotificationRepository(db *mongo.Database) *NotificationRepository {
 	go func() {
 		idxCtx, idxCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer idxCancel()
-		_, _ = col.Indexes().CreateOne(idxCtx, mongo.IndexModel{
+		if _, err := col.Indexes().CreateOne(idxCtx, mongo.IndexModel{
 			Keys:    bson.D{{Key: "report_id", Value: 1}},
 			Options: options.Index().SetUnique(true).SetName("idx_unique_notif_report_id"),
-		})
+		}); err != nil {
+			slog.Error("Failed to create idx_unique_notif_report_id index", "error", err)
+		}
 	}()
 
 	return &NotificationRepository{

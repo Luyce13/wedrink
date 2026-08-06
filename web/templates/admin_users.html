@@ -176,24 +176,33 @@
 </div>
 
 <script>
-window.validateCreateForm = function(form) {
+function validateCreateForm(form) {
   if (form.password.value !== form.confirmPassword.value) {
     alert("Password and Confirm Password do not match!");
     form.confirmPassword.focus();
     return false;
   }
   return true;
-};
+}
+window.validateCreateForm = validateCreateForm;
 
-window.openDeleteUserModal = function(username) {
-  document.getElementById('delete-target-username').value = username;
-  document.getElementById('delete-display-username').innerText = '@' + username;
-  document.getElementById('deleteAdminPassword').value = '';
-  document.getElementById('delete-user-modal').classList.remove('hidden');
-};
+function openDeleteUserModal(username) {
+  const targetInput = document.getElementById('delete-target-username');
+  const displayUsername = document.getElementById('delete-display-username');
+  const passInput = document.getElementById('deleteAdminPassword');
+  const modal = document.getElementById('delete-user-modal');
 
-window.closeDeleteUserModal = function() {
-  document.getElementById('delete-user-modal').classList.add('hidden');
-};
+  if (targetInput) targetInput.value = username;
+  if (displayUsername) displayUsername.innerText = '@' + username;
+  if (passInput) passInput.value = '';
+  if (modal) modal.classList.remove('hidden');
+}
+window.openDeleteUserModal = openDeleteUserModal;
+
+function closeDeleteUserModal() {
+  const modal = document.getElementById('delete-user-modal');
+  if (modal) modal.classList.add('hidden');
+}
+window.closeDeleteUserModal = closeDeleteUserModal;
 </script>
 {{end}}

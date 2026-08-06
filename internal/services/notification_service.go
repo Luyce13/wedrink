@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -12,10 +11,10 @@ import (
 )
 
 type NotificationService struct {
-	repo *repository.NotificationRepository
+	repo repository.NotificationRepo
 }
 
-func NewNotificationService(repo *repository.NotificationRepository) *NotificationService {
+func NewNotificationService(repo repository.NotificationRepo) *NotificationService {
 	return &NotificationService{repo: repo}
 }
 
@@ -84,7 +83,7 @@ func (s *NotificationService) GetUnreadCount(ctx context.Context) (int64, error)
 
 func (s *NotificationService) MarkAsRead(ctx context.Context, idStr string) error {
 	if strings.TrimSpace(idStr) == "" {
-		return fmt.Errorf("notification ID is required")
+		return models.ErrNotificationIDRequired
 	}
 	return s.repo.MarkAsRead(ctx, idStr)
 }

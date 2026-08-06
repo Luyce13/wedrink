@@ -12,10 +12,10 @@ import (
 )
 
 type AuthService struct {
-	userRepo *repository.UserRepository
+	userRepo repository.UserRepo
 }
 
-func NewAuthService(userRepo *repository.UserRepository) *AuthService {
+func NewAuthService(userRepo repository.UserRepo) *AuthService {
 	return &AuthService{userRepo: userRepo}
 }
 
@@ -27,12 +27,12 @@ func (s *AuthService) Authenticate(ctx context.Context, username, password strin
 	}
 
 	if user == nil {
-		return nil, fmt.Errorf("invalid username or password")
+		return nil, models.ErrInvalidCredentials
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return nil, fmt.Errorf("invalid username or password")
+		return nil, models.ErrInvalidCredentials
 	}
 
 	return user, nil
