@@ -19,7 +19,7 @@ type ReportRepo interface {
 	FindByDateRange(ctx context.Context, startDate, endDate string) ([]models.EODReport, error)
 	FindWithParams(ctx context.Context, params ReportQueryParams) ([]models.EODReport, error)
 	FindAll(ctx context.Context, limit int) ([]models.EODReport, error)
-	Delete(ctx context.Context, idStr string) error
+	Delete(ctx context.Context, idStr string, actor string) error
 	CalculateMonthlySummary(ctx context.Context, yearMonth string) (*models.MonthlySummary, error)
 }
 
@@ -31,7 +31,7 @@ type UserRepo interface {
 	Create(ctx context.Context, user *models.User) error
 	FindAll(ctx context.Context) ([]models.User, error)
 	Update(ctx context.Context, user *models.User) error
-	Delete(ctx context.Context, username string) error
+	Delete(ctx context.Context, username string, actor string) error
 	SeedDefaultUsers(ctx context.Context) error
 }
 
@@ -46,4 +46,11 @@ type NotificationRepo interface {
 	MarkAsRead(ctx context.Context, idStr string) error
 	Update(ctx context.Context, notif *models.Notification) error
 	DeleteByReportID(ctx context.Context, reportID string) error
+}
+
+// AuditRepo defines the contract for audit log persistence.
+// Implemented by AuditRepository (MongoDB).
+type AuditRepo interface {
+	Create(ctx context.Context, log *models.AuditLog) error
+	Query(ctx context.Context, params AuditQueryParams) ([]models.AuditLog, error)
 }

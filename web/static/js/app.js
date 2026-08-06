@@ -695,13 +695,22 @@ document.addEventListener('DOMContentLoaded', () => {
   function autoAlignPanel(panel, trigger) {
     if (!panel || !trigger) return;
     const rect = trigger.getBoundingClientRect();
-    const panelWidth = 272;
-    if (rect.left + panelWidth > window.innerWidth - 12) {
+    const panelWidth = Math.min(272, window.innerWidth - 16);
+
+    const spaceOnRight = window.innerWidth - rect.left;
+    const spaceOnLeft  = rect.right;
+
+    if (spaceOnRight >= panelWidth) {
+      panel.style.setProperty('left', '0', 'important');
+      panel.style.setProperty('right', 'auto', 'important');
+      panel.style.transformOrigin = 'top left';
+    } else if (spaceOnLeft >= panelWidth) {
       panel.style.setProperty('left', 'auto', 'important');
       panel.style.setProperty('right', '0', 'important');
       panel.style.transformOrigin = 'top right';
     } else {
-      panel.style.setProperty('left', '0', 'important');
+      const shiftLeft = Math.max(8 - rect.left, -(panelWidth - trigger.offsetWidth));
+      panel.style.setProperty('left', `${shiftLeft}px`, 'important');
       panel.style.setProperty('right', 'auto', 'important');
       panel.style.transformOrigin = 'top left';
     }
@@ -720,8 +729,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dpPanel) return;
     dpOpen = true;
     clearSubmittedDatesCache();
-    autoAlignPanel(dpPanel, dpTrigger);
     dpPanel.classList.remove('hidden');
+    autoAlignPanel(dpPanel, dpTrigger);
     dpSpinnerOpen = false;
     if (dpSpinView) dpSpinView.style.display = 'none';
     if (dpGridView) dpGridView.classList.remove('hidden');

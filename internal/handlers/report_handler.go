@@ -348,7 +348,7 @@ func (h *ReportHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if delErr := h.service.DeleteReport(r.Context(), id); delErr != nil {
+	if delErr := h.service.DeleteReport(r.Context(), id, user.Username); delErr != nil {
 		slog.Error("HandleDelete: failed to delete report from DB", "id", id, "error", delErr)
 		errMsg := "Failed to delete report from database."
 		if isHTMX(r) {

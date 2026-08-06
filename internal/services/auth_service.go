@@ -12,11 +12,12 @@ import (
 )
 
 type AuthService struct {
-	userRepo repository.UserRepo
+	userRepo     repository.UserRepo
+	auditService *AuditService
 }
 
-func NewAuthService(userRepo repository.UserRepo) *AuthService {
-	return &AuthService{userRepo: userRepo}
+func NewAuthService(userRepo repository.UserRepo, auditService *AuditService) *AuthService {
+	return &AuthService{userRepo: userRepo, auditService: auditService}
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, username, password string) (*models.User, error) {
@@ -27,12 +28,32 @@ func (s *AuthService) Authenticate(ctx context.Context, username, password strin
 	}
 
 	if user == nil {
+		if s.auditService != nil {
+			s.auditService.Record(ctx, RecordAuditInput{
+				Actor:  cleanUsername,
+				Action: "auth.login_failed",
+			})
+		}
 		return nil, models.ErrInvalidCredentials
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
+		if s.auditService != nil {
+			s.auditService.Record(ctx, RecordAuditInput{
+				Actor:  cleanUsername,
+				Action: "auth.login_failed",
+			})
+		}
 		return nil, models.ErrInvalidCredentials
+	}
+
+	if s.auditService != nil {
+		s.auditService.Record(ctx, RecordAuditInput{
+			Actor:  user.Username,
+			Role:   string(user.Role),
+			Action: "auth.login_success",
+		})
 	}
 
 	return user, nil

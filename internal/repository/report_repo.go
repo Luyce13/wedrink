@@ -116,7 +116,11 @@ func (r *ReportRepository) FindByID(ctx context.Context, idStr string) (*models.
 	}
 
 	var report models.EODReport
-	err := r.collection.FindOne(ctx, bson.M{"$or": orConditions}).Decode(&report)
+	filter := bson.M{
+		"is_deleted": false,
+		"$or":        orConditions,
+	}
+	err := r.collection.FindOne(ctx, filter).Decode(&report)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
@@ -128,7 +132,7 @@ func (r *ReportRepository) FindByID(ctx context.Context, idStr string) (*models.
 
 func (r *ReportRepository) FindByDate(ctx context.Context, dateStr string) (*models.EODReport, error) {
 	var report models.EODReport
-	err := r.collection.FindOne(ctx, bson.M{"report_date": dateStr}).Decode(&report)
+	err := r.collection.FindOne(ctx, bson.M{"report_date": dateStr, "is_deleted": false}).Decode(&report)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
@@ -141,6 +145,7 @@ func (r *ReportRepository) FindByDate(ctx context.Context, dateStr string) (*mod
 func (r *ReportRepository) FindByMonth(ctx context.Context, yearMonth string) ([]models.EODReport, error) {
 	// yearMonth is format YYYY-MM
 	filter := bson.M{
+		"is_deleted": false,
 		"report_date": bson.M{
 			"$regex": "^" + yearMonth,
 		},
@@ -162,6 +167,7 @@ func (r *ReportRepository) FindByMonth(ctx context.Context, yearMonth string) ([
 
 func (r *ReportRepository) GetSubmittedDatesByMonth(ctx context.Context, yearMonth string) ([]string, error) {
 	filter := bson.M{
+		"is_deleted": false,
 		"report_date": bson.M{
 			"$regex": "^" + yearMonth,
 		},
@@ -190,7 +196,7 @@ func (r *ReportRepository) GetSubmittedDatesByMonth(ctx context.Context, yearMon
 }
 
 func (r *ReportRepository) FindByDateRange(ctx context.Context, startDate, endDate string) ([]models.EODReport, error) {
-	filter := bson.M{}
+	filter := bson.M{"is_deleted": false}
 	if startDate != "" && endDate != "" {
 		filter["report_date"] = bson.M{
 			"$gte": startDate,
@@ -226,7 +232,7 @@ type ReportQueryParams struct {
 }
 
 func (r *ReportRepository) FindWithParams(ctx context.Context, params ReportQueryParams) ([]models.EODReport, error) {
-	filter := bson.M{}
+	filter := bson.M{"is_deleted": false}
 
 	if params.StartDate != "" && params.EndDate != "" {
 		filter["report_date"] = bson.M{
@@ -327,7 +333,7 @@ func (r *ReportRepository) FindAll(ctx context.Context, limit int) ([]models.EOD
 		opts.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": false}, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch reports: %w", err)
 	}
@@ -340,7 +346,7 @@ func (r *ReportRepository) FindAll(ctx context.Context, limit int) ([]models.EOD
 	return reports, nil
 }
 
-func (r *ReportRepository) Delete(ctx context.Context, idStr string) error {
+func (r *ReportRepository) Delete(ctx context.Context, idStr string, actor string) error {
 	if idStr == "" {
 		return fmt.Errorf("report id required")
 	}
@@ -353,11 +359,26 @@ func (r *ReportRepository) Delete(ctx context.Context, idStr string) error {
 		orConditions = append(orConditions, bson.M{"_id": objID})
 	}
 
-	res, err := r.collection.DeleteOne(ctx, bson.M{"$or": orConditions})
+	filter := bson.M{
+		"is_deleted": false,
+		"$or":        orConditions,
+	}
+
+	now := time.Now()
+	update := bson.M{
+		"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": actor,
+			"updated_at": now,
+		},
+	}
+
+	res, err := r.collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return fmt.Errorf("failed to delete report: %w", err)
 	}
-	if res.DeletedCount == 0 {
+	if res.MatchedCount == 0 {
 		return fmt.Errorf("report not found")
 	}
 	return nil

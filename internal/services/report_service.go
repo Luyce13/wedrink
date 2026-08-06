@@ -34,11 +34,12 @@ func parseAmount(val string) (float64, error) {
 }
 
 type ReportService struct {
-	repo repository.ReportRepo
+	repo         repository.ReportRepo
+	auditService *AuditService
 }
 
-func NewReportService(repo repository.ReportRepo) *ReportService {
-	return &ReportService{repo: repo}
+func NewReportService(repo repository.ReportRepo, auditService *AuditService) *ReportService {
+	return &ReportService{repo: repo, auditService: auditService}
 }
 
 type SubmitReportInput struct {
@@ -169,8 +170,28 @@ func (s *ReportService) ProcessAndSaveReport(ctx context.Context, input SubmitRe
 		report.ReportID = existing.ReportID
 		report.CreatedAt = existing.CreatedAt
 		err = s.repo.Update(ctx, report)
+		if err == nil && s.auditService != nil {
+			s.auditService.Record(ctx, RecordAuditInput{
+				Actor:      input.SubmittedBy,
+				Role:       input.SubmittedByRole,
+				Action:     "report.overwrite",
+				ResourceID: report.ReportDate,
+				OldState:   existing,
+				NewState:   report,
+			})
+		}
 	} else {
 		err = s.repo.Create(ctx, report)
+		if err == nil && s.auditService != nil {
+			s.auditService.Record(ctx, RecordAuditInput{
+				Actor:      input.SubmittedBy,
+				Role:       input.SubmittedByRole,
+				Action:     "report.submit",
+				ResourceID: report.ReportDate,
+				OldState:   nil,
+				NewState:   report,
+			})
+		}
 	}
 
 	if err != nil {
@@ -213,8 +234,19 @@ func (s *ReportService) GetMonthlySummary(ctx context.Context, yearMonth string)
 	return s.repo.CalculateMonthlySummary(ctx, yearMonth)
 }
 
-func (s *ReportService) DeleteReport(ctx context.Context, idStr string) error {
-	return s.repo.Delete(ctx, idStr)
+func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actor string) error {
+	oldReport, _ := s.repo.FindByID(ctx, idStr)
+	err := s.repo.Delete(ctx, idStr, actor)
+	if err == nil && s.auditService != nil {
+		s.auditService.Record(ctx, RecordAuditInput{
+			Actor:      actor,
+			Action:     "report.delete",
+			ResourceID: idStr,
+			OldState:   oldReport,
+			NewState:   nil,
+		})
+	}
+	return err
 }
 
 

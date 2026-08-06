@@ -27,6 +27,9 @@ type EODReport struct {
 	SubmittedBy     string        `json:"submitted_by" bson:"submitted_by"`
 	SubmittedByRole string        `json:"submitted_by_role" bson:"submitted_by_role"`
 	Notes           string        `json:"notes" bson:"notes"`
+	IsDeleted       bool          `json:"is_deleted" bson:"is_deleted"`
+	DeletedAt       *time.Time    `json:"deleted_at,omitempty" bson:"deleted_at,omitempty"`
+	DeletedBy       string        `json:"deleted_by,omitempty" bson:"deleted_by,omitempty"`
 	CreatedAt       time.Time     `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time     `json:"updated_at" bson:"updated_at"`
 }

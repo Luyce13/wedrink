@@ -32,4 +32,7 @@ var (
 	// Notification errors
 	ErrNotificationIDRequired = errors.New("Notification ID is required")
 	ErrNotificationNotFound   = errors.New("Notification not found")
+
+	// Rate limiting errors
+	ErrRateLimitExceeded = errors.New("Too many requests. Please try again in a few moments.")
 )

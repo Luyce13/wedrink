@@ -7,7 +7,7 @@
   <!-- Form -->
   <form hx-post="/reports" hx-target="#form-alert-container" hx-swap="innerHTML"
         hx-indicator="#submit-spinner"
-        class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+        class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg">
 
     {{if .IsEditMode}}
       <input type="hidden" name="isEditMode"    value="true">
@@ -199,7 +199,7 @@
     </div><!-- /p-4 -->
 
     <!-- ── Sticky live calc strip + submit ── -->
-    <div class="sticky bottom-0 bg-[#0b1329] border-t border-[#1e2d4a] px-4 py-3 space-y-2">
+    <div class="sticky bottom-0 bg-[#0b1329] border-t border-[#1e2d4a] px-4 py-3 space-y-2 rounded-b-lg">
 
       <!-- Calc strip -->
       <div id="calc-strip" class="calc-strip">

@@ -19,6 +19,9 @@ type User struct {
 	PasswordHash string        `json:"-" bson:"password_hash"`
 	FullName     string        `json:"full_name" bson:"full_name"`
 	Role         Role          `json:"role" bson:"role"`
+	IsDeleted    bool          `json:"is_deleted" bson:"is_deleted"`
+	DeletedAt    *time.Time    `json:"deleted_at,omitempty" bson:"deleted_at,omitempty"`
+	DeletedBy    string        `json:"deleted_by,omitempty" bson:"deleted_by,omitempty"`
 	CreatedAt    time.Time     `json:"created_at" bson:"created_at"`
 }
 

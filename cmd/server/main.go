@@ -60,11 +60,13 @@ func main() {
 	}
 
 	notifRepo := repository.NewNotificationRepository(mongoDB.Database)
+	auditRepo := repository.NewAuditRepository(mongoDB.Database)
 
 	// Services
-	authService := services.NewAuthService(userRepo)
-	reportService := services.NewReportService(reportRepo)
-	userService := services.NewUserService(userRepo)
+	auditService := services.NewAuditService(auditRepo)
+	authService := services.NewAuthService(userRepo, auditService)
+	reportService := services.NewReportService(reportRepo, auditService)
+	userService := services.NewUserService(userRepo, auditService)
 	notifService := services.NewNotificationService(notifRepo)
 
 	// HTML Template setup with custom FuncMap
@@ -124,6 +126,10 @@ func main() {
 
 	sessionMgr := middleware.NewSessionManager(cfg.SessionSecret)
 
+	// Rate limiters for sensitive endpoints
+	loginRateLimiter := middleware.Limit(5, 0.1)  // 5 max burst, 6 requests/min refill
+	writeRateLimiter := middleware.Limit(10, 0.5) // 10 max burst, 30 requests/min refill
+
 	// Router setup
 	mux := http.NewServeMux()
 
@@ -137,7 +143,7 @@ func main() {
 
 	// Auth routes (Public)
 	mux.HandleFunc("GET /login", authHandler.RenderLogin)
-	mux.HandleFunc("POST /login", authHandler.HandleLogin)
+	mux.Handle("POST /login", loginRateLimiter(http.HandlerFunc(authHandler.HandleLogin)))
 	mux.HandleFunc("POST /logout", authHandler.HandleLogout)
 
 	// Health check endpoint
@@ -149,7 +155,7 @@ func main() {
 	// Protected routes (Staff & Super Admin)
 	mux.HandleFunc("GET /{$}", middleware.RequireAuth(dashboardHandler.RenderDashboard))
 	mux.HandleFunc("GET /submit", middleware.RequireAuth(reportHandler.RenderSubmitForm))
-	mux.HandleFunc("POST /reports", middleware.RequireAuth(reportHandler.HandleSubmit))
+	mux.Handle("POST /reports", writeRateLimiter(http.HandlerFunc(middleware.RequireAuth(reportHandler.HandleSubmit))))
 	mux.HandleFunc("GET /reports/submitted-dates", middleware.RequireAuth(reportHandler.GetSubmittedDates))
 	mux.HandleFunc("GET /reports/check-date", middleware.RequireAuth(reportHandler.CheckReportDate))
 
@@ -158,8 +164,8 @@ func main() {
 	mux.HandleFunc("GET /reports/detail", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderDetailModal))
 	mux.HandleFunc("GET /reports/edit", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderEditForm))
 	mux.HandleFunc("GET /reports/delete-confirm", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.RenderDeleteConfirmModal))
-	mux.HandleFunc("DELETE /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
-	mux.HandleFunc("POST /reports/delete", middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))
+	mux.Handle("DELETE /reports/delete", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))))
+	mux.Handle("POST /reports/delete", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(reportHandler.HandleDelete))))
 	mux.HandleFunc("GET /export/csv", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportCSV))
 	mux.HandleFunc("GET /export/excel", middleware.RequireRole(models.RoleSuperAdmin)(exportHandler.ExportExcel))
 
@@ -171,10 +177,10 @@ func main() {
 
 	// User Management (Super Admin)
 	mux.HandleFunc("GET /admin/users", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.RenderUserList))
-	mux.HandleFunc("POST /admin/users/create", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleCreateUser))
+	mux.Handle("POST /admin/users/create", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleCreateUser))))
 	mux.HandleFunc("GET /admin/users/edit", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.RenderEditUserModal))
-	mux.HandleFunc("POST /admin/users/edit", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleEditUser))
-	mux.HandleFunc("POST /admin/users/delete", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleDeleteUser))
+	mux.Handle("POST /admin/users/edit", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleEditUser))))
+	mux.Handle("POST /admin/users/delete", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleDeleteUser))))
 
 	noCacheMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -12,11 +12,12 @@ import (
 )
 
 type UserService struct {
-	userRepo repository.UserRepo
+	userRepo     repository.UserRepo
+	auditService *AuditService
 }
 
-func NewUserService(userRepo repository.UserRepo) *UserService {
-	return &UserService{userRepo: userRepo}
+func NewUserService(userRepo repository.UserRepo, auditService *AuditService) *UserService {
+	return &UserService{userRepo: userRepo, auditService: auditService}
 }
 
 func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
@@ -71,6 +72,14 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, confir
 	err = s.userRepo.Create(ctx, user)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.auditService != nil {
+		s.auditService.Record(ctx, RecordAuditInput{
+			Action:     "user.create",
+			ResourceID: user.Username,
+			NewState:   user,
+		})
 	}
 
 	return user, nil
@@ -135,6 +144,15 @@ func (s *UserService) UpdateUser(ctx context.Context, currentAdminUsername, targ
 		return nil, err
 	}
 
+	if s.auditService != nil {
+		s.auditService.Record(ctx, RecordAuditInput{
+			Actor:      currentAdminUsername,
+			Action:     "user.update",
+			ResourceID: user.Username,
+			NewState:   user,
+		})
+	}
+
 	return user, nil
 }
 
@@ -161,5 +179,16 @@ func (s *UserService) DeleteUser(ctx context.Context, targetUsername, currentAdm
 		return models.ErrIncorrectAdminPassword
 	}
 
-	return s.userRepo.Delete(ctx, cleanTarget)
+	oldUser, _ := s.userRepo.FindByUsername(ctx, cleanTarget)
+	err := s.userRepo.Delete(ctx, cleanTarget, cleanAdmin)
+	if err == nil && s.auditService != nil {
+		s.auditService.Record(ctx, RecordAuditInput{
+			Actor:      cleanAdmin,
+			Action:     "user.delete",
+			ResourceID: cleanTarget,
+			OldState:   oldUser,
+			NewState:   nil,
+		})
+	}
+	return err
 }

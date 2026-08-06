@@ -32,7 +32,7 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	}
 
 	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"username": cleanUsername}).Decode(&user)
+	err := r.collection.FindOne(ctx, bson.M{"username": cleanUsername, "is_deleted": false}).Decode(&user)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
@@ -69,7 +69,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 }
 
 func (r *UserRepository) FindAll(ctx context.Context) ([]models.User, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
+	cursor, err := r.collection.Find(ctx, bson.M{"is_deleted": false})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch users: %w", err)
 	}
@@ -89,7 +89,7 @@ func (r *UserRepository) FindByID(ctx context.Context, idStr string) (*models.Us
 	}
 
 	var user models.User
-	err = r.collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
+	err = r.collection.FindOne(ctx, bson.M{"_id": objID, "is_deleted": false}).Decode(&user)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
@@ -101,9 +101,9 @@ func (r *UserRepository) FindByID(ctx context.Context, idStr string) (*models.Us
 
 func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	user.Username = strings.ToLower(strings.TrimSpace(user.Username))
-	filter := bson.M{"username": user.Username}
+	filter := bson.M{"username": user.Username, "is_deleted": false}
 	if !user.ID.IsZero() {
-		filter = bson.M{"_id": user.ID}
+		filter = bson.M{"_id": user.ID, "is_deleted": false}
 	}
 
 	update := bson.M{
@@ -124,13 +124,21 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (r *UserRepository) Delete(ctx context.Context, username string) error {
+func (r *UserRepository) Delete(ctx context.Context, username string, actor string) error {
 	cleanUsername := strings.ToLower(strings.TrimSpace(username))
-	res, err := r.collection.DeleteOne(ctx, bson.M{"username": cleanUsername})
+	now := time.Now()
+	update := bson.M{
+		"$set": bson.M{
+			"is_deleted": true,
+			"deleted_at": now,
+			"deleted_by": actor,
+		},
+	}
+	res, err := r.collection.UpdateOne(ctx, bson.M{"username": cleanUsername, "is_deleted": false}, update)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
-	if res.DeletedCount == 0 {
+	if res.MatchedCount == 0 {
 		return fmt.Errorf("user not found")
 	}
 	return nil
