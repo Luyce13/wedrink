@@ -29,3 +29,5 @@ scratch/
 .gemini/
 .fallow/
 .agents/
+current
+releases/
