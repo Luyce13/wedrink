@@ -69,21 +69,17 @@ Discrepancies indicate register imbalance and trigger visual alerts across templ
 Currency values in HTML templates are rendered using the `fmtNum` custom function registered in `main.go`.
 
 ### Formatting Rule
-- Formats floating point values into comma-separated groups according to the **Indian Numbering System** (`en-IN` grouping: thousands group of 3, followed by groupings of 2 digits).
+- Formats floating point values into comma-separated groups with a comma after every 3 digits (e.g., `125,000` or `1,250,000`).
 
 ### Code Logic:
 ```go
-// fmtNum formats float64 into en-IN integer representation (e.g. 125000 -> "1,25,000")
-"fmtNum": func(val float64) string {
-    n := int64(math.Round(math.Abs(val)))
-    s := strconv.FormatInt(n, 10)
-    // Splits last 3 digits, then pairs preceding digits by 2s from right to left.
-    // ...
-}
+// FormatNumber formats float64 with comma separation every 3 digits (e.g. 125000 -> "125,000")
+"fmtNum": utils.FormatNumber,
 ```
 
 ### Examples:
-- `125000` $\rightarrow$ `"1,25,000"`
+- `125000` $\rightarrow$ `"125,000"`
+- `1250000` $\rightarrow$ `"1,250,000"`
 - `5000` $\rightarrow$ `"5,000"`
 - `500` $\rightarrow$ `"500"`
 - `-1500` $\rightarrow$ `"-1,500"`

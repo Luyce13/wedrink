@@ -16,7 +16,7 @@ import (
 )
 
 // parseAmount cleans and parses a monetary string value to float64.
-// Empty strings are treated as zero. Commas are stripped for en-IN formatting.
+// Empty strings are treated as zero. Commas are stripped from formatted inputs.
 // Negative values are rejected.
 func parseAmount(val string) (float64, error) {
 	val = strings.TrimSpace(val)

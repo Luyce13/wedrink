@@ -10,7 +10,7 @@
       expected: '{{if .ExpectedCash}}{{printf "%.0f" .ExpectedCash}}{{else}}0{{end}}',
       diff:     '{{if .Difference}}{{printf "%.0f" .Difference}}{{else}}0{{end}}',
     };
-    const fmt = n => parseInt(n, 10).toLocaleString('en-IN');
+    const fmt = n => parseInt(n, 10).toLocaleString('en-US');
     const d   = parseInt(data.diff, 10);
     const el = {
       exp:  document.getElementById('strip-expenses'),
