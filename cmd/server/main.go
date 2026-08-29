@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -80,35 +78,10 @@ func main() {
 		"mod": func(a, b int) int {
 			return a % b
 		},
-		// fmtNum formats a float64 as a comma-separated integer string (en-IN style).
-		// e.g. 125000 -> "1,25,000"
-		"fmtNum": func(val float64) string {
-			n := int64(math.Round(math.Abs(val)))
-			s := strconv.FormatInt(n, 10)
-			var result strings.Builder
-			l := len(s)
-			if l <= 3 {
-				result.WriteString(s)
-			} else {
-				last3 := s[l-3:]
-				prefix := s[:l-3]
-				var parts []string
-				for len(prefix) > 2 {
-					parts = append([]string{prefix[len(prefix)-2:]}, parts...)
-					prefix = prefix[:len(prefix)-2]
-				}
-				if len(prefix) > 0 {
-					parts = append([]string{prefix}, parts...)
-				}
-				parts = append(parts, last3)
-				result.WriteString(strings.Join(parts, ","))
-			}
-			if val < 0 {
-				return "-" + result.String()
-			}
-			return result.String()
-		},
-		"not": func(v bool) bool { return !v },
+		// fmtNum formats a float64 as a comma-separated integer string with comma after every 3 digits.
+		// e.g. 125000 -> "125,000", 1250000 -> "1,250,000"
+		"fmtNum": utils.FormatNumber,
+		"not":    func(v bool) bool { return !v },
 	}
 
 	renderer, err := render.NewRenderer(funcMap)

@@ -12,7 +12,7 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - $\text{ExpectedCash} = \text{TotalSale} - \text{CreditSale} - \text{BankTransfer} - \text{OtherPayments}$
   - $\text{Difference} = \text{CounterCash} - \text{ExpectedCash}$
 - All monetary float values MUST be rounded using `math.Round` prior to calculation and database persistence to prevent floating point drift.
-- Currency display formatting MUST use Indian Numbering System (`en-IN` style, e.g., `1,25,000` for 125000) as rendered by template func `fmtNum` in `main.go`.
+- Currency display formatting MUST format with comma separation after every 3 digits (e.g., `125,000` for 125000) as rendered by template func `fmtNum` in `main.go` / `utils.FormatNumber` and `formatWithCommas` in `app.js`.
 - **Non-Negative Monetary Invariant**: Monetary inputs (`TotalSale`, `CreditSale`, `BankTransfer`, `CounterCash`, and expense `Amount`) MUST NEVER accept negative values. This invariant MUST be enforced across all 5 layers of the stack:
   1. **HTML Layer:** Input elements MUST specify `min="0"`.
   2. **JS Masking Layer:** `formatWithCommas` and `getRawValue` in `app.js` MUST strip minus signs (`replace(/[,-]/g, '')`).

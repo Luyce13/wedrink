@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cleanStr = String(n).replace(/[,-]/g, '');
     const num = parseInt(cleanStr, 10);
     if (isNaN(num)) return '';
-    return Math.max(0, num).toLocaleString('en-IN');   // e.g. 1,00,000
+    return Math.max(0, num).toLocaleString('en-US');   // e.g. 100,000
   }
 
   function getRawValue(displayVal) {
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const expectedCash = totalSale - creditSale - bankTransfer - totalExpenses;
     const difference   = counterCash - expectedCash;
 
-    const fmt = (n) => n.toLocaleString('en-IN');
+    const fmt = (n) => n.toLocaleString('en-US');
 
     const elExp  = document.getElementById('strip-expenses');
     const elExp2 = document.getElementById('strip-expected');

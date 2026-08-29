@@ -27,7 +27,7 @@ The original Wedrink EOD reporting was implemented inside a Google Spreadsheet u
 | **Authentication** | Anonymous / None | Cookie Session Auth (`bcrypt` password hashing) |
 | **Access Control** | Single view for all users | Role-Based Access Control (`staff` vs `manager`) |
 | **Frontend Framework** | Vanilla JS `google.script.run` RPC callbacks | HTMX 2.0 dynamic server-rendered HTML fragments |
-| **Formatting** | Custom AppScript loops `fixAllSheetsFormatting()` | Go `fmtNum` template function (`en-IN` style commas) |
+| **Formatting** | Custom AppScript loops `fixAllSheetsFormatting()` | Go `fmtNum` template function (3-digit commas) |
 | **Duplicate Protection**| Manual row scan in Sheet | Unique Index on `report_date` in MongoDB |
 | **Exporting** | Native Google Sheet download | Multi-mode streaming CSV Export (`/export/csv`) |
 
