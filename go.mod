@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/xuri/excelize/v2 v2.11.0
-	go.mongodb.org/mongo-driver/v2 v2.8.0
+	go.mongodb.org/mongo-driver/v2 v2.8.1
 	golang.org/x/crypto v0.54.0
 )
 
