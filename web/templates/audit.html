@@ -1,0 +1,95 @@
+{{define "content"}}
+<div class="space-y-4">
+
+  <!-- Filters -->
+  <div class="bg-[#131f3a] border border-[#1e2d4a] px-4 py-3 rounded-lg">
+    <form id="audit-filter-form"
+          hx-get="/admin/audit"
+          hx-target="#audit-table-container"
+          hx-swap="innerHTML"
+          hx-trigger="submit"
+          hx-vals='{"partial": "true"}'
+          autocomplete="off"
+          class="flex flex-wrap items-end gap-3">
+
+      <!-- Action Category Filter -->
+      <div>
+        <label for="audit-action-filter" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Action</label>
+        <select id="audit-action-filter" name="action" class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-44 cursor-pointer">
+          <option value="reports" {{if eq .Action "reports"}}selected{{end}}>All Financial Reports</option>
+          <option value="report.submit" {{if eq .Action "report.submit"}}selected{{end}}>Report Submit</option>
+          <option value="report.overwrite" {{if eq .Action "report.overwrite"}}selected{{end}}>Report Overwrite</option>
+          <option value="report.delete" {{if eq .Action "report.delete"}}selected{{end}}>Report Delete</option>
+          <option value="all" {{if eq .Action "all"}}selected{{end}}>All Events (Everything)</option>
+          <optgroup label="Authentication">
+            <option value="auth" {{if eq .Action "auth"}}selected{{end}}>All Auth</option>
+            <option value="auth.login_success" {{if eq .Action "auth.login_success"}}selected{{end}}>Login Success</option>
+            <option value="auth.login_failed" {{if eq .Action "auth.login_failed"}}selected{{end}}>Login Failed</option>
+          </optgroup>
+          <optgroup label="User Accounts">
+            <option value="users" {{if eq .Action "users"}}selected{{end}}>All Users</option>
+            <option value="user.create" {{if eq .Action "user.create"}}selected{{end}}>User Create</option>
+            <option value="user.update" {{if eq .Action "user.update"}}selected{{end}}>User Update</option>
+            <option value="user.delete" {{if eq .Action "user.delete"}}selected{{end}}>User Delete</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Actor Filter -->
+      <div>
+        <label for="audit-actor-input" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Actor</label>
+        <input type="text"
+               id="audit-actor-input"
+               name="actor"
+               placeholder="Username"
+               value="{{.Actor}}"
+               class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-28">
+      </div>
+
+      <!-- Resource ID Filter -->
+      <div>
+        <label for="audit-resource-input" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Resource</label>
+        <input type="text"
+               id="audit-resource-input"
+               name="resource"
+               placeholder="Date or user"
+               value="{{.Resource}}"
+               class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-28">
+      </div>
+
+      <!-- Date Range (From) -->
+      <div>
+        <label for="audit-from-date" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From</label>
+        <input type="date"
+               id="audit-from-date"
+               name="startDate"
+               value="{{.StartDate}}"
+               class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-36">
+      </div>
+
+      <!-- Date Range (To) -->
+      <div>
+        <label for="audit-to-date" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To</label>
+        <input type="date"
+               id="audit-to-date"
+               name="endDate"
+               value="{{.EndDate}}"
+               class="glass-input text-xs py-1.5 px-2 bg-[#080e1e] text-slate-200 border-[#1e2d4a] rounded w-36">
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary text-xs py-1.5 px-3 transition cursor-pointer">Apply</button>
+        <a href="/admin/audit" class="btn bg-[#080e1e] text-xs py-1.5 px-3 text-slate-400 border-[#1e2d4a] hover:text-white transition">Reset</a>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Audit Table Container -->
+  <div id="audit-table-container" class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg">
+    {{template "audit_table.html" .}}
+  </div>
+
+</div>
+{{end}}

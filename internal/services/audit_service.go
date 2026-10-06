@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -68,3 +69,25 @@ func (s *AuditService) Record(ctx context.Context, input RecordAuditInput) {
 		}
 	}()
 }
+
+func (s *AuditService) GetAuditLogs(ctx context.Context, params repository.AuditQueryParams) (*repository.AuditQueryResult, error) {
+	if s == nil || s.repo == nil {
+		return &repository.AuditQueryResult{Logs: []models.AuditLog{}}, nil
+	}
+	return s.repo.FindWithParams(ctx, params)
+}
+
+func (s *AuditService) GetAuditLogByID(ctx context.Context, idStr string) (*models.AuditLog, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("audit service unavailable")
+	}
+	return s.repo.FindByID(ctx, idStr)
+}
+
+func (s *AuditService) GetStats(ctx context.Context) (*repository.AuditStats, error) {
+	if s == nil || s.repo == nil {
+		return &repository.AuditStats{}, nil
+	}
+	return s.repo.GetStats(ctx)
+}
+

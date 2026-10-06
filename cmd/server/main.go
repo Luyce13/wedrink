@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"log"
 	"log/slog"
-	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -67,24 +65,8 @@ func main() {
 	userService := services.NewUserService(userRepo, auditService)
 	notifService := services.NewNotificationService(notifRepo)
 
-	// HTML Template setup with custom FuncMap
-	funcMap := template.FuncMap{
-		"mathAbs": func(val float64) float64 {
-			return math.Abs(val)
-		},
-		"add": func(a, b int) int {
-			return a + b
-		},
-		"mod": func(a, b int) int {
-			return a % b
-		},
-		// fmtNum formats a float64 as a comma-separated integer string with comma after every 3 digits.
-		// e.g. 125000 -> "125,000", 1250000 -> "1,250,000"
-		"fmtNum": utils.FormatNumber,
-		"not":    func(v bool) bool { return !v },
-	}
-
-	renderer, err := render.NewRenderer(funcMap)
+	// HTML Template setup with canonical FuncMap
+	renderer, err := render.NewRenderer(render.DefaultFuncMap())
 	if err != nil {
 		log.Fatalf("Failed to initialize template renderer: %v", err)
 	}
@@ -96,6 +78,7 @@ func main() {
 	exportHandler := handlers.NewExportHandler(reportService)
 	userHandler := handlers.NewUserHandler(userService, renderer)
 	notifHandler := handlers.NewNotificationHandler(notifService, renderer)
+	auditHandler := handlers.NewAuditHandler(auditService, renderer)
 
 	sessionMgr := middleware.NewSessionManager(cfg.SessionSecret)
 
@@ -154,6 +137,10 @@ func main() {
 	mux.HandleFunc("GET /admin/users/edit", middleware.RequireRole(models.RoleSuperAdmin)(userHandler.RenderEditUserModal))
 	mux.Handle("POST /admin/users/edit", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleEditUser))))
 	mux.Handle("POST /admin/users/delete", writeRateLimiter(http.HandlerFunc(middleware.RequireRole(models.RoleSuperAdmin)(userHandler.HandleDeleteUser))))
+
+	// Audit Trail & Security Logs (Super Admin / Manager)
+	mux.HandleFunc("GET /admin/audit", middleware.RequireRole(models.RoleSuperAdmin)(auditHandler.RenderAuditList))
+	mux.HandleFunc("GET /admin/audit/detail", middleware.RequireRole(models.RoleSuperAdmin)(auditHandler.RenderAuditDetailModal))
 
 	noCacheMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

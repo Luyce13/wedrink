@@ -1,0 +1,69 @@
+{{range $idx, $log := .Logs}}
+{{$rowNum := add $idx 1}}
+<tr id="audit-row-{{$log.ID.Hex}}"
+    {{if and (eq $rowNum $.TriggerIdx) $.NextCursor}}
+      hx-get="/admin/audit?cursor={{$.NextCursor}}&action={{$.Action}}&actor={{$.Actor}}&resource={{$.Resource}}&startDate={{$.StartDate}}&endDate={{$.EndDate}}&limit={{$.Limit}}&append=true"
+      hx-trigger="intersect once"
+      hx-target="#audit-table-body"
+      hx-swap="beforeend"
+      hx-indicator="#audit-scroll-spinner"
+    {{end}}
+    class="hover:bg-[#131f3a]/60 transition border-b border-[#1e2d4a]/40 text-xs">
+  
+  <!-- Timestamp -->
+  <td class="p-3 whitespace-nowrap tabular-nums">
+    <div class="font-medium text-slate-200" title="{{fmtTime $log.Timestamp}}">{{fmtTimeShort $log.Timestamp}}</div>
+    <div class="text-[10px] text-slate-500">{{timeAgo $log.Timestamp}}</div>
+  </td>
+
+  <!-- Actor -->
+  <td class="p-3 whitespace-nowrap">
+    <div class="font-semibold text-slate-200">@{{$log.Actor}}</div>
+    <div class="text-[10px] text-slate-500 capitalize">{{if eq $log.Role "super_admin"}}Manager{{else if eq $log.Role "staff"}}Staff{{else}}{{$log.Role}}{{end}}</div>
+  </td>
+
+  <!-- Action Badge -->
+  <td class="p-3 whitespace-nowrap">
+    <span class="inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-bold tracking-wide {{actionBadgeClass $log.Action}}">
+      {{cleanActionName $log.Action}}
+    </span>
+  </td>
+
+  <!-- Target Resource -->
+  <td class="p-3 whitespace-nowrap">
+    {{if $log.ResourceID}}
+      {{if or (eq $log.Action "report.submit") (eq $log.Action "report.overwrite") (eq $log.Action "report.delete")}}
+        <a href="/?date={{$log.ResourceID}}" class="font-medium text-[#00b4d8] hover:underline" title="View EOD Report">{{$log.ResourceID}}</a>
+      {{else if or (eq $log.Action "user.create") (eq $log.Action "user.update") (eq $log.Action "user.delete")}}
+        <span class="font-mono text-slate-300">@{{$log.ResourceID}}</span>
+      {{else}}
+        <span class="font-mono text-slate-400">{{$log.ResourceID}}</span>
+      {{end}}
+    {{else}}
+      <span class="text-slate-600">-</span>
+    {{end}}
+  </td>
+
+  <!-- Client IP -->
+  <td class="p-3 whitespace-nowrap font-mono text-slate-400 text-[11px]">
+    {{if $log.IPAddress}}{{$log.IPAddress}}{{else}}-{{end}}
+  </td>
+
+  <!-- State Diff Action -->
+  <td class="p-3 text-center whitespace-nowrap">
+    {{if hasState $log}}
+      <button type="button"
+              hx-get="/admin/audit/detail?id={{$log.ID.Hex}}"
+              hx-target="#report-modal-container"
+              hx-swap="innerHTML"
+              class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold rounded transition cursor-pointer"
+              title="Inspect before/after state diff">
+        Diff
+      </button>
+    {{else}}
+      <span class="text-slate-600 text-[11px]">-</span>
+    {{end}}
+  </td>
+
+</tr>
+{{end}}

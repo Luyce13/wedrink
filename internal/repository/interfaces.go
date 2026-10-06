@@ -48,9 +48,40 @@ type NotificationRepo interface {
 	DeleteByReportID(ctx context.Context, reportID string) error
 }
 
+// AuditQueryParams defines filter and pagination parameters for audit logs.
+type AuditQueryParams struct {
+	Actor      string
+	ResourceID string
+	Action     string
+	StartDate  string
+	EndDate    string
+	Cursor     string
+	Limit      int
+}
+
+// AuditQueryResult defines the paginated response for audit queries.
+type AuditQueryResult struct {
+	Logs       []models.AuditLog
+	NextCursor string
+	HasMore    bool
+	TriggerIdx int
+}
+
+// AuditStats aggregates high-level security and mutation metrics.
+type AuditStats struct {
+	TotalEvents    int64
+	SecurityEvents int64
+	MutationEvents int64
+	UniqueActors   int64
+}
+
 // AuditRepo defines the contract for audit log persistence.
 // Implemented by AuditRepository (MongoDB).
 type AuditRepo interface {
 	Create(ctx context.Context, log *models.AuditLog) error
 	Query(ctx context.Context, params AuditQueryParams) ([]models.AuditLog, error)
+	FindWithParams(ctx context.Context, params AuditQueryParams) (*AuditQueryResult, error)
+	FindByID(ctx context.Context, idStr string) (*models.AuditLog, error)
+	GetStats(ctx context.Context) (*AuditStats, error)
 }
+

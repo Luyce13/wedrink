@@ -41,7 +41,7 @@ func main() {
 	srcDB := client.Database(srcDBName)
 	dstDB := client.Database(dstDBName)
 
-	collections := []string{"users", "eod_reports"}
+	collections := []string{"users", "eod_reports", "notifications", "audit_logs"}
 
 	for _, colName := range collections {
 		slog.Info(fmt.Sprintf("Cloning collection '%s' from '%s' to '%s'...", colName, srcDBName, dstDBName))
@@ -83,18 +83,53 @@ func main() {
 		}
 	}
 
-	// Re-create indexes on target database
+	// Re-create indexes on target database matching production invariants
+	partialActiveFilter := bson.D{{Key: "is_deleted", Value: false}}
+
 	reportsCol := dstDB.Collection("eod_reports")
 	_, _ = reportsCol.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "report_date", Value: 1}},
-		Options: options.Index().SetUnique(true).SetName("idx_unique_report_date"),
+		Keys: bson.D{{Key: "report_date", Value: 1}},
+		Options: options.Index().
+			SetUnique(true).
+			SetName("idx_unique_active_report_date").
+			SetPartialFilterExpression(partialActiveFilter),
 	})
 
 	usersCol := dstDB.Collection("users")
 	_, _ = usersCol.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "username", Value: 1}},
-		Options: options.Index().SetUnique(true).SetName("idx_unique_username"),
+		Keys: bson.D{{Key: "username", Value: 1}},
+		Options: options.Index().
+			SetUnique(true).
+			SetName("idx_unique_active_username").
+			SetPartialFilterExpression(partialActiveFilter).
+			SetCollation(&options.Collation{
+				Locale:   "en",
+				Strength: 2,
+			}),
 	})
+
+	notifCol := dstDB.Collection("notifications")
+	_, _ = notifCol.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "report_id", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("idx_unique_notif_report_id"),
+	})
+
+	auditCol := dstDB.Collection("audit_logs")
+	auditModels := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "timestamp", Value: -1}},
+			Options: options.Index().SetName("idx_audit_timestamp"),
+		},
+		{
+			Keys:    bson.D{{Key: "actor", Value: 1}},
+			Options: options.Index().SetName("idx_audit_actor"),
+		},
+		{
+			Keys:    bson.D{{Key: "resource_id", Value: 1}},
+			Options: options.Index().SetName("idx_audit_resource_id"),
+		},
+	}
+	_, _ = auditCol.Indexes().CreateMany(ctx, auditModels)
 
 	slog.Info("Database cloning & indexing completed successfully!", "targetDB", dstDBName)
 }

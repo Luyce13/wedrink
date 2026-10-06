@@ -202,6 +202,8 @@
           class="px-2.5 py-1.5 rounded text-xs font-semibold transition whitespace-nowrap {{if eq .ActiveTab `reports` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">History</a>
         <a href="/admin/users"
           class="px-2.5 py-1.5 rounded text-xs font-semibold transition whitespace-nowrap {{if eq .ActiveTab `users` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Users</a>
+        <a href="/admin/audit"
+          class="px-2.5 py-1.5 rounded text-xs font-semibold transition whitespace-nowrap {{if eq .ActiveTab `audit` }}bg-[#e50811] text-white{{else}}text-slate-400 hover:text-slate-200 hover:bg-[#131f3a]{{end}}">Audit</a>
         {{end}}
       </nav>
       {{end}}
@@ -293,6 +295,8 @@
         class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `reports` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">History</a>
       <a href="/admin/users" data-nav-href="/admin/users"
         class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `users` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">Users</a>
+      <a href="/admin/audit" data-nav-href="/admin/audit"
+        class="mobile-nav-item text-xs font-semibold px-2 py-1 rounded {{if eq .ActiveTab `audit` }}text-[#e50811] bg-[#131f3a]{{else}}text-slate-400{{end}}">Audit</a>
       {{end}}
     </div>
     {{end}}

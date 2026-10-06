@@ -63,6 +63,9 @@ func NewRenderer(funcMap template.FuncMap) (*Renderer, error) {
 		"admin_users.html": {
 			ResolveProjectPath("web", "templates", "admin_users.html"),
 		},
+		"audit.html": {
+			ResolveProjectPath("web", "templates", "audit.html"),
+		},
 	}
 
 	pages := make(map[string]*template.Template)

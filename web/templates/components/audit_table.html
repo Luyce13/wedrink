@@ -1,0 +1,34 @@
+<div class="overflow-x-auto max-h-[calc(100vh-14rem)] overflow-y-auto">
+  <table class="w-full text-left border-collapse text-xs">
+    <thead>
+      <tr class="sticky-thead border-b border-[#1e2d4a] text-[11px] font-extrabold text-slate-300 uppercase tracking-wider bg-[#060d1b]">
+        <th class="p-3">Timestamp</th>
+        <th class="p-3">Actor</th>
+        <th class="p-3">Action</th>
+        <th class="p-3">Resource</th>
+        <th class="p-3">IP Address</th>
+        <th class="p-3 text-center">Changes</th>
+      </tr>
+    </thead>
+    <tbody id="audit-table-body" class="divide-y divide-[#1e2d4a]/50">
+      {{if .Logs}}
+        {{template "audit_rows.html" .}}
+      {{else}}
+        <tr>
+          <td colspan="6" class="p-8 text-center text-slate-500 italic text-xs">
+            No audit logs found matching your criteria.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<!-- Scroll spinner for HTMX infinite pagination -->
+<div id="audit-scroll-spinner" class="htmx-indicator py-4 text-center text-xs font-semibold text-cyan-400 flex items-center justify-center gap-2">
+  <svg class="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+  </svg>
+  Loading more audit logs...
+</div>

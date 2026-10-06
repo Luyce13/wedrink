@@ -1,0 +1,146 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+     onclick="if (event.target === this) closeModal()">
+  <div class="glass-card w-full max-w-3xl bg-slate-950 border-[#1e2d4a] shadow-2xl relative max-h-[90vh] flex flex-col rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between border-b border-[#1e2d4a] px-5 py-4 bg-[#060d1b] shrink-0">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded border text-xs font-bold tracking-wide {{actionBadgeClass .Log.Action}}">
+          {{cleanActionName .Log.Action}}
+        </span>
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            Audit Event Inspection
+          </h2>
+          <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
+            <span>By <strong class="text-white font-mono">@{{.Log.Actor}}</strong> ({{.Log.Role}})</span>
+            <span>•</span>
+            <span title="{{fmtTime .Log.Timestamp}}">{{fmtTime .Log.Timestamp}}</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="closeModal()" class="p-1.5 text-slate-400 hover:text-white rounded bg-[#131f3a] border border-[#1e2d4a] text-xs cursor-pointer transition">✕</button>
+    </div>
+
+    <!-- Scrollable Body -->
+    <div class="p-5 space-y-4 overflow-y-auto flex-1">
+
+      <!-- Context Ribbon -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#080e1e] p-3 rounded-lg border border-[#1e2d4a] text-xs">
+        <div>
+          <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Resource</div>
+          <div class="font-mono text-cyan-300 font-bold mt-0.5 truncate">{{if .Log.ResourceID}}{{.Log.ResourceID}}{{else}}N/A{{end}}</div>
+        </div>
+        <div>
+          <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Client IP</div>
+          <div class="font-mono text-slate-200 mt-0.5">{{if .Log.IPAddress}}{{.Log.IPAddress}}{{else}}127.0.0.1{{end}}</div>
+        </div>
+        <div>
+          <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Event ID</div>
+          <div class="font-mono text-slate-400 text-[10px] mt-0.5 truncate">{{.Log.ID.Hex}}</div>
+        </div>
+      </div>
+
+      <!-- User-Agent banner if present -->
+      {{if .Log.UserAgent}}
+      <div class="text-[11px] text-slate-400 bg-[#0d162d] px-3 py-1.5 rounded border border-[#1e2d4a]/70 truncate" title="{{.Log.UserAgent}}">
+        <span class="text-slate-500 font-semibold mr-1">Client User-Agent:</span> {{.Log.UserAgent}}
+      </div>
+      {{end}}
+
+      <!-- Deletion Alert Notice -->
+      {{if or (eq .Log.Action "report.delete") (eq .Log.Action "user.delete")}}
+      <div class="p-3 bg-rose-950/60 border border-rose-800/80 rounded-lg text-xs text-rose-200 flex items-center gap-2">
+        <span class="text-rose-400 font-bold text-sm">⚠</span>
+        <div>This record was permanently removed. Below is the snapshot captured immediately prior to deletion.</div>
+      </div>
+      {{end}}
+
+      <!-- Visual State Diff Table -->
+      {{if .HasDiff}}
+      <div>
+        <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          Field-Level Comparison (Before vs. After)
+        </h3>
+        <div class="overflow-x-auto rounded-lg border border-[#1e2d4a]">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#060d1b] border-b border-[#1e2d4a] text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                <th class="p-2.5 w-1/4">Field</th>
+                <th class="p-2.5 w-3/8">Previous State (Before)</th>
+                <th class="p-2.5 w-3/8">Updated State (After)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#1e2d4a]/50">
+              {{range .Diffs}}
+              <tr class="transition {{if .Changed}}bg-[#131f3a]/70 font-semibold{{else}}hover:bg-[#0d162d]/40{{end}}">
+                <td class="p-2.5 font-medium text-slate-300">
+                  <div class="flex items-center gap-1.5">
+                    {{if .Changed}}
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-400" title="Modified value"></span>
+                    {{end}}
+                    <span>{{.Field}}</span>
+                  </div>
+                </td>
+                <td class="p-2.5 tabular-nums {{if .Changed}}text-rose-300 bg-rose-950/20 line-through{{else}}text-slate-400{{end}}">
+                  {{.OldValue}}
+                </td>
+                <td class="p-2.5 tabular-nums {{if .Changed}}text-emerald-300 bg-emerald-950/20 font-bold{{else}}text-slate-400{{end}}">
+                  {{.NewValue}}
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {{end}}
+
+      <!-- Collapsible Technical JSON Inspection -->
+      <details class="bg-[#080e1e] border border-[#1e2d4a] rounded-lg overflow-hidden group">
+        <summary class="p-3 text-xs font-bold text-slate-300 cursor-pointer hover:bg-[#131f3a] transition flex items-center justify-between select-none">
+          <span class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke-width="2.5"/></svg>
+            Technical Raw Payloads (JSON)
+          </span>
+          <span class="text-[10px] text-slate-500 font-normal">Click to expand</span>
+        </summary>
+        <div class="p-3 border-t border-[#1e2d4a] space-y-3 bg-[#050a14]">
+          {{if .OldJSON}}
+          <div>
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Old State Snapshot</div>
+            <pre class="bg-black/80 p-3 rounded font-mono text-[11px] text-rose-300 overflow-x-auto max-h-48 border border-[#1e2d4a]/50 select-all">{{.OldJSON}}</pre>
+          </div>
+          {{end}}
+
+          {{if .NewJSON}}
+          <div>
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">New State Snapshot</div>
+            <pre class="bg-black/80 p-3 rounded font-mono text-[11px] text-emerald-300 overflow-x-auto max-h-48 border border-[#1e2d4a]/50 select-all">{{.NewJSON}}</pre>
+          </div>
+          {{end}}
+
+          {{if and (eq .OldJSON "") (eq .NewJSON "")}}
+          <div class="text-xs text-slate-500 italic p-2">No payload snapshots were attached to this event.</div>
+          {{end}}
+        </div>
+      </details>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="flex items-center justify-between border-t border-[#1e2d4a] px-5 py-3 bg-[#060d1b] shrink-0">
+      {{if and .Log.ResourceID (or (eq .Log.Action "report.submit") (eq .Log.Action "report.overwrite"))}}
+      <a href="/?date={{.Log.ResourceID}}" class="btn bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 text-xs py-1.5 px-3 flex items-center gap-1.5 font-bold transition">
+        <span>View EOD Report ({{.Log.ResourceID}})</span>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+      </a>
+      {{else}}
+      <div></div>
+      {{end}}
+      <button type="button" onclick="closeModal()" class="btn btn-primary text-xs py-1.5 px-5 font-bold">Close</button>
+    </div>
+
+  </div>
+</div>
