@@ -91,3 +91,18 @@ Managers can export store reconciliation records via `GET /export/csv`:
 - `month=YYYY-MM` or `month=all`
 - `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
 - `ids=id1,id2,id3` (Selective export of checked table rows).
+
+---
+
+## 5. Client-Side SPA Navigation & `pageCache` Architecture
+
+Wedrink achieves 0ms instant tab switching and smooth slide animations via an in-memory Single-Page Application (SPA) controller in `web/static/js/app.js`:
+
+### Routing & Tab Checklist
+When adding a new top-level page or navigation tab:
+1. **`prefetchRoutes()`**: Whitelist the route so `requestIdleCallback` pre-fetches the page into `pageCache`.
+2. **Navigation Click Listener**: Intercept clicks on `#mobile-nav-bar` and `nav a[href]` to route through `navigateToTabInstant(href, dir)`.
+3. **`SWIPE_VALID_ROUTES` & `resolveSwipeCurrentIndex()`**: Register the route for mobile touch swipe gestures.
+4. **`updateActiveNavLinks()`**: Ensure the route highlights the active tab in both desktop and mobile navigation bars.
+5. **Cache Invalidation**: Ensure mutations (`reportSaved`, `refreshReportsList`) execute `pageCache.clear()`.
+6. **Asset Cache Busting**: Always bump `?v=YYYYMMDD_vX` on `/static/js/app.js` in `layout.html`.

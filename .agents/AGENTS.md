@@ -62,6 +62,15 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - The client SPA switcher (`pageCache` in `app.js`) MUST NEVER cache HTML strings containing `.alert-banner` elements (`sanitizeHTMLForCache`).
   - Query parameters `?success=` and `?error=` MUST be stripped via `history.replaceState` immediately on page load (`cleanAlertQueryParams`).
   - `htmx:beforeHistorySave` MUST remove alert banners from HTMX history DOM snapshots.
+- **Top-Level Navigation & SPA Tab Registration**:
+  - Whenever a new top-level route or navigation tab (e.g. `/admin/audit`) is added to the application header or mobile navigation in `web/templates/layout.html`, it MUST be registered across all 4 SPA client-routing checkpoints in `web/static/js/app.js`:
+    1. `prefetchRoutes()`: Add route to the pre-fetch list for background idle caching into `pageCache`.
+    2. Nav click interceptor `routes` array: Add route to enable instant 0ms tab swapping via `navigateToTabInstant`.
+    3. `SWIPE_VALID_ROUTES`: Add route to enable mobile swipe gesture transitions.
+    4. `resolveSwipeCurrentIndex()`: Add prefix check to map the active URL path to the tab index for directional slide animations.
+  - Omitting any checkpoint causes the tab to drop out of SPA navigation, resulting in full-page browser reloads and jarring screen flashes.
+- **Static Asset Version Bumping Invariant**:
+  - Because `/static/*` assets are served with immutable long-lived caching (`Cache-Control: public, max-age=31536000, immutable`), any edit to `web/static/js/app.js` or `web/static/css/style.css` MUST immediately bump the cache-busting query parameter in `web/templates/layout.html` (e.g. `/static/js/app.js?v=YYYYMMDD_vX`).
 
 ---
 

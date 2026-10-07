@@ -1532,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const navLinks = document.querySelectorAll('#mobile-nav-bar a.mobile-nav-item, nav a[href]');
       navLinks.forEach(link => {
         const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
-        if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/profile') && !pageCache.has(href)) {
+        if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/admin/audit' || href === '/profile') && !pageCache.has(href)) {
           fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(res => res.text())
             .then(html => {
@@ -1652,10 +1652,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const navItem = e.target.closest('#mobile-nav-bar a.mobile-nav-item, nav a[href]');
       if (!navItem) return;
       const href = navItem.getAttribute('data-nav-href') || navItem.getAttribute('href');
-      if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/profile')) {
+      if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/admin/audit' || href === '/profile')) {
         e.preventDefault();
         const currentPath = window.location.pathname;
-        const routes = ['/', '/submit', '/reports', '/admin/users', '/profile'];
+        const routes = ['/', '/submit', '/reports', '/admin/users', '/admin/audit', '/profile'];
         const fromIdx = routes.indexOf(currentPath);
         const toIdx = routes.indexOf(href);
         const dir = toIdx >= fromIdx ? 'left' : 'right';
@@ -1712,7 +1712,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
 
     // ── helpers for touchend swipe navigation ───────────────────────────
-    const SWIPE_VALID_ROUTES = ['/', '/submit', '/reports', '/admin/users', '/profile'];
+    const SWIPE_VALID_ROUTES = ['/', '/submit', '/reports', '/admin/users', '/admin/audit', '/profile'];
 
     function isValidSwipe(deltaX, deltaY, duration) {
       if (duration > 600) return false;
@@ -1737,6 +1737,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (pathname.startsWith('/submit'))            return routes.indexOf('/submit');
       if (pathname.startsWith('/reports'))           return routes.indexOf('/reports');
       if (pathname.startsWith('/admin/users'))       return routes.indexOf('/admin/users');
+      if (pathname.startsWith('/admin/audit'))       return routes.indexOf('/admin/audit');
       if (pathname.startsWith('/profile'))           return routes.indexOf('/profile');
       return -1;
     }
