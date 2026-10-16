@@ -39,15 +39,20 @@ graph TD
    - Starts HTTP server with graceful shutdown handling on `SIGINT` / `SIGTERM`.
 
 2. **Configuration (`internal/config/config.go`)**:
-   - Parses `.env` key-value pairs manually using scanner.
+   - Parses `.env` key-value pairs manually using a robust scanner.
+   - Candidate search: Discovers `.env` across current working directory and executable parent directories.
+   - Preserves OS environment variables: Pre-existing environment variables (e.g. from CLI or PM2) are preserved over `.env` values.
+   - Strips enclosing quotes (`"` or `'`) from values.
+   - Intelligent path resolution: If relative paths (`SQLITE_PATH` or `BACKUP_DIR`) do not exist in the current working directory, it automatically resolves them relative to the executable's application root (`filepath.Dir(filepath.Dir(exe))`).
+   - Production recommendation: Use absolute paths (e.g. `SQLITE_PATH=/home/luyce/wedrink/data/wedrink.db`) to avoid PM2 `cwd` drift.
    - Keys supported:
      - `PORT`: Default `8080`
      - `DB_DRIVER`: `"sqlite"` (recommended) or `"mongodb"` (default fallback when unset in `.env` to prevent unmigrated boots)
      - `SQLITE_PATH`: Default `data/wedrink.db`
      - `BACKUP_ENABLED`: Default `true`
      - `BACKUP_INTERVAL`: Default `24h`
-     - `BACKUP_DIR`: Default `backups`
-     - `BACKUP_RETENTION`: Default `7`
+     - `BACKUP_DIR`: Default `data/backups`
+     - `BACKUP_RETENTION`: Default `14`
      - `SESSION_SECRET`: Default `wedrink-secret-session-key-2026-change-me`
      - `ENV`: Default `development`
 

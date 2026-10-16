@@ -775,14 +775,149 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Returns true if it handled navigation (so caller skips triggerPreview)
+  /* ─────────────────────────────────────────────────────
+     DASHBOARD RAPID DATE STEPPER & CACHE-AWARE NAVIGATOR
+  ───────────────────────────────────────────────────── */
+  let dashPendingDate = null;
+  let dashNavTimer = null;
+  let dashActiveReqId = 0;
+  let dashAbortController = null;
+
+  function parseDateYMD(str) {
+    if (!str || typeof str !== 'string') return new Date();
+    const parts = str.split('-');
+    if (parts.length !== 3) return new Date();
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    const dt = new Date(y, m, d);
+    return isNaN(dt.getTime()) ? new Date() : dt;
+  }
+
+  function stepDashboardDate(direction) {
+    const dashContainer = document.getElementById('dashboard-content');
+    if (!dashContainer) return;
+
+    const dpHidden = document.getElementById('reportDate');
+    const curLabel = document.getElementById('dp-label');
+    const prevLink = document.getElementById('dash-prev-day');
+    const nextLink = document.getElementById('dash-next-day');
+
+    // 1. Determine base date (pending date if multi-clicking, otherwise hidden input or URL)
+    let baseStr = dashPendingDate;
+    if (!baseStr && dpHidden && dpHidden.value) {
+      baseStr = dpHidden.value;
+    }
+    if (!baseStr) {
+      const urlParams = new URLSearchParams(window.location.search);
+      baseStr = urlParams.get('date');
+    }
+    const currDate = parseDateYMD(baseStr);
+
+    // 2. Step date by direction (-1 for prev, +1 for next)
+    currDate.setDate(currDate.getDate() + direction);
+    const newDateStr = dpIso(currDate);
+    dashPendingDate = newDateStr;
+
+    // 3. Instant 0ms visual feedback
+    if (dpHidden) {
+      dpHidden.value = newDateStr;
+    }
+    dpSelected = new Date(currDate);
+    dpUpdateTrigger();
+
+    // Update fallback hrefs
+    const prevDateObj = new Date(currDate);
+    prevDateObj.setDate(prevDateObj.getDate() - 1);
+    const nextDateObj = new Date(currDate);
+    nextDateObj.setDate(nextDateObj.getDate() + 1);
+
+    if (prevLink) prevLink.setAttribute('href', '/?date=' + dpIso(prevDateObj));
+    if (nextLink) nextLink.setAttribute('href', '/?date=' + dpIso(nextDateObj));
+
+    // Update browser URL immediately without page reload
+    history.replaceState({ path: '/?date=' + newDateStr, date: newDateStr }, '', '/?date=' + newDateStr);
+
+    // Subtle opacity transition indicator
+    dashContainer.style.transition = 'opacity 0.15s ease';
+    dashContainer.style.opacity = '0.65';
+
+    // 4. Debounced dispatch with stale-response cancellation
+    if (dashNavTimer) clearTimeout(dashNavTimer);
+    const reqId = ++dashActiveReqId;
+    const targetDate = newDateStr;
+
+    dashNavTimer = setTimeout(() => {
+      window.fetchDashboardDate(targetDate, false, reqId);
+    }, 180);
+  }
+
+  window.fetchDashboardDate = async function(targetDate, isHistoryPush, existingReqId) {
+    const reqId = existingReqId || (++dashActiveReqId);
+    if (dashNavTimer) {
+      clearTimeout(dashNavTimer);
+      dashNavTimer = null;
+    }
+
+    if (dashAbortController) {
+      try { dashAbortController.abort(); } catch (_) {}
+    }
+    dashAbortController = new AbortController();
+
+    const dashContainer = document.getElementById('dashboard-content');
+    if (dashContainer) {
+      dashContainer.style.transition = 'opacity 0.15s ease';
+      dashContainer.style.opacity = '0.65';
+    }
+
+    try {
+      const url = '/?date=' + targetDate + '&partial=true';
+      const res = await fetch(url, {
+        headers: { 'HX-Request': 'true' },
+        signal: dashAbortController.signal
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const html = await res.text();
+
+      // Discard stale response if a newer click or request occurred
+      if (reqId !== dashActiveReqId || (dashPendingDate && dashPendingDate !== targetDate)) {
+        return;
+      }
+
+      if (dashContainer) {
+        dashContainer.innerHTML = html;
+        dashContainer.style.opacity = '1';
+
+        if (window.htmx) {
+          htmx.process(dashContainer);
+        }
+        document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', {
+          detail: { target: dashContainer }
+        }));
+      }
+
+      // Update browser history once content settles
+      if (isHistoryPush) {
+        history.replaceState({ path: '/?date=' + targetDate, date: targetDate }, '', '/?date=' + targetDate);
+      } else {
+        history.pushState({ path: '/?date=' + targetDate, date: targetDate }, '', '/?date=' + targetDate);
+      }
+
+      dashPendingDate = null;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Failed to load dashboard date:', err);
+      if (dashContainer) dashContainer.style.opacity = '1';
+    }
+  };
+
+  // Helper for dpSetDate when choosing date from popup calendar
   function dpHandleDashboardNav(newVal, oldVal) {
     const dashContainer = document.getElementById('dashboard-content');
     if (!dashContainer || !newVal || !oldVal || oldVal === newVal) return false;
-    if (!window.htmx) return false;
-    const url = '/?date=' + newVal + '&partial=true';
-    htmx.ajax('GET', url, { target: '#dashboard-content', swap: 'innerHTML' });
-    history.pushState({ path: '/?date=' + newVal }, '', '/?date=' + newVal);
+    dashPendingDate = null;
+    window.fetchDashboardDate(newVal, false);
     return true;
   }
 
@@ -1224,11 +1359,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handleDashboardArrowNav(e) {
-    const prevLink = document.getElementById('dash-prev-day');
-    const nextLink = document.getElementById('dash-next-day');
-    if (!prevLink || !nextLink) return;
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); prevLink.click(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); nextLink.click(); }
+    if (!document.getElementById('dashboard-content')) return;
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); stepDashboardDate(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepDashboardDate(1); }
   }
 
   document.addEventListener('keydown', e => {
@@ -1559,6 +1692,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const currentPath = window.location.pathname;
       if (currentPath === targetRoute) return;
 
+      if (dashNavTimer) {
+        clearTimeout(dashNavTimer);
+        dashNavTimer = null;
+      }
+      dashPendingDate = null;
+
       const mainContainer = document.getElementById('app-main-content') || document.querySelector('main');
       if (!mainContainer) {
         window.location.href = targetRoute;
@@ -1663,9 +1802,49 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Rapid dashboard date navigation click handler
+    document.addEventListener('click', (e) => {
+      const prevBtn = e.target.closest('#dash-prev-day');
+      if (prevBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        stepDashboardDate(-1);
+        return;
+      }
+
+      const nextBtn = e.target.closest('#dash-next-day');
+      if (nextBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        stepDashboardDate(1);
+        return;
+      }
+
+      const todayBtn = e.target.closest('#dash-today-btn');
+      if (todayBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dashNavTimer) clearTimeout(dashNavTimer);
+        dashPendingDate = null;
+        const todayStr = dpIso(new Date());
+        window.fetchDashboardDate(todayStr, false);
+        return;
+      }
+    });
+
     // Support browser Back / Forward buttons
     window.addEventListener('popstate', (e) => {
       const path = window.location.pathname;
+      const urlParams = new URLSearchParams(window.location.search);
+      const dateParam = urlParams.get('date');
+
+      // If user is on dashboard and navigated to a date
+      if ((path === '/' || path === '') && dateParam && document.getElementById('dashboard-content')) {
+        dashPendingDate = null;
+        window.fetchDashboardDate(dateParam, true);
+        return;
+      }
+
       if (pageCache.has(path)) {
         window.navigateToTabInstant(path, 'right');
       } else {

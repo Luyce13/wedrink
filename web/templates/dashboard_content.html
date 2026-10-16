@@ -8,9 +8,8 @@
   <!-- Date navigation (swaps #dashboard-content so date picker & prev/next stay in sync) -->
   <div class="flex items-center gap-2">
     <a id="dash-prev-day"
-       hx-get="/?date={{.PrevDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.PrevDate}}"
        href="/?date={{.PrevDate}}"
-       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold" title="Previous day (←)">◄</a>
+       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold select-none" title="Previous day (←)">◄</a>
 
     <!-- Custom accessible date picker trigger for Dashboard -->
     <div class="relative input-wrap">
@@ -82,13 +81,12 @@
     </div>
 
     <a id="dash-next-day"
-       hx-get="/?date={{.NextDate}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.NextDate}}"
        href="/?date={{.NextDate}}"
-       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold" title="Next day (→)">►</a>
+       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold select-none" title="Next day (→)">►</a>
 
-    <a hx-get="/?date={{.TodayStr}}&partial=true" hx-target="#dashboard-content" hx-swap="innerHTML" hx-push-url="/?date={{.TodayStr}}"
+    <a id="dash-today-btn"
        href="/?date={{.TodayStr}}"
-       class="text-[11px] font-bold text-[#007C77] hover:underline px-1">Today</a>
+       class="text-[11px] font-bold text-[#007C77] hover:underline px-1 select-none">Today</a>
   </div>
 </div>
 
@@ -262,7 +260,7 @@
   <div class="bg-[#131f3a] border border-[#1e2d4a] p-10 text-center max-w-sm mx-auto my-8 rounded-lg">
     <div class="text-slate-400 text-2xl mb-3">📋</div>
     <h3 class="text-sm font-bold text-white">No report for {{.ReportDate}}</h3>
-    <p class="text-xs text-slate-400 mt-1 mb-5">Nothing submitted to MongoDB for this date yet.</p>
+    <p class="text-xs text-slate-400 mt-1 mb-5">No report submitted for this date yet.</p>
     <a href="/submit" class="btn btn-primary inline-flex text-xs py-2 px-5">Submit Report for {{.ReportDate}}</a>
   </div>
 {{end}}

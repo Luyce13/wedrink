@@ -1,3 +1,7 @@
+// Package config manages application configuration by loading settings from environment
+// variables and discovering candidate .env files across working and executable directories.
+// It enforces OS environment variable precedence, strips enclosing quotes, and provides
+// intelligent executable-relative fallback resolution for relative database and backup paths.
 package config
 
 import (
@@ -8,21 +12,49 @@ import (
 	"time"
 )
 
+// Config holds all runtime configuration settings for the Wedrink server and background services.
 type Config struct {
-	Port            string
-	DBDriver        string // "sqlite" or "mongodb" (default: "sqlite")
-	SQLitePath      string // e.g. "data/wedrink.db"
-	MongoURI        string
-	MongoDBName     string
-	SessionSecret   string
-	Env             string
-	AutoSeed        bool
-	BackupEnabled   bool
-	BackupInterval  time.Duration
-	BackupDir       string
+	// Port is the HTTP server listening port (default: "8080").
+	Port string
+
+	// DBDriver specifies the active database driver: "sqlite" (default & recommended) or "mongodb" (fallback).
+	DBDriver string
+
+	// SQLitePath is the filesystem path to the SQLite database file (e.g. "data/wedrink.db" or absolute path).
+	SQLitePath string
+
+	// MongoURI is the MongoDB connection string (e.g. "mongodb+srv://...").
+	MongoURI string
+
+	// MongoDBName is the MongoDB database name (default: "wedrink").
+	MongoDBName string
+
+	// SessionSecret is the HMAC secret key used for signing session cookies.
+	SessionSecret string
+
+	// Env is the application runtime environment: "development" or "production".
+	Env string
+
+	// AutoSeed flags whether default demo accounts should be created on initial run.
+	AutoSeed bool
+
+	// BackupEnabled flags whether the automated SQLite backup scheduler goroutine should run.
+	BackupEnabled bool
+
+	// BackupInterval is the duration between automated backup runs (e.g. 24h).
+	BackupInterval time.Duration
+
+	// BackupDir is the destination directory where SQLite backup archives are stored.
+	BackupDir string
+
+	// BackupRetention is the maximum number of daily backup archives to retain before pruning.
 	BackupRetention int
 }
 
+// LoadConfig initializes application configuration by discovering and parsing candidate
+// .env files across multiple search directories (current working directory and executable
+// parent directories). It maps configuration variables into a Config instance and applies
+// intelligent fallback resolution for relative database and backup directory paths.
 func LoadConfig() *Config {
 	candidates := []string{".env", "../.env", "../../.env"}
 	if exe, err := os.Executable(); err == nil {
@@ -87,6 +119,10 @@ func LoadConfig() *Config {
 	}
 }
 
+// loadDotEnv reads key=value pairs from the specified filepath and populates them
+// into the process environment using os.Setenv if they are not already set.
+// It skips empty lines and comments (starting with '#'), strips enclosing quotes
+// (' or ") from values, and silently ignores non-existent files.
 func loadDotEnv(filepath string) {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -106,7 +142,7 @@ func loadDotEnv(filepath string) {
 			val := strings.TrimSpace(parts[1])
 			// Strip outer quotes if present
 			val = strings.Trim(val, `"'`)
-			// Only set if not already set in OS environment
+			// Only set if not already set in OS environment (preserves explicit CLI/PM2 environment)
 			if os.Getenv(key) == "" {
 				_ = os.Setenv(key, val)
 			}
@@ -117,9 +153,12 @@ func loadDotEnv(filepath string) {
 	}
 }
 
+// getEnv retrieves the environment variable corresponding to key. If the variable
+// is unset or empty, it returns the provided fallback value.
 func getEnv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
 	}
 	return fallback
 }
+

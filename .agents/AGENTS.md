@@ -99,6 +99,17 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
   - Backups MUST be verified via `PRAGMA integrity_check` returning `"ok"` prior to pruning older archives. Corrupt backups MUST be aborted immediately and never overwrite or prune older valid archives.
 - **Zero-Downtime Deployment Storage Invariant**:
   - Live SQLite database files (`data/`) and backup archives (`backups/`) MUST reside in persistent shared storage (`$APP_DIR/data`, `$APP_DIR/backups`) outside ephemeral release directories, symlinked into `$RELEASE_DIR` (`ln -sfn "$APP_DIR/data" "$RELEASE_DIR/data"`). Never store database files inside standalone release paths subject to rotation or pruning.
+- **Database Path Resolution & PM2 Working Directory Invariant**:
+  - In production `.env`, `SQLITE_PATH` MUST be specified as an absolute path (e.g. `/home/luyce/wedrink/data/wedrink.db`). PM2 retains the initial daemon launch `cwd` across `pm2 reload` and `pm2 restart`, which causes relative paths (`data/wedrink.db`) to resolve against stale release folders.
+  - `internal/config/config.go` implements an automatic fallback: if a relative `SQLITE_PATH` or `BACKUP_DIR` is not found in the process working directory, it resolves relative to the executable application root (`filepath.Dir(filepath.Dir(exe))`).
+  - All PM2 reloads MUST include `--update-env` (`pm2 reload wedrink --update-env`) to ensure updated `.env` keys are ingested by the running process.
+- **Audit Trail & Diff Parity Invariants**:
+  - **Action Matching**: Report overwrites emit `Action: "report.overwrite"`. Financial report audit queries (`action=reports`) across both SQLite and MongoDB MUST include `'report.submit'`, `'report.overwrite'`, `'report.update'`, and `'report.delete'`.
+  - **All-Events Filter**: When `action=all` (or empty), repositories MUST return all logs without filtering by a literal `"all"`.
+  - **Diff Normalization (`utils.ToCleanMap`)**: Audit states may be structs, `bson.D` slice pairs, JSON strings, or maps. State parsing and diff generation MUST use `utils.ToCleanMap` to convert payloads into standard `map[string]any`. Never run standard `json.Marshal` directly on `bson.D` without conversion, as it serializes into an array of `[{"Key":"...", "Value":...}]` objects which breaks before/after diff rendering.
+  - **Synchronous Audit Logging**: `AuditService.Log()` MUST execute synchronously with a bounded timeout (5 seconds) before returning. Never offload audit writes to detached background goroutines when subsequent HTTP responses or HTMX triggers immediately re-query the audit log.
+- **Bidirectional Migration Parity**:
+  - `cmd/migrate_mongo_to_sqlite` and `cmd/migrate_sqlite_to_mongo` provide complete bidirectional migration with nullable column handling (`sql.NullString` for `actor_id` and `resource_id`) and idempotent upserts (`ReplaceOne(..., upsert: true)`).
 
 ### MongoDB Legacy Driver (Fallback)
 - **Driver Version**: Always use `go.mongodb.org/mongo-driver/v2` (not v1).
