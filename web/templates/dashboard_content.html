@@ -1,5 +1,5 @@
 <!-- Header + synchronized date navigation bar -->
-<div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+<div id="dash-header" class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
   <div>
     <h1 class="text-base font-bold text-white tracking-tight uppercase">Dayend Report Dashboard</h1>
     <p class="text-xs text-slate-300 mt-0.5 font-medium">Daily Sales Breakdown & Till Reconciliation</p>
@@ -90,6 +90,7 @@
   </div>
 </div>
 
+<div id="dash-data-panel">
 {{if .Report}}
   <span id="dash-date-val" class="hidden">{{.Report.ReportDate}}</span>
 
@@ -264,3 +265,4 @@
     <a href="/submit" class="btn btn-primary inline-flex text-xs py-2 px-5">Submit Report for {{.ReportDate}}</a>
   </div>
 {{end}}
+</div><!-- /dash-data-panel -->

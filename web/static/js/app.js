@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Re-init date picker if present in swapped DOM
     if (window.initDatePicker) window.initDatePicker();
     if (window.initReportsPageDatePickers) window.initReportsPageDatePickers();
+    if (window.ingestReportsHistoryData) window.ingestReportsHistoryData(evt.detail?.target || document);
 
     // Smooth scroll alert banner into view if target is form alert container or login error
     const target = evt.detail?.target;
@@ -777,7 +778,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ─────────────────────────────────────────────────────
      DASHBOARD RAPID DATE STEPPER & CACHE-AWARE NAVIGATOR
+  /* ─────────────────────────────────────────────────────
+     DASHBOARD DATE NAVIGATION & CLIENT STORE CACHE
+     - Ingests reports from history page (/reports) into reportHistoryStore
+     - Renders instant (0ms) updates from store or dashDateCache
+     - Preserves #dash-header DOM to eliminate dropped clicks
+     - Single jumps: immediate 0ms dispatch
+     - Multi-clicks: debounced server fallback
   ───────────────────────────────────────────────────── */
+  window.reportHistoryStore = new Map();
+  window.reportHistoryMinDate = null;
+  window.reportHistoryMaxDate = null;
   const dashDateCache = new Map();
   let dashPendingDate = null;
   let dashNavTimer = null;
@@ -786,9 +797,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let dashIsFetching = false;
   let dashLastClickTime = 0;
 
-  // Clear date cache when reports are modified
+  // Clear date cache and history store when reports are modified
   ['reportSaved', 'reportDeleted', 'reportUpdated'].forEach(evt => {
-    document.addEventListener(evt, () => dashDateCache.clear());
+    document.addEventListener(evt, () => {
+      dashDateCache.clear();
+      window.reportHistoryStore.clear();
+      window.reportHistoryMinDate = null;
+      window.reportHistoryMaxDate = null;
+    });
   });
 
   function parseDateYMD(str) {
@@ -802,18 +818,298 @@ document.addEventListener('DOMContentLoaded', () => {
     return isNaN(dt.getTime()) ? new Date() : dt;
   }
 
+  function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Ingests report data payloads from /reports (initial load, HTMX swaps, or background pre-fetch)
+  window.ingestReportsHistoryData = function(rootEl) {
+    const root = rootEl || document;
+    const scripts = root.querySelectorAll ? root.querySelectorAll('#reports-history-data, script.appended-reports-data') : [];
+    if (!scripts || scripts.length === 0) {
+      const single = root.getElementById ? root.getElementById('reports-history-data') : null;
+      if (single) ingestScript(single);
+      return;
+    }
+    scripts.forEach(ingestScript);
+
+    function ingestScript(scriptEl) {
+      if (!scriptEl || !scriptEl.textContent) return;
+      try {
+        const data = JSON.parse(scriptEl.textContent);
+        if (Array.isArray(data)) {
+          data.forEach(rep => {
+            if (rep && rep.report_date) {
+              window.reportHistoryStore.set(rep.report_date, rep);
+              if (!window.reportHistoryMinDate || rep.report_date < window.reportHistoryMinDate) {
+                window.reportHistoryMinDate = rep.report_date;
+              }
+              if (!window.reportHistoryMaxDate || rep.report_date > window.reportHistoryMaxDate) {
+                window.reportHistoryMaxDate = rep.report_date;
+              }
+            }
+          });
+        }
+      } catch (_) {}
+    }
+  };
+
+  // Generates complete innerHTML for #dash-data-panel matching server-rendered markup
+  function renderDashboardPanelFromReport(report, targetDate) {
+    if (!report) {
+      return `
+        <div class="bg-[#131f3a] border border-[#1e2d4a] p-10 text-center max-w-sm mx-auto my-8 rounded-lg">
+          <div class="text-slate-400 text-2xl mb-3">📋</div>
+          <h3 class="text-sm font-bold text-white">No report for ${escapeHTML(targetDate)}</h3>
+          <p class="text-xs text-slate-400 mt-1 mb-5">No report submitted for this date yet.</p>
+          <a href="/submit" class="btn btn-primary inline-flex text-xs py-2 px-5">Submit Report for ${escapeHTML(targetDate)}</a>
+        </div>
+      `;
+    }
+
+    const totalSale = Math.round(report.total_sale || 0);
+    const creditSale = Math.round(report.credit_sale || 0);
+    const bankTransfer = Math.round(report.bank_transfer || 0);
+    const otherPayments = Math.round(report.other_payments || 0);
+    const expectedCash = Math.round(report.expected_cash || 0);
+    const counterCash = Math.round(report.counter_cash || 0);
+    const diff = Math.round(report.difference || 0);
+
+    let diffClass = 'text-emerald-400';
+    let diffText = '0  (Balanced)';
+    if (diff < 0) {
+      diffClass = 'text-rose-400';
+      diffText = `${formatWithCommas(diff)}  (Short)`;
+    } else if (diff > 0) {
+      diffClass = 'text-sky-400';
+      diffText = `+${formatWithCommas(diff)}  (Surplus)`;
+    }
+
+    const canEdit = document.getElementById('dashboard-content')?.getAttribute('data-can-edit') === 'true';
+    const reportKey = report.report_id || report.id || report.report_date;
+    const canEditHTML = canEdit
+      ? `<a href="/reports/edit?id=${escapeHTML(reportKey)}" class="font-bold text-[#007C77] hover:underline">✎ Edit</a>`
+      : '';
+
+    let expensesHTML = '';
+    if (report.expenses && report.expenses.length > 0) {
+      const items = report.expenses.map((exp, idx) => {
+        const bgClass = (idx % 2 === 0) ? 'bg-[#080e1e]/50' : 'bg-[#080e1e]/20';
+        const expAmt = Math.round(exp.amount || 0);
+        return `
+          <div class="dash-expense-item flex items-center justify-between px-4 py-2.5 text-xs ${bgClass}"
+               data-desc="${escapeHTML(exp.description || '')}" data-amount="${expAmt}">
+            <span class="dash-exp-desc text-slate-100 font-semibold">${escapeHTML(exp.description || '')}</span>
+            <span class="dash-exp-amt font-bold text-white tabular-nums">${formatWithCommas(expAmt)}</span>
+          </div>
+        `;
+      }).join('');
+      expensesHTML = `<div class="divide-y divide-[#1e2d4a]/60 overflow-y-auto flex-1" style="max-height: 16rem;">${items}</div>`;
+    } else {
+      expensesHTML = `<div class="py-8 text-center text-slate-400 text-xs italic flex-1">No other payments recorded.</div>`;
+    }
+
+    const notesHTML = report.notes && report.notes.trim()
+      ? escapeHTML(report.notes)
+      : '<span class="italic text-slate-400">None</span>';
+
+    return `
+      <span id="dash-date-val" class="hidden">${escapeHTML(report.report_date)}</span>
+
+      <!-- Resizable two-panel layout -->
+      <div class="dash-panels">
+
+        <!-- LEFT: Summary + Reconciliation -->
+        <div id="dash-main-panel" class="dash-main space-y-3">
+
+          <!-- Summary Statistics -->
+          <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+            <div class="dash-card-header px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-center">
+              Summary Statistics
+            </div>
+            <div class="divide-y divide-[#1e2d4a]/60 text-sm">
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/30">
+                <span class="text-xs font-bold text-slate-200">Total Sales</span>
+                <span id="dash-total-sale" data-raw="${totalSale}"
+                      class="font-bold text-white tabular-nums">
+                  ${formatWithCommas(totalSale)}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/60">
+                <span class="text-xs font-bold text-slate-200">Credit Card Sales</span>
+                <span id="dash-credit-sale" data-raw="${creditSale}"
+                      class="font-bold text-white tabular-nums">
+                  ${formatWithCommas(creditSale)}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/30">
+                <span class="text-xs font-bold text-slate-200">Bank Transfers</span>
+                <span id="dash-bank-transfer" data-raw="${bankTransfer}"
+                      class="font-bold text-white tabular-nums">
+                  ${formatWithCommas(bankTransfer)}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/60">
+                <span class="text-xs font-bold text-slate-200">Other Payments</span>
+                <span id="dash-other-payments" data-raw="${otherPayments}"
+                      class="font-bold text-white tabular-nums">
+                  ${formatWithCommas(otherPayments)}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#1e2d4a]/50 border-t border-[#2b3d63]">
+                <span class="text-xs font-bold text-slate-100">Expected Closing Cash</span>
+                <span id="dash-expected-cash" data-raw="${expectedCash}"
+                      class="font-bold text-white text-base tabular-nums">
+                  ${formatWithCommas(expectedCash)}
+                </span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Physical Reconciliation -->
+          <div class="bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+            <div class="dash-card-header px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-center">
+              Physical Reconciliation
+            </div>
+            <div class="divide-y divide-[#1e2d4a]/60 text-sm">
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/30">
+                <span class="text-xs font-bold text-slate-200">Actual Till Cash</span>
+                <span id="dash-counter-cash" data-raw="${counterCash}"
+                      class="font-bold text-white tabular-nums">
+                  ${formatWithCommas(counterCash)}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between px-4 py-3 bg-[#080e1e]/60">
+                <span class="text-xs font-bold text-slate-200">Cash Discrepancy</span>
+                <span id="dash-discrepancy" data-raw="${diff}"
+                      class="font-bold text-base tabular-nums ${diffClass}">
+                  ${diffText}
+                </span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Audit meta -->
+          <div class="flex items-center justify-between text-xs text-slate-300 px-1">
+            <div>By <span id="dash-submitted-by" class="font-bold text-slate-100">${escapeHTML(report.submitted_by || '')}</span>
+              (<span class="capitalize font-bold text-[#007C77]">${escapeHTML(report.submitted_by_role || '')}</span>)</div>
+            ${canEditHTML}
+          </div>
+
+        </div><!-- /dash-main -->
+
+        <!-- Drag handle -->
+        <div id="dash-resize-handle" class="resize-handle" title="Drag to resize · Double-click to reset"></div>
+
+        <!-- RIGHT: Expenses + Notes -->
+        <div id="dash-side-panel" class="dash-side bg-[#131f3a] border border-[#1e2d4a] rounded-lg overflow-hidden">
+          <!-- Header -->
+          <div class="dash-card-header px-4 py-2 text-[11px] font-bold uppercase tracking-widest flex items-center justify-between">
+            <span>Other Payments</span>
+            <button type="button" onclick="copyExpensesForExcel()"
+                    class="px-2.5 py-1 rounded bg-emerald-700 border border-emerald-500/60 text-white text-[11px] font-bold hover:bg-emerald-600 transition"
+                    title="Copy for Excel">Copy</button>
+          </div>
+
+          <!-- Column header -->
+          <div class="dash-sub-header px-4 py-1.5 text-[11px] font-extrabold flex justify-between uppercase tracking-wider">
+            <span>Description</span><span>Amount</span>
+          </div>
+
+          <!-- Expense rows -->
+          ${expensesHTML}
+
+          <!-- Store notes -->
+          <div class="p-3 border-t border-[#1e2d4a] bg-[#080e1e]/40 mt-auto">
+            <div class="text-[11px] font-extrabold text-slate-200 uppercase tracking-widest mb-1">Remarks</div>
+            <p id="dash-notes" class="text-xs text-slate-100 font-semibold leading-relaxed">
+              ${notesHTML}
+            </p>
+          </div>
+
+        </div><!-- /dash-side -->
+
+      </div><!-- /dash-panels -->
+    `;
+  }
+
   function renderDashboardHTML(html, targetDate, isHistoryPush) {
     const dashContainer = document.getElementById('dashboard-content');
     if (!dashContainer) return;
 
-    dashContainer.innerHTML = html;
+    const dataPanel = document.getElementById('dash-data-panel');
+    let panelContent = html;
+
+    // If server returned the full content with header, extract only dash-data-panel to preserve buttons in DOM
+    if (html && html.includes('id="dash-data-panel"')) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const extracted = doc.getElementById('dash-data-panel');
+      if (extracted) {
+        panelContent = extracted.innerHTML;
+      }
+    }
+
+    if (dataPanel) {
+      dataPanel.innerHTML = panelContent;
+    } else {
+      dashContainer.innerHTML = html;
+    }
     dashContainer.style.opacity = '1';
 
+    // Synchronize header inputs without replacing header DOM buttons
+    const dpHidden = document.getElementById('reportDate');
+    if (dpHidden) dpHidden.value = targetDate;
+    const targetDateObj = parseDateYMD(targetDate);
+    dpSelected = new Date(targetDateObj);
+    dpUpdateTrigger();
+
+    const prevDateObj = new Date(targetDateObj);
+    prevDateObj.setDate(prevDateObj.getDate() - 1);
+    const nextDateObj = new Date(targetDateObj);
+    nextDateObj.setDate(nextDateObj.getDate() + 1);
+
+    const prevLink = document.getElementById('dash-prev-day');
+    const nextLink = document.getElementById('dash-next-day');
+    if (prevLink) prevLink.setAttribute('href', '/?date=' + dpIso(prevDateObj));
+    if (nextLink) nextLink.setAttribute('href', '/?date=' + dpIso(nextDateObj));
+
+    // Restore side panel width preference if present
+    try {
+      const m = document.getElementById('dash-main-panel');
+      const s = document.getElementById('dash-side-panel');
+      const w = localStorage.getItem('wedrink_side_panel_width');
+      if (m && s && w) {
+        const num = parseInt(w, 10);
+        if (num >= 220 && num <= 800) {
+          m.style.flex = '1 1 0';
+          m.style.width = '';
+          s.style.flex = '0 0 auto';
+          s.style.width = num + 'px';
+        }
+      }
+    } catch (_) {}
+
     if (window.htmx) {
-      htmx.process(dashContainer);
+      htmx.process(dataPanel || dashContainer);
     }
     document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', {
-      detail: { target: dashContainer }
+      detail: { target: dataPanel || dashContainer }
     }));
 
     if (isHistoryPush) {
@@ -830,7 +1126,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dashContainer) return;
 
     const dpHidden = document.getElementById('reportDate');
-    const curLabel = document.getElementById('dp-label');
     const prevLink = document.getElementById('dash-prev-day');
     const nextLink = document.getElementById('dash-next-day');
 
@@ -873,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update browser URL immediately without page reload
     history.replaceState({ path: '/?date=' + newDateStr, date: newDateStr }, '', '/?date=' + newDateStr);
 
-    // If target date is already in memory cache, render IMMEDIATELY with 0ms latency!
+    // 4. Layer 1 Cache: Memory HTML cache (0ms instant render)
     if (dashDateCache.has(newDateStr)) {
       if (dashNavTimer) clearTimeout(dashNavTimer);
       if (dashAbortController) {
@@ -883,13 +1178,37 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Subtle opacity transition indicator
+    // 5. Layer 2 Cache: Reports loaded for history page (/reports)
+    if (window.reportHistoryStore && window.reportHistoryStore.has(newDateStr)) {
+      if (dashNavTimer) clearTimeout(dashNavTimer);
+      if (dashAbortController) {
+        try { dashAbortController.abort(); } catch (_) {}
+      }
+      const rep = window.reportHistoryStore.get(newDateStr);
+      const html = renderDashboardPanelFromReport(rep, newDateStr);
+      dashDateCache.set(newDateStr, html);
+      renderDashboardHTML(html, newDateStr, false);
+      return;
+    }
+
+    // 6. Layer 3 Cache: If date is within known history range and not in store => definitely empty day
+    if (window.reportHistoryMinDate && window.reportHistoryMaxDate &&
+        newDateStr >= window.reportHistoryMinDate && newDateStr <= window.reportHistoryMaxDate &&
+        window.reportHistoryStore && !window.reportHistoryStore.has(newDateStr)) {
+      if (dashNavTimer) clearTimeout(dashNavTimer);
+      if (dashAbortController) {
+        try { dashAbortController.abort(); } catch (_) {}
+      }
+      const html = renderDashboardPanelFromReport(null, newDateStr);
+      dashDateCache.set(newDateStr, html);
+      renderDashboardHTML(html, newDateStr, false);
+      return;
+    }
+
+    // 7. Layer 4 Fallback: Server network fetch
     dashContainer.style.transition = 'opacity 0.15s ease';
     dashContainer.style.opacity = '0.65';
 
-    // 4. Immediate First Dispatch vs. Rapid Multi-Click Debounce:
-    // If single jump (not rapid clicking, no active request), fetch IMMEDIATELY (0ms dispatch delay)!
-    // If user is clicking rapidly (Click 2, Click 3...), abort previous in-flight fetch and debounce.
     if (!isRapidClick && !dashIsFetching && !dashNavTimer) {
       const reqId = ++dashActiveReqId;
       window.fetchDashboardDate(newDateStr, false, reqId);
@@ -914,9 +1233,15 @@ document.addEventListener('DOMContentLoaded', () => {
       dashNavTimer = null;
     }
 
-    // Check memory cache first
+    // Check memory caches first
     if (dashDateCache.has(targetDate)) {
       renderDashboardHTML(dashDateCache.get(targetDate), targetDate, isHistoryPush);
+      return;
+    }
+    if (window.reportHistoryStore && window.reportHistoryStore.has(targetDate)) {
+      const html = renderDashboardPanelFromReport(window.reportHistoryStore.get(targetDate), targetDate);
+      dashDateCache.set(targetDate, html);
+      renderDashboardHTML(html, targetDate, isHistoryPush);
       return;
     }
 
@@ -967,6 +1292,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashContainer = document.getElementById('dashboard-content');
     if (!dashContainer || !newVal || !oldVal || oldVal === newVal) return false;
     dashPendingDate = null;
+    if (dashDateCache.has(newVal)) {
+      renderDashboardHTML(dashDateCache.get(newVal), newVal, false);
+      return true;
+    }
+    if (window.reportHistoryStore && window.reportHistoryStore.has(newVal)) {
+      const html = renderDashboardPanelFromReport(window.reportHistoryStore.get(newVal), newVal);
+      dashDateCache.set(newVal, html);
+      renderDashboardHTML(html, newVal, false);
+      return true;
+    }
     window.fetchDashboardDate(newVal, false);
     return true;
   }
@@ -1721,6 +2056,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(html => {
               const parser = new DOMParser();
               const doc = parser.parseFromString(html, 'text/html');
+              if (href === '/reports' && window.ingestReportsHistoryData) {
+                window.ingestReportsHistoryData(doc);
+              }
               const fetchedMain = doc.querySelector('#app-main-content') || doc.querySelector('main');
               if (fetchedMain) {
                 pageCache.set(href, sanitizeHTMLForCache(fetchedMain.innerHTML));
@@ -1796,6 +2134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const doc = parser.parseFromString(html, 'text/html');
             const fetchedMain = doc.querySelector('#app-main-content') || doc.querySelector('main');
             if (fetchedMain) {
+              if (targetRoute === '/reports' && window.ingestReportsHistoryData) {
+                window.ingestReportsHistoryData(doc);
+              }
               renderContent(fetchedMain.innerHTML);
             } else {
               window.location.href = targetRoute;
@@ -1835,6 +2176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sync active nav links on initial load
     updateActiveNavLinks(window.location.pathname);
+    if (window.ingestReportsHistoryData) window.ingestReportsHistoryData(document);
 
     // Intercept clicks on mobile & header nav links for instant SPA switching
     document.addEventListener('click', (e) => {
@@ -1879,6 +2221,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const todayStr = dpIso(new Date());
         window.fetchDashboardDate(todayStr, false);
         return;
+      }
+    });
+
+    // Prevent text selection or browser navigation anomalies on rapid double clicking
+    document.addEventListener('dblclick', (e) => {
+      const btn = e.target.closest('#dash-prev-day, #dash-next-day, #dash-today-btn');
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     });
 

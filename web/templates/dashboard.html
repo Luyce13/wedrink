@@ -1,5 +1,5 @@
 {{define "content"}}
-<div id="dashboard-content" class="space-y-4">
+<div id="dashboard-content" class="space-y-4" data-can-edit="{{if .User.CanEditReports}}true{{else}}false{{end}}">
   {{template "dashboard_content.html" .}}
 </div>
 {{end}}
