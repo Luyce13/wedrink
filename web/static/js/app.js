@@ -436,6 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const submittedDatesCache = new Map();
+  window.submittedDatesCache = submittedDatesCache;
   function clearSubmittedDatesCache() {
     submittedDatesCache.clear();
   }
@@ -817,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.reportHistoryStore.clear();
       window.reportHistoryMinDate = null;
       window.reportHistoryMaxDate = null;
+      if (typeof clearSubmittedDatesCache === 'function') clearSubmittedDatesCache();
     });
   });
 
@@ -863,6 +865,17 @@ document.addEventListener('DOMContentLoaded', () => {
           data = [data];
         }
         if (Array.isArray(data)) {
+          const isFullHistoryBatch = scriptEl.id === 'reports-history-data';
+          const todayIso = dpIso(new Date());
+
+          if (isFullHistoryBatch) {
+            // /reports is ordered by date DESC starting from today.
+            // Any date between today and the newest report in history has NO report.
+            if (!window.reportHistoryMaxDate || todayIso > window.reportHistoryMaxDate) {
+              window.reportHistoryMaxDate = todayIso;
+            }
+          }
+
           data.forEach(rep => {
             if (rep && rep.report_date) {
               setRollingCache(window.reportHistoryStore, rep.report_date, rep, MAX_HISTORY_STORE_SIZE);
@@ -874,10 +887,39 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           });
+
+          // If the batch returned fewer than 100 items (the server limit), all historical reports have been loaded!
+          if (isFullHistoryBatch && data.length < 100) {
+            window.reportHistoryMinDate = '2020-01-01';
+          }
         }
       } catch (_) {}
     }
   };
+
+  // Helper to check if a date is known to have NO report submitted (0ms instant placeholder)
+  function isDateKnownEmpty(dateStr) {
+    if (!dateStr) return false;
+    if (window.reportHistoryStore && window.reportHistoryStore.has(dateStr)) return false;
+
+    // Check 1: Monthly submitted dates cache (from /reports/submitted-dates)
+    const monthKey = dateStr.substring(0, 7);
+    if (submittedDatesCache && submittedDatesCache.has(monthKey)) {
+      const info = submittedDatesCache.get(monthKey);
+      if (info && info.dates) {
+        return !info.dates.has(dateStr);
+      }
+    }
+
+    // Check 2: History store date window
+    if (window.reportHistoryMinDate && window.reportHistoryMaxDate) {
+      if (dateStr >= window.reportHistoryMinDate && dateStr <= window.reportHistoryMaxDate) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   // Auto-ingest from document and cache initial dashboard panel immediately
   function initDashboardDateStore() {
@@ -888,6 +930,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateInput = document.getElementById('reportDate');
     if (dataPanel && dateInput && dateInput.value) {
       setRollingCache(dashDateCache, dateInput.value, dataPanel.innerHTML, MAX_DASH_HTML_CACHE_SIZE);
+      const monthStr = dateInput.value.substring(0, 7);
+      if (typeof fetchSubmittedDates === 'function') {
+        fetchSubmittedDates(monthStr);
+      }
     }
   }
 
@@ -1228,10 +1274,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 6. Layer 3 Cache: If date is within known history range and not in store => definitely empty day
-    if (window.reportHistoryMinDate && window.reportHistoryMaxDate &&
-        newDateStr >= window.reportHistoryMinDate && newDateStr <= window.reportHistoryMaxDate &&
-        window.reportHistoryStore && !window.reportHistoryStore.has(newDateStr)) {
+    // 6. Layer 3 Cache: Known empty days (from history range or submittedDatesCache)
+    if (isDateKnownEmpty(newDateStr)) {
       if (dashNavTimer) clearTimeout(dashNavTimer);
       if (dashAbortController) {
         try { dashAbortController.abort(); } catch (_) {}
@@ -1282,6 +1326,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    if (isDateKnownEmpty(targetDate)) {
+      const html = renderDashboardPanelFromReport(null, targetDate);
+      setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
+      renderDashboardHTML(html, targetDate, isHistoryPush);
+      return;
+    }
+
     // If /reports history prefetch is in flight, await it to reuse shared payload
     if (window.reportsPrefetchPromise) {
       try {
@@ -1303,9 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDashboardHTML(html, targetDate, isHistoryPush);
         return;
       }
-      if (window.reportHistoryMinDate && window.reportHistoryMaxDate &&
-          targetDate >= window.reportHistoryMinDate && targetDate <= window.reportHistoryMaxDate &&
-          window.reportHistoryStore && !window.reportHistoryStore.has(targetDate)) {
+      if (isDateKnownEmpty(targetDate)) {
         const html = renderDashboardPanelFromReport(null, targetDate);
         setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
         renderDashboardHTML(html, targetDate, isHistoryPush);
@@ -1366,6 +1415,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.reportHistoryStore && window.reportHistoryStore.has(newVal)) {
       const html = renderDashboardPanelFromReport(window.reportHistoryStore.get(newVal), newVal);
+      setRollingCache(dashDateCache, newVal, html, MAX_DASH_HTML_CACHE_SIZE);
+      renderDashboardHTML(html, newVal, false);
+      return true;
+    }
+    if (isDateKnownEmpty(newVal)) {
+      const html = renderDashboardPanelFromReport(null, newVal);
       setRollingCache(dashDateCache, newVal, html, MAX_DASH_HTML_CACHE_SIZE);
       renderDashboardHTML(html, newVal, false);
       return true;
