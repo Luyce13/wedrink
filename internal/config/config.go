@@ -46,10 +46,35 @@ func LoadConfig() *Config {
 		backupInterval = 24 * time.Hour
 	}
 
+	sqlitePath := getEnv("SQLITE_PATH", "data/wedrink.db")
+	backupDir := getEnv("BACKUP_DIR", "data/backups")
+
+	// If relative paths are provided and do not exist in current working directory,
+	// resolve them relative to the executable's application root (bin/.. -> app root).
+	if exe, err := os.Executable(); err == nil {
+		appRoot := filepath.Dir(filepath.Dir(exe))
+		if !filepath.IsAbs(sqlitePath) {
+			if _, err := os.Stat(sqlitePath); os.IsNotExist(err) {
+				candidate := filepath.Join(appRoot, sqlitePath)
+				if _, err := os.Stat(candidate); err == nil {
+					sqlitePath = candidate
+				}
+			}
+		}
+		if !filepath.IsAbs(backupDir) {
+			if _, err := os.Stat(backupDir); os.IsNotExist(err) {
+				candidate := filepath.Join(appRoot, backupDir)
+				if _, err := os.Stat(candidate); err == nil {
+					backupDir = candidate
+				}
+			}
+		}
+	}
+
 	return &Config{
 		Port:            getEnv("PORT", "8080"),
 		DBDriver:        strings.ToLower(getEnv("DB_DRIVER", "mongodb")),
-		SQLitePath:      getEnv("SQLITE_PATH", "data/wedrink.db"),
+		SQLitePath:      sqlitePath,
 		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDBName:     getEnv("MONGO_DB_NAME", "wedrink"),
 		SessionSecret:   getEnv("SESSION_SECRET", "wedrink-secret-session-key-2026-change-me"),
@@ -57,7 +82,7 @@ func LoadConfig() *Config {
 		AutoSeed:        autoSeed == "true" || autoSeed == "1",
 		BackupEnabled:   backupEnabled,
 		BackupInterval:  backupInterval,
-		BackupDir:       getEnv("BACKUP_DIR", "data/backups"),
+		BackupDir:       backupDir,
 		BackupRetention: 14,
 	}
 }

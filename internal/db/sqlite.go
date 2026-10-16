@@ -68,13 +68,16 @@ func ConnectSQLite(dbPath string) (*SQLiteDB, error) {
 		return nil, fmt.Errorf("failed to ping sqlite database: %w", err)
 	}
 
-	slog.Info("Successfully connected to SQLite database", "path", dbPath, "maxConns", maxConns)
-
 	sqliteDB := &SQLiteDB{DB: db}
 	if err := sqliteDB.migrate(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("sqlite migration failed: %w", err)
 	}
+
+	absPath, _ := filepath.Abs(dbPath)
+	var reportCount int
+	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM eod_reports WHERE is_deleted = 0;").Scan(&reportCount)
+	slog.Info("Successfully connected to SQLite database", "path", dbPath, "abs_path", absPath, "report_count", reportCount, "maxConns", maxConns)
 
 	return sqliteDB, nil
 }

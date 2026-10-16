@@ -203,7 +203,10 @@ func (h *ReportHandler) RenderReportsList(w http.ResponseWriter, r *http.Request
 
 	reports, err := h.service.GetReportsWithParams(ctx, params)
 	if err != nil {
+		slog.Error("Failed to fetch reports with params", "error", err, "startDate", startDate, "endDate", endDate, "sortBy", sortBy, "sortOrder", sortOrder)
 		reports = []models.EODReport{}
+	} else {
+		slog.Debug("Fetched reports with params", "count", len(reports), "limit", limit)
 	}
 
 	var nextCursor string
