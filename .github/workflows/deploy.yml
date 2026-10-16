@@ -121,9 +121,9 @@ jobs:
             tar -xzf /tmp/release.tar.gz -C "$RELEASE_DIR"
             rm -f /tmp/release.tar.gz
 
-            # Copy production .env if present in APP_DIR
+            # Symlink production .env if present in APP_DIR
             if [ -f "$APP_DIR/.env" ]; then
-              cp "$APP_DIR/.env" "$RELEASE_DIR/.env"
+              ln -sfn "$APP_DIR/.env" "$RELEASE_DIR/.env"
             fi
 
             # Shared persistent storage for SQLite DB and Backups:
@@ -140,7 +140,7 @@ jobs:
             mv -Tf "$APP_DIR/current.new" "$APP_DIR/current"
 
             cd "$APP_DIR/current"
-            pm2 reload wedrink || pm2 restart wedrink || pm2 start ./bin/wedrink --name wedrink
+            pm2 reload wedrink --update-env || pm2 restart wedrink --update-env || pm2 start ./bin/wedrink --name wedrink
 
             # Cleanly prune older releases (keep last 5)
             cd "$APP_DIR/releases"
