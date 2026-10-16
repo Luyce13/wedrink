@@ -778,10 +778,18 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─────────────────────────────────────────────────────
      DASHBOARD RAPID DATE STEPPER & CACHE-AWARE NAVIGATOR
   ───────────────────────────────────────────────────── */
+  const dashDateCache = new Map();
   let dashPendingDate = null;
   let dashNavTimer = null;
   let dashActiveReqId = 0;
   let dashAbortController = null;
+  let dashIsFetching = false;
+  let dashLastClickTime = 0;
+
+  // Clear date cache when reports are modified
+  ['reportSaved', 'reportDeleted', 'reportUpdated'].forEach(evt => {
+    document.addEventListener(evt, () => dashDateCache.clear());
+  });
 
   function parseDateYMD(str) {
     if (!str || typeof str !== 'string') return new Date();
@@ -794,6 +802,29 @@ document.addEventListener('DOMContentLoaded', () => {
     return isNaN(dt.getTime()) ? new Date() : dt;
   }
 
+  function renderDashboardHTML(html, targetDate, isHistoryPush) {
+    const dashContainer = document.getElementById('dashboard-content');
+    if (!dashContainer) return;
+
+    dashContainer.innerHTML = html;
+    dashContainer.style.opacity = '1';
+
+    if (window.htmx) {
+      htmx.process(dashContainer);
+    }
+    document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', {
+      detail: { target: dashContainer }
+    }));
+
+    if (isHistoryPush) {
+      history.replaceState({ path: '/?date=' + targetDate, date: targetDate }, '', '/?date=' + targetDate);
+    } else {
+      history.pushState({ path: '/?date=' + targetDate, date: targetDate }, '', '/?date=' + targetDate);
+    }
+
+    dashPendingDate = null;
+  }
+
   function stepDashboardDate(direction) {
     const dashContainer = document.getElementById('dashboard-content');
     if (!dashContainer) return;
@@ -802,6 +833,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const curLabel = document.getElementById('dp-label');
     const prevLink = document.getElementById('dash-prev-day');
     const nextLink = document.getElementById('dash-next-day');
+
+    const now = Date.now();
+    const isRapidClick = (now - dashLastClickTime) < 300;
+    dashLastClickTime = now;
 
     // 1. Determine base date (pending date if multi-clicking, otherwise hidden input or URL)
     let baseStr = dashPendingDate;
@@ -838,18 +873,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update browser URL immediately without page reload
     history.replaceState({ path: '/?date=' + newDateStr, date: newDateStr }, '', '/?date=' + newDateStr);
 
+    // If target date is already in memory cache, render IMMEDIATELY with 0ms latency!
+    if (dashDateCache.has(newDateStr)) {
+      if (dashNavTimer) clearTimeout(dashNavTimer);
+      if (dashAbortController) {
+        try { dashAbortController.abort(); } catch (_) {}
+      }
+      renderDashboardHTML(dashDateCache.get(newDateStr), newDateStr, false);
+      return;
+    }
+
     // Subtle opacity transition indicator
     dashContainer.style.transition = 'opacity 0.15s ease';
     dashContainer.style.opacity = '0.65';
 
-    // 4. Debounced dispatch with stale-response cancellation
-    if (dashNavTimer) clearTimeout(dashNavTimer);
-    const reqId = ++dashActiveReqId;
-    const targetDate = newDateStr;
+    // 4. Immediate First Dispatch vs. Rapid Multi-Click Debounce:
+    // If single jump (not rapid clicking, no active request), fetch IMMEDIATELY (0ms dispatch delay)!
+    // If user is clicking rapidly (Click 2, Click 3...), abort previous in-flight fetch and debounce.
+    if (!isRapidClick && !dashIsFetching && !dashNavTimer) {
+      const reqId = ++dashActiveReqId;
+      window.fetchDashboardDate(newDateStr, false, reqId);
+    } else {
+      if (dashAbortController) {
+        try { dashAbortController.abort(); } catch (_) {}
+      }
+      if (dashNavTimer) clearTimeout(dashNavTimer);
+      const reqId = ++dashActiveReqId;
+      const targetDate = newDateStr;
 
-    dashNavTimer = setTimeout(() => {
-      window.fetchDashboardDate(targetDate, false, reqId);
-    }, 180);
+      dashNavTimer = setTimeout(() => {
+        window.fetchDashboardDate(targetDate, false, reqId);
+      }, 160);
+    }
   }
 
   window.fetchDashboardDate = async function(targetDate, isHistoryPush, existingReqId) {
@@ -859,10 +914,17 @@ document.addEventListener('DOMContentLoaded', () => {
       dashNavTimer = null;
     }
 
+    // Check memory cache first
+    if (dashDateCache.has(targetDate)) {
+      renderDashboardHTML(dashDateCache.get(targetDate), targetDate, isHistoryPush);
+      return;
+    }
+
     if (dashAbortController) {
       try { dashAbortController.abort(); } catch (_) {}
     }
     dashAbortController = new AbortController();
+    dashIsFetching = true;
 
     const dashContainer = document.getElementById('dashboard-content');
     if (dashContainer) {
@@ -885,30 +947,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      if (dashContainer) {
-        dashContainer.innerHTML = html;
-        dashContainer.style.opacity = '1';
+      // Store in memory cache for 0ms future visits
+      dashDateCache.set(targetDate, html);
 
-        if (window.htmx) {
-          htmx.process(dashContainer);
-        }
-        document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', {
-          detail: { target: dashContainer }
-        }));
-      }
-
-      // Update browser history once content settles
-      if (isHistoryPush) {
-        history.replaceState({ path: '/?date=' + targetDate, date: targetDate }, '', '/?date=' + targetDate);
-      } else {
-        history.pushState({ path: '/?date=' + targetDate, date: targetDate }, '', '/?date=' + targetDate);
-      }
-
-      dashPendingDate = null;
+      renderDashboardHTML(html, targetDate, isHistoryPush);
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Failed to load dashboard date:', err);
       if (dashContainer) dashContainer.style.opacity = '1';
+    } finally {
+      if (reqId === dashActiveReqId) {
+        dashIsFetching = false;
+      }
     }
   };
 
