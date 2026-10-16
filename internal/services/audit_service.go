@@ -57,17 +57,15 @@ func (s *AuditService) Record(ctx context.Context, input RecordAuditInput) {
 		ResourceID: input.ResourceID,
 		IPAddress:  ipAddr,
 		UserAgent:  userAgent,
-		OldState:   input.OldState,
-		NewState:   input.NewState,
+		OldState:   utils.ToCleanMap(input.OldState),
+		NewState:   utils.ToCleanMap(input.NewState),
 	}
 
-	go func() {
-		logCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.repo.Create(logCtx, log); err != nil {
-			slog.Error("Failed to persist audit log", "action", input.Action, "actor", input.Actor, "error", err)
-		}
-	}()
+	logCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.repo.Create(logCtx, log); err != nil {
+		slog.Error("Failed to persist audit log", "action", input.Action, "actor", input.Actor, "error", err)
+	}
 }
 
 func (s *AuditService) GetAuditLogs(ctx context.Context, params repository.AuditQueryParams) (*repository.AuditQueryResult, error) {

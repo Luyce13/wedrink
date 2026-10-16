@@ -152,18 +152,7 @@ func (h *AuditHandler) RenderAuditDetailModal(w http.ResponseWriter, r *http.Req
 }
 
 func toCleanMap(v any) map[string]any {
-	if v == nil {
-		return nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil
-	}
-	var m map[string]any
-	if err := json.Unmarshal(b, &m); err != nil {
-		return nil
-	}
-	return m
+	return utils.ToCleanMap(v)
 }
 
 func sanitizeState(m map[string]any) map[string]any {

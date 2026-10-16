@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -153,8 +152,8 @@ func main() {
 		auditCount := 0
 		for auditRows.Next() {
 			var (
-				idStr, tsStr, actorID, actor, role, action, resourceID, ip, ua string
-				oldJSON, newJSON                                               sql.NullString
+				idStr, tsStr, actor, role, action, ip, ua string
+				actorID, resourceID, oldJSON, newJSON     sql.NullString
 			)
 			if err := auditRows.Scan(&idStr, &tsStr, &actorID, &actor, &role, &action, &resourceID, &ip, &ua, &oldJSON, &newJSON); err == nil {
 				objID, _ := bson.ObjectIDFromHex(idStr)
@@ -162,21 +161,21 @@ func main() {
 				if ts.IsZero() {
 					ts, _ = time.Parse(time.RFC3339, tsStr)
 				}
-				var oldState, newState map[string]any
+				var oldState, newState any
 				if oldJSON.Valid && oldJSON.String != "" {
-					_ = json.Unmarshal([]byte(oldJSON.String), &oldState)
+					oldState = utils.ToCleanMap(oldJSON.String)
 				}
 				if newJSON.Valid && newJSON.String != "" {
-					_ = json.Unmarshal([]byte(newJSON.String), &newState)
+					newState = utils.ToCleanMap(newJSON.String)
 				}
 				auditLog := models.AuditLog{
 					ID:         objID,
 					Timestamp:  ts,
-					ActorID:    actorID,
+					ActorID:    actorID.String,
 					Actor:      actor,
 					Role:       role,
 					Action:     action,
-					ResourceID: resourceID,
+					ResourceID: resourceID.String,
 					IPAddress:  ip,
 					UserAgent:  ua,
 					OldState:   oldState,

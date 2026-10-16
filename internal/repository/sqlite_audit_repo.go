@@ -33,13 +33,23 @@ func (r *SQLiteAuditRepository) Create(ctx context.Context, log *models.AuditLog
 
 	var oldStateJSON, newStateJSON *string
 	if log.OldState != nil {
-		if b, err := json.Marshal(log.OldState); err == nil {
+		if m := utils.ToCleanMap(log.OldState); m != nil {
+			if b, err := json.Marshal(m); err == nil {
+				s := string(b)
+				oldStateJSON = &s
+			}
+		} else if b, err := json.Marshal(log.OldState); err == nil {
 			s := string(b)
 			oldStateJSON = &s
 		}
 	}
 	if log.NewState != nil {
-		if b, err := json.Marshal(log.NewState); err == nil {
+		if m := utils.ToCleanMap(log.NewState); m != nil {
+			if b, err := json.Marshal(m); err == nil {
+				s := string(b)
+				newStateJSON = &s
+			}
+		} else if b, err := json.Marshal(log.NewState); err == nil {
 			s := string(b)
 			newStateJSON = &s
 		}
@@ -83,21 +93,22 @@ func (r *SQLiteAuditRepository) FindWithParams(ctx context.Context, params Audit
 	var args []any
 
 	if actor := strings.TrimSpace(params.Actor); actor != "" {
-		whereClauses = append(whereClauses, "actor = ?")
-		args = append(args, actor)
+		whereClauses = append(whereClauses, "actor LIKE ?")
+		args = append(args, "%"+actor+"%")
 	}
 
 	if resID := strings.TrimSpace(params.ResourceID); resID != "" {
-		whereClauses = append(whereClauses, "resource_id = ?")
-		args = append(args, resID)
+		whereClauses = append(whereClauses, "resource_id LIKE ?")
+		args = append(args, "%"+resID+"%")
 	}
 
-	if action := strings.TrimSpace(params.Action); action != "" {
+	action := strings.TrimSpace(params.Action)
+	if action != "" && action != "all" {
 		switch action {
 		case "reports":
-			whereClauses = append(whereClauses, "action IN ('report.submit', 'report.update', 'report.delete')")
+			whereClauses = append(whereClauses, "action IN ('report.submit', 'report.overwrite', 'report.update', 'report.delete')")
 		case "auth":
-			whereClauses = append(whereClauses, "action IN ('user.login', 'user.logout', 'user.login_failed')")
+			whereClauses = append(whereClauses, "action IN ('auth.login_success', 'auth.login_failed', 'user.login', 'user.logout', 'user.login_failed', 'auth.failed')")
 		case "users":
 			whereClauses = append(whereClauses, "action IN ('user.create', 'user.update', 'user.delete')")
 		default:
@@ -210,8 +221,8 @@ func (r *SQLiteAuditRepository) GetStats(ctx context.Context) (*AuditStats, erro
 	query := `
 		SELECT 
 			COUNT(*),
-			COUNT(CASE WHEN action IN ('user.login', 'user.login_failed', 'user.logout', 'auth.failed') THEN 1 END),
-			COUNT(CASE WHEN action NOT IN ('user.login', 'user.login_failed', 'user.logout', 'auth.failed') THEN 1 END),
+			COUNT(CASE WHEN action IN ('auth.login_success', 'auth.login_failed', 'user.login', 'user.logout', 'user.login_failed', 'auth.failed') THEN 1 END),
+			COUNT(CASE WHEN action IN ('report.submit', 'report.overwrite', 'report.update', 'report.delete', 'user.create', 'user.update', 'user.delete') THEN 1 END),
 			COUNT(DISTINCT actor)
 		FROM audit_logs;
 	`
@@ -270,10 +281,10 @@ func scanAuditLog(scanner rowScanner) (*models.AuditLog, error) {
 
 	var oldState, newState any
 	if oldStateJSON.Valid && strings.TrimSpace(oldStateJSON.String) != "" {
-		_ = json.Unmarshal([]byte(oldStateJSON.String), &oldState)
+		oldState = utils.ToCleanMap(oldStateJSON.String)
 	}
 	if newStateJSON.Valid && strings.TrimSpace(newStateJSON.String) != "" {
-		_ = json.Unmarshal([]byte(newStateJSON.String), &newState)
+		newState = utils.ToCleanMap(newStateJSON.String)
 	}
 
 	return &models.AuditLog{

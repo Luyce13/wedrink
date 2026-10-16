@@ -64,9 +64,9 @@ func (r *AuditRepository) FindWithParams(ctx context.Context, params AuditQueryP
 	if action != "" && action != "all" {
 		switch action {
 		case "reports":
-			filter["action"] = bson.M{"$in": []string{"report.submit", "report.overwrite", "report.delete"}}
+			filter["action"] = bson.M{"$in": []string{"report.submit", "report.overwrite", "report.update", "report.delete"}}
 		case "auth":
-			filter["action"] = bson.M{"$in": []string{"auth.login_success", "auth.login_failed"}}
+			filter["action"] = bson.M{"$in": []string{"auth.login_success", "auth.login_failed", "user.login", "user.logout", "user.login_failed", "auth.failed"}}
 		case "users":
 			filter["action"] = bson.M{"$in": []string{"user.create", "user.update", "user.delete"}}
 		default:
@@ -152,10 +152,10 @@ func (r *AuditRepository) GetStats(ctx context.Context) (*AuditStats, error) {
 		return nil, fmt.Errorf("failed to count audit logs: %w", err)
 	}
 
-	secFilter := bson.M{"action": bson.M{"$in": []string{"auth.login_success", "auth.login_failed"}}}
+	secFilter := bson.M{"action": bson.M{"$in": []string{"auth.login_success", "auth.login_failed", "user.login", "user.logout", "user.login_failed", "auth.failed"}}}
 	security, _ := r.collection.CountDocuments(ctx, secFilter)
 
-	mutFilter := bson.M{"action": bson.M{"$in": []string{"report.submit", "report.overwrite", "report.delete", "user.create", "user.update", "user.delete"}}}
+	mutFilter := bson.M{"action": bson.M{"$in": []string{"report.submit", "report.overwrite", "report.update", "report.delete", "user.create", "user.update", "user.delete"}}}
 	mutations, _ := r.collection.CountDocuments(ctx, mutFilter)
 
 	var distinctActors []string
