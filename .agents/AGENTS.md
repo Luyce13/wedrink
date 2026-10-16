@@ -69,6 +69,17 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
     3. `SWIPE_VALID_ROUTES`: Add route to enable mobile swipe gesture transitions.
     4. `resolveSwipeCurrentIndex()`: Add prefix check to map the active URL path to the tab index for directional slide animations.
   - Omitting any checkpoint causes the tab to drop out of SPA navigation, resulting in full-page browser reloads and jarring screen flashes.
+- **Dashboard Date Stepping & Panel DOM Isolation Invariant**:
+  - Navigation header buttons (`#dash-prev-day`, `#dash-next-day`, `#dash-today-btn`, `#dp-trigger`) MUST reside in a static, unswapped container (`#dash-header`) and remain permanently mounted in the DOM.
+  - Dynamic report date updates MUST isolate swaps strictly to `#dash-data-panel`, never destroying or recreating the header buttons. Replacing interactive buttons on response destroys the node between `mousedown` and `mouseup`, which causes the browser to silently swallow consecutive rapid clicks (especially over WAN / Oracle latency).
+  - Rapid double-clicks on `#dash-prev-day`, `#dash-next-day`, or `#dash-today-btn` MUST have `dblclick` default action prevented via `e.preventDefault()` to stop text selection anomalies or dropped events.
+- **Shared History Store & LRU Rolling Cache Invariant**:
+  - The `/reports` history page embeds loaded report payloads in structured JSON (`<script id="reports-history-data" type="application/json">` and `.appended-reports-data`), which the client ingests into `window.reportHistoryStore`.
+  - When navigating dates on the Dashboard, the stepper MUST check `dashDateCache` and `window.reportHistoryStore` before issuing network requests. Matching dates and known empty dates within the history window render synchronously in 0ms without server round trips.
+  - Client stores MUST implement explicit LRU rolling eviction (`setRollingCache` in `app.js`):
+    - `window.reportHistoryStore`: Capped at a rolling maximum of 500 reports.
+    - `dashDateCache`: Capped at a rolling maximum of 150 rendered HTML date panels.
+  - Whenever reports are created, edited (overwritten), or deleted, the system MUST flush all shared caches (`pageCache`, `dashDateCache`, and `window.reportHistoryStore`) in unison via events `reportSaved`, `reportDeleted`, and `reportUpdated`.
 - **Static Asset Version Bumping Invariant**:
   - Because `/static/*` assets are served with immutable long-lived caching (`Cache-Control: public, max-age=31536000, immutable`), any edit to `web/static/js/app.js` or `web/static/css/style.css` MUST immediately bump the cache-busting query parameter in `web/templates/layout.html` (e.g. `/static/js/app.js?v=YYYYMMDD_vX`).
 

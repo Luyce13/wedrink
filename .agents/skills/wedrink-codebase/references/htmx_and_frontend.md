@@ -106,3 +106,41 @@ When adding a new top-level page or navigation tab:
 4. **`updateActiveNavLinks()`**: Ensure the route highlights the active tab in both desktop and mobile navigation bars.
 5. **Cache Invalidation**: Ensure mutations (`reportSaved`, `refreshReportsList`) execute `pageCache.clear()`.
 6. **Asset Cache Busting**: Always bump `?v=YYYYMMDD_vX` on `/static/js/app.js` in `layout.html`.
+
+---
+
+## 6. Dashboard Date Stepping & Shared History Store (`reportHistoryStore`)
+
+### Problem Solved
+When navigating daily EOD reports rapidly (e.g. clicking "Previous Day" `◄` multiple times):
+1. **Mid-Click DOM Replacement:** If the entire dashboard container is replaced via `innerHTML = html`, the `#dash-prev-day` button is destroyed while the user's mouse is pressed. Because `mousedown` and `mouseup` occur on different DOM nodes, the browser drops the second click entirely (exacerbated by WAN / Oracle network latency).
+2. **Redundant Network Latency:** Although `/reports` loads the last 100 historical reports with all expenses and notes, navigating dates on the Dashboard was issuing redundant server requests.
+
+### Architecture & Solution
+
+```mermaid
+graph TD
+    A["User clicks Previous / Next Day"] --> B["stepDashboardDate(direction)"]
+    B --> C["Instant 0ms UI Update (Label, Input, URL)"]
+    C --> D{"Tier 1: dashDateCache has date?"}
+    D -- Yes --> E["Render immediately in 0ms"]
+    D -- No --> F{"Tier 2: reportHistoryStore has date?"}
+    F -- Yes --> G["renderDashboardPanelFromReport(report, date)<br>Cache in dashDateCache & render in 0ms"]
+    F -- No --> H{"Tier 3: In [minDate, maxDate] range?"}
+    H -- Yes --> I["Known empty day (no report)<br>Render empty state in 0ms"]
+    H -- No --> J["Tier 4: Debounced Server Fetch<br>fetchDashboardDate(date)"]
+```
+
+### Key Components:
+1. **DOM Isolation (`#dash-data-panel`):**
+   - The navigation header (`#dash-header`) containing `#dash-prev-day`, `#dash-next-day`, and `#dp-trigger` is mounted permanently in the DOM.
+   - Dynamic report swaps update ONLY `#dash-data-panel`. The button elements never leave the DOM, eliminating dropped clicks.
+2. **Shared History Store (`window.reportHistoryStore`):**
+   - Embedded in `/reports` templates (`#reports-history-data` in `report_table.html` and `.appended-reports-data` in `report_rows.html`).
+   - Ingested on initial page load, SPA tab navigation, infinite scroll pagination, and background idle pre-fetch.
+3. **LRU Rolling Cache (`setRollingCache`):**
+   - `window.reportHistoryStore`: Capped at a rolling maximum of 500 reports.
+   - `dashDateCache`: Capped at a rolling maximum of 150 rendered HTML panels.
+   - Oldest accessed entries roll off automatically, keeping client memory usage bounded.
+4. **Cache Invalidation:**
+   - Any report creation, edit (overwrite), or deletion triggers `reportSaved`, `reportDeleted`, or `reportUpdated`, synchronously clearing `pageCache`, `dashDateCache`, and `window.reportHistoryStore` in unison.
