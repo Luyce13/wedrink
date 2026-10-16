@@ -158,3 +158,10 @@ When `DB_DRIVER=mongodb`, the collections `eod_reports`, `users`, `notifications
   - `eod_reports`: Unique index on `report_date`.
   - `users`: Unique index on `username`.
   - `notifications`: Unique index on `report_id`.
+
+---
+
+## 5. Bidirectional Migration Utilities
+
+- **MongoDB ➔ SQLite (`cmd/migrate_mongo_to_sqlite`)**: Reads MongoDB collections, normalizes embedded itemized expenses into SQLite's `report_expenses` table, and verifies row integrity.
+- **SQLite ➔ MongoDB (`cmd/migrate_sqlite_to_mongo`)**: Reads SQLite normalized records and executes idempotent upserts (`ReplaceOne` with `upsert: true`) against MongoDB collections for seamless rollback.

@@ -57,7 +57,8 @@ wedrink/
 ├── cmd/
 │   ├── backup/                 # Standalone CLI for creating, listing, verifying & restoring backups
 │   ├── benchmark/              # Comparative performance benchmarks (SQLite vs MongoDB)
-│   ├── migrate_mongo_to_sqlite/# Automated one-way migration tool (Atlas -> SQLite)
+│   ├── migrate_mongo_to_sqlite/# Automated migration tool (Mongo Atlas -> SQLite)
+│   ├── migrate_sqlite_to_mongo/# Automated reverse migration tool (SQLite -> Mongo Atlas)
 │   ├── seed/                   # Sample report generator for testing
 │   └── server/                 # HTTP server entry point & DI container (main.go)
 ├── internal/

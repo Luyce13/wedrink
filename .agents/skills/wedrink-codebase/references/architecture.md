@@ -42,7 +42,7 @@ graph TD
    - Parses `.env` key-value pairs manually using scanner.
    - Keys supported:
      - `PORT`: Default `8080`
-     - `DB_DRIVER`: `"sqlite"` (default) or `"mongodb"`
+     - `DB_DRIVER`: `"sqlite"` (recommended) or `"mongodb"` (default fallback when unset in `.env` to prevent unmigrated boots)
      - `SQLITE_PATH`: Default `data/wedrink.db`
      - `BACKUP_ENABLED`: Default `true`
      - `BACKUP_INTERVAL`: Default `24h`
