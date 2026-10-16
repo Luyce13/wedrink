@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "sqlite",
+  "owner": "anexileddev",
+  "repo": "codeforge",
+  "path": "container/.devcontainer/plugins/devs-marketplace/plugins/skill-engine/skills/sqlite",
+  "branch": "main",
+  "sha": "f25eac9f95a3ad944fb2fe3b3bab72addb34dea4",
+  "source": "manual"
+}

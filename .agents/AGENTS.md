@@ -74,8 +74,33 @@ When working on the **Wedrink EOD Report System** codebase, all AI agents MUST a
 
 ---
 
-## 5. MongoDB & BSON Constraints
+## 5. Database Drivers & Storage Invariants
 
+### Multi-Driver Support
+- The application supports dual database drivers selected via `DB_DRIVER` in `.env` (`sqlite` default, `mongodb` fallback).
+- Repository abstractions in `internal/repository/interfaces.go` isolate domain handlers from underlying persistence.
+
+### SQLite Constraints & Performance Invariants
+- **Engine**: Pure Go `modernc.org/sqlite` (zero CGO) for cross-compilation across Linux AMD64 and ARM64.
+- **Production PRAGMAs**: All connections MUST configure:
+  - `journal_mode=WAL` (Write-Ahead Logging for non-blocking concurrent reads and single-writer concurrency).
+  - `busy_timeout=5000` (5-second lock retry backoff).
+  - `foreign_keys=ON` (strict cascading integrity).
+  - `synchronous=NORMAL` (safe durability in WAL mode without full disk sync on every transaction).
+  - `cache_size=-64000` (64 MB page cache).
+  - `mmap_size=268435456` (256 MB memory-mapped I/O).
+  - `temp_store=MEMORY`.
+- **Relational Normalized Schema**:
+  - `report_expenses` is the single source of truth (`FOREIGN KEY (report_id) REFERENCES eod_reports(id) ON DELETE CASCADE`).
+  - No denormalized `expenses_json` columns. Reports aggregate expenses dynamically via `json_group_array(...)`.
+  - Non-negative financial invariants are strictly enforced via `CHECK (col >= 0)` constraints on `STRICT` tables.
+- **Fail-Safe Backup Invariant**:
+  - Automated backups use atomic SQLite `VACUUM INTO`.
+  - Backups MUST be verified via `PRAGMA integrity_check` returning `"ok"` prior to pruning older archives. Corrupt backups MUST be aborted immediately and never overwrite or prune older valid archives.
+- **Zero-Downtime Deployment Storage Invariant**:
+  - Live SQLite database files (`data/`) and backup archives (`backups/`) MUST reside in persistent shared storage (`$APP_DIR/data`, `$APP_DIR/backups`) outside ephemeral release directories, symlinked into `$RELEASE_DIR` (`ln -sfn "$APP_DIR/data" "$RELEASE_DIR/data"`). Never store database files inside standalone release paths subject to rotation or pruning.
+
+### MongoDB Legacy Driver (Fallback)
 - **Driver Version**: Always use `go.mongodb.org/mongo-driver/v2` (not v1).
 - **Primary Key Mapping**: `EODReport.ID` uses `bson.ObjectID` with `bson:"_id,omitempty"`.
 - **Unique Indexes**:

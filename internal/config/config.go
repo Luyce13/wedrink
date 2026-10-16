@@ -5,15 +5,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Config struct {
-	Port          string
-	MongoURI      string
-	MongoDBName   string
-	SessionSecret string
-	Env           string
-	AutoSeed      bool
+	Port            string
+	DBDriver        string // "sqlite" or "mongodb" (default: "sqlite")
+	SQLitePath      string // e.g. "data/wedrink.db"
+	MongoURI        string
+	MongoDBName     string
+	SessionSecret   string
+	Env             string
+	AutoSeed        bool
+	BackupEnabled   bool
+	BackupInterval  time.Duration
+	BackupDir       string
+	BackupRetention int
 }
 
 func LoadConfig() *Config {
@@ -32,14 +39,26 @@ func LoadConfig() *Config {
 	}
 
 	autoSeed := getEnv("AUTO_SEED", "false")
+	backupEnabled := getEnv("BACKUP_ENABLED", "true") == "true"
+	backupIntervalStr := getEnv("BACKUP_INTERVAL", "24h")
+	backupInterval, err := time.ParseDuration(backupIntervalStr)
+	if err != nil {
+		backupInterval = 24 * time.Hour
+	}
 
 	return &Config{
-		Port:          getEnv("PORT", "8080"),
-		MongoURI:      getEnv("MONGO_URI", "mongodb://localhost:27017"),
-		MongoDBName:   getEnv("MONGO_DB_NAME", "wedrink"),
-		SessionSecret: getEnv("SESSION_SECRET", "wedrink-secret-session-key-2026-change-me"),
-		Env:           getEnv("ENV", "development"),
-		AutoSeed:      autoSeed == "true" || autoSeed == "1",
+		Port:            getEnv("PORT", "8080"),
+		DBDriver:        strings.ToLower(getEnv("DB_DRIVER", "mongodb")),
+		SQLitePath:      getEnv("SQLITE_PATH", "data/wedrink.db"),
+		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017"),
+		MongoDBName:     getEnv("MONGO_DB_NAME", "wedrink"),
+		SessionSecret:   getEnv("SESSION_SECRET", "wedrink-secret-session-key-2026-change-me"),
+		Env:             getEnv("ENV", "development"),
+		AutoSeed:        autoSeed == "true" || autoSeed == "1",
+		BackupEnabled:   backupEnabled,
+		BackupInterval:  backupInterval,
+		BackupDir:       getEnv("BACKUP_DIR", "data/backups"),
+		BackupRetention: 14,
 	}
 }
 
@@ -67,6 +86,9 @@ func loadDotEnv(filepath string) {
 				_ = os.Setenv(key, val)
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return
 	}
 }
 

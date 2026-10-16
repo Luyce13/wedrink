@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"wedrink/internal/backup"
 	"wedrink/internal/config"
 	"wedrink/internal/db"
 	"wedrink/internal/handlers"
@@ -28,23 +29,58 @@ func main() {
 
 	slog.Info("Starting Wedrink EOD Go Server...", "port", cfg.Port, "env", cfg.Env)
 
-	// Connect to MongoDB
-	mongoDB, err := db.Connect(cfg)
-	if err != nil {
-		slog.Error("Failed to initialize MongoDB client. Please check your MONGO_URI in .env file.", "error", err)
-		os.Exit(1)
-	}
-	defer func() {
-		if mongoDB != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = mongoDB.Close(ctx)
-		}
-	}()
+	var (
+		userRepo   repository.UserRepo
+		reportRepo repository.ReportRepo
+		notifRepo  repository.NotificationRepo
+		auditRepo  repository.AuditRepo
+	)
 
-	// Repositories
-	userRepo := repository.NewUserRepository(mongoDB.Database)
-	reportRepo := repository.NewReportRepository(mongoDB.Database)
+	if cfg.DBDriver == "mongodb" {
+		slog.Info("Connecting to MongoDB database...", "db", cfg.MongoDBName)
+		mongoDB, err := db.Connect(cfg)
+		if err != nil {
+			slog.Error("Failed to initialize MongoDB client. Please check your MONGO_URI in .env file.", "error", err)
+			os.Exit(1)
+		}
+		defer func() {
+			if mongoDB != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = mongoDB.Close(ctx)
+			}
+		}()
+
+		userRepo = repository.NewUserRepository(mongoDB.Database)
+		reportRepo = repository.NewReportRepository(mongoDB.Database)
+		notifRepo = repository.NewNotificationRepository(mongoDB.Database)
+		auditRepo = repository.NewAuditRepository(mongoDB.Database)
+	} else {
+		slog.Info("Connecting to SQLite database...", "path", cfg.SQLitePath)
+		sqliteDB, err := db.ConnectSQLite(cfg.SQLitePath)
+		if err != nil {
+			slog.Error("Failed to initialize SQLite database. Please check your SQLITE_PATH in .env file.", "error", err)
+			os.Exit(1)
+		}
+		defer func() {
+			if sqliteDB != nil {
+				_ = sqliteDB.Close()
+			}
+		}()
+
+		userRepo = repository.NewSQLiteUserRepository(sqliteDB.DB)
+		reportRepo = repository.NewSQLiteReportRepository(sqliteDB.DB)
+		notifRepo = repository.NewSQLiteNotificationRepository(sqliteDB.DB)
+		auditRepo = repository.NewSQLiteAuditRepository(sqliteDB.DB)
+
+		// Start automated background backup cron scheduler
+		backup.StartScheduler(context.Background(), sqliteDB.DB, backup.SchedulerConfig{
+			Enabled:   cfg.BackupEnabled,
+			Interval:  cfg.BackupInterval,
+			BackupDir: cfg.BackupDir,
+			Retention: cfg.BackupRetention,
+		})
+	}
 
 	// Seed default users only when AUTO_SEED=true (opt-in, not automatic)
 	if cfg.AutoSeed {
@@ -54,9 +90,6 @@ func main() {
 		}
 		cancelSeed()
 	}
-
-	notifRepo := repository.NewNotificationRepository(mongoDB.Database)
-	auditRepo := repository.NewAuditRepository(mongoDB.Database)
 
 	// Services
 	auditService := services.NewAuditService(auditRepo)

@@ -18,6 +18,12 @@ cookie.txt
 *.tmp
 *.csv
 
+# SQLite database files
+data/
+*.db
+*.db-wal
+*.db-shm
+
 # OS & IDE metadata
 .DS_Store
 .idea/
@@ -28,6 +34,5 @@ cookies.txt
 scratch/
 .gemini/
 .fallow/
-.agents/
 current
 releases/

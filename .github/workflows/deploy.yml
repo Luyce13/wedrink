@@ -41,22 +41,38 @@ jobs:
             go build -buildvcs=false \
             -ldflags="-s -w -X main.commit=${{ github.sha }}" \
             -o bin/wedrink ./cmd/server &
-          PID_BUILD=$!
+          PID_BUILD_SERVER=$!
 
-          TEST_OK=1; BUILD_OK=1; VET_OK=1
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -buildvcs=false \
+            -ldflags="-s -w" \
+            -o bin/wedrink-backup ./cmd/backup &
+          PID_BUILD_BACKUP=$!
+
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -buildvcs=false \
+            -ldflags="-s -w" \
+            -o bin/migrate_mongo_to_sqlite ./cmd/migrate_mongo_to_sqlite &
+          PID_BUILD_MIGRATE=$!
+
+          TEST_OK=1; BUILD_SERVER_OK=1; BUILD_BACKUP_OK=1; BUILD_MIGRATE_OK=1; VET_OK=1
           wait "$PID_VET" || VET_OK=0
           wait "$PID_TEST" || TEST_OK=0
-          wait "$PID_BUILD" || BUILD_OK=0
+          wait "$PID_BUILD_SERVER" || BUILD_SERVER_OK=0
+          wait "$PID_BUILD_BACKUP" || BUILD_BACKUP_OK=0
+          wait "$PID_BUILD_MIGRATE" || BUILD_MIGRATE_OK=0
 
           [ "$VET_OK" -eq 1 ] || echo "::error::go vet failed"
           [ "$TEST_OK" -eq 1 ] || echo "::error::go test failed"
-          [ "$BUILD_OK" -eq 1 ] || echo "::error::go build failed"
-          [ "$VET_OK" -eq 1 ] && [ "$TEST_OK" -eq 1 ] && [ "$BUILD_OK" -eq 1 ]
+          [ "$BUILD_SERVER_OK" -eq 1 ] || echo "::error::go server build failed"
+          [ "$BUILD_BACKUP_OK" -eq 1 ] || echo "::error::go backup build failed"
+          [ "$BUILD_MIGRATE_OK" -eq 1 ] || echo "::error::go migrate build failed"
+          [ "$VET_OK" -eq 1 ] && [ "$TEST_OK" -eq 1 ] && [ "$BUILD_SERVER_OK" -eq 1 ] && [ "$BUILD_BACKUP_OK" -eq 1 ] && [ "$BUILD_MIGRATE_OK" -eq 1 ]
 
       - name: Fast Package Deployment Artifact
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          tar -czf release.tar.gz bin/wedrink web/
+          tar -czf release.tar.gz bin/wedrink bin/wedrink-backup bin/migrate_mongo_to_sqlite web/
 
       - name: Publish GitHub Release (History + Rollback Point)
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
@@ -101,6 +117,15 @@ jobs:
             if [ -f "$APP_DIR/.env" ]; then
               cp "$APP_DIR/.env" "$RELEASE_DIR/.env"
             fi
+
+            # Shared persistent storage for SQLite DB and Backups:
+            # Guarantees data and backup archives survive zero-downtime release swaps and pruning
+            mkdir -p "$APP_DIR/data" "$APP_DIR/backups"
+            if [ -d "$APP_DIR/current/data" ] && [ ! -f "$APP_DIR/data/wedrink.db" ] && [ -f "$APP_DIR/current/data/wedrink.db" ]; then
+              cp -n "$APP_DIR/current/data/"* "$APP_DIR/data/" 2>/dev/null || true
+            fi
+            ln -sfn "$APP_DIR/data" "$RELEASE_DIR/data"
+            ln -sfn "$APP_DIR/backups" "$RELEASE_DIR/backups"
 
             # Atomic symlink swap
             ln -sfn "$RELEASE_DIR" "$APP_DIR/current.new"

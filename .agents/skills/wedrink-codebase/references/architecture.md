@@ -1,23 +1,27 @@
 # Architecture & Routing Reference Guide
 
-This document details the internal architecture, request handling lifecycle, dependency injection model, middleware pipeline, and template rendering system of the **Wedrink EOD Report System**.
+This document details the internal architecture, request handling lifecycle, dependency injection model, middleware pipeline, backup scheduler, and template rendering system of the **Wedrink EOD Report System**.
 
 ---
 
 ## 1. Application Layer Hierarchy & Package Responsibilities
 
-The codebase strictly adheres to **Clean Architecture** separation of concerns using Go standard library components:
+The codebase strictly adheres to **Clean Architecture** separation of concerns using Go standard library components and pure Go libraries (zero CGO):
 
 ```mermaid
 graph TD
     Client["Client Browser (HTMX / Web UI)"] --> Mux["http.ServeMux Router"]
     Mux --> LoggerMW["Logger Middleware"]
+    Mux --> RateLimitMW["IP Token Bucket Rate Limiter"]
     LoggerMW --> AuthMW["Session Auth Middleware"]
+    RateLimitMW --> AuthMW
     AuthMW --> Handlers["Handler Layer (internal/handlers)"]
     Handlers --> Render["Template Renderer (internal/render)"]
     Handlers --> Services["Service Layer (internal/services)"]
-    Services --> Repos["Repository Layer (internal/repository)"]
-    Repos --> MongoDriver["MongoDB Driver v2 (internal/db)"]
+    Services --> Repos["Repository Interfaces (internal/repository)"]
+    Repos --> SQLiteDriver["SQLite WAL Driver (internal/db/sqlite.go)"]
+    Repos -.-> MongoDriver["MongoDB Driver v2 (Fallback)"]
+    SQLiteDriver --> BackupEngine["Online Backup Engine (internal/backup)"]
 ```
 
 ### Layer Breakdown
@@ -25,33 +29,34 @@ graph TD
 1. **Entry Point (`cmd/server/main.go`)**:
    - Reads environment configuration using `internal/config`.
    - Initializes structured logging with `internal/utils`.
-   - Establishes database connection with `internal/db`.
-   - Constructs repositories (`UserRepository`, `ReportRepository`).
-   - Automatically seeds default demo users.
-   - Instantiates services (`AuthService`, `ReportService`).
+   - Conditionally initializes either SQLite (`internal/db.ConnectSQLite`) or MongoDB (`internal/db.Connect`) based on `cfg.DBDriver`.
+   - Starts the background backup cron runner goroutine if `cfg.BackupEnabled && cfg.DBDriver == "sqlite"`.
+   - Constructs repositories conforming to `internal/repository` interfaces (`UserRepo`, `ReportRepo`, `NotificationRepo`, `AuditRepo`).
+   - Seeds default demo accounts on a fresh database.
+   - Instantiates domain services (`AuthService`, `ReportService`, `NotificationService`, `AuditService`).
    - Registers template helper functions (`FuncMap`) and constructs `render.Renderer`.
-   - Sets up HTTP router (`http.NewServeMux`) with path-based routing (Go 1.22+ routing syntax e.g., `GET /{$}`, `DELETE /reports/delete`).
-   - Wraps router with session middleware and logger middleware.
+   - Sets up HTTP router (`http.NewServeMux`) using Go 1.22+ path patterns.
    - Starts HTTP server with graceful shutdown handling on `SIGINT` / `SIGTERM`.
 
 2. **Configuration (`internal/config/config.go`)**:
-   - Parses `.env` key-value pairs manually using scanner (no external dependency required).
-   - Reads environment variables with defaults:
+   - Parses `.env` key-value pairs manually using scanner.
+   - Keys supported:
      - `PORT`: Default `8080`
-     - `MONGO_URI`: Default `mongodb://localhost:27017`
-     - `MONGO_DB_NAME`: Default `wedrink`
+     - `DB_DRIVER`: `"sqlite"` (default) or `"mongodb"`
+     - `SQLITE_PATH`: Default `data/wedrink.db`
+     - `BACKUP_ENABLED`: Default `true`
+     - `BACKUP_INTERVAL`: Default `24h`
+     - `BACKUP_DIR`: Default `backups`
+     - `BACKUP_RETENTION`: Default `7`
      - `SESSION_SECRET`: Default `wedrink-secret-session-key-2026-change-me`
      - `ENV`: Default `development`
 
 3. **HTTP Middleware Pipeline (`internal/middleware/`)**:
-   - **`SessionManager.AuthMiddleware`**: Decodes `wedrink_session` cookie formatted as `username|role|fullname`. Injects `*models.User` into `r.Context()` with key `UserContextKey ("user")`.
-   - **`RequireAuth`**: Verifies user presence in context. If unauthenticated:
-     - Standard HTTP request $\rightarrow$ Redirects (`303 See Other`) to `/login`.
-     - HTMX request (`HX-Request: true`) $\rightarrow$ Returns `401 Unauthorized` with header `HX-Redirect: /login`.
-   - **`RequireRole`**: High-order middleware accepting allowed `models.Role`s. If user role does not match:
-     - Standard HTTP request $\rightarrow$ Returns `403 Forbidden` text error.
-     - HTMX request $\rightarrow$ Sets `HX-Reswap: outerHTML` and returns a stylized red alert HTML fragment explaining missing Manager privileges.
-   - **`Logger`**: Wraps `http.ResponseWriter` with a status capturer to log request method, path, status code, latency, and remote IP using `log/slog`.
+   - **`SessionManager.AuthMiddleware`**: Decodes `wedrink_session` cookie (`username|role|fullname`). Injects `*models.User` into `r.Context()`.
+   - **`RequireAuth`**: Verifies user presence in context. Unauthenticated requests redirect to `/login` (with `HX-Redirect: /login` for HTMX).
+   - **`RequireRole`**: High-order middleware checking user roles (`models.RoleStaff`, `models.RoleSuperAdmin`).
+   - **`RateLimiter`**: Per-IP token bucket rate limiting protecting authentication and submission endpoints.
+   - **`Logger`**: Structured request logging via `log/slog`.
 
 ---
 
@@ -59,7 +64,7 @@ graph TD
 
 | Method | Path | Access Level | Handler Function | Response Type |
 | --- | --- | --- | --- | --- |
-| `GET` | `/static/` | Public | Standard FileServer | Static file stream with `no-cache` headers |
+| `GET` | `/static/` | Public | Standard FileServer | Static file stream with `no-cache` dev headers |
 | `GET` | `/health` | Public | Inline JSON func | JSON status object |
 | `GET` | `/login` | Public | `AuthHandler.RenderLogin` | Full HTML page (`login.html`) |
 | `POST` | `/login` | Public | `AuthHandler.HandleLogin` | Form redirect or HTMX redirect header |
@@ -72,35 +77,41 @@ graph TD
 | `GET` | `/reports` | Manager Only | `ReportHandler.RenderReportsList` | Full HTML (`reports.html`) or HTMX table (`report_table.html`) |
 | `GET` | `/reports/detail` | Manager Only | `ReportHandler.RenderDetailModal` | HTMX Fragment (`report_modal.html`) |
 | `GET` | `/reports/edit` | Manager Only | `ReportHandler.RenderEditForm` | Full HTML page (`submit.html` populated for edit) |
-| `DELETE` / `POST` | `/reports/delete` | Manager Only | `ReportHandler.HandleDelete` | HTMX fragment / list re-render |
+| `DELETE` / `POST` | `/reports/delete` | Manager Only | `ReportHandler.HandleDelete` | Password verified deletion |
 | `GET` | `/export/csv` | Manager Only | `ExportHandler.ExportCSV` | File attachment `text/csv` |
+| `GET` | `/admin/audit` | Manager Only | `AuditHandler.RenderAuditList` | Full HTML page (`audit.html`) |
+| `GET` | `/admin/audit/detail` | Manager Only | `AuditHandler.RenderAuditDetail` | HTMX Fragment modal |
 
 ---
 
 ## 3. Dependency Injection & Service Composition
 
-In `main.go`, dependencies are wired sequentially without reflection or magic containers:
+In `main.go`, dependencies are wired sequentially:
 
 ```go
-// 1. Storage Drivers
-mongoDB, _ := db.Connect(cfg)
+// 1. Storage Driver Selection
+if cfg.DBDriver == "sqlite" {
+    sqliteDB, _ := db.ConnectSQLite(cfg.SQLitePath)
+    userRepo = repository.NewSQLiteUserRepository(sqliteDB)
+    reportRepo = repository.NewSQLiteReportRepository(sqliteDB)
+    notifRepo = repository.NewSQLiteNotificationRepository(sqliteDB)
+    auditRepo = repository.NewSQLiteAuditRepository(sqliteDB)
 
-// 2. Repositories
-userRepo := repository.NewUserRepository(mongoDB.Database)
-reportRepo := repository.NewReportRepository(mongoDB.Database)
+    // Background Backup Scheduler
+    if cfg.BackupEnabled {
+        go backup.StartScheduler(context.Background(), sqliteDB, cfg.BackupDir, cfg.BackupInterval, cfg.BackupRetention)
+    }
+} else {
+    mongoDB, _ := db.Connect(cfg)
+    userRepo = repository.NewUserRepository(mongoDB.Database)
+    reportRepo = repository.NewReportRepository(mongoDB.Database)
+    notifRepo = repository.NewNotificationRepository(mongoDB.Database)
+    auditRepo = repository.NewAuditRepository(mongoDB.Database)
+}
 
-// 3. Domain Services
+// 2. Domain Services
 authService := services.NewAuthService(userRepo)
 reportService := services.NewReportService(reportRepo)
-
-// 4. View Renderer
-renderer, _ := render.NewRenderer(funcMap)
-
-// 5. HTTP Handlers
-authHandler := handlers.NewAuthHandler(authService, renderer)
-reportHandler := handlers.NewReportHandler(reportService, renderer)
-dashboardHandler := handlers.NewDashboardHandler(reportService, renderer)
-exportHandler := handlers.NewExportHandler(reportService)
+notifService := services.NewNotificationService(notifRepo)
+auditService := services.NewAuditService(auditRepo)
 ```
-
-This guarantees testability, compile-time safety, and clear service boundaries.
