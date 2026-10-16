@@ -179,20 +179,35 @@ When `BACKUP_ENABLED=true`, a background scheduler goroutine in `internal/backup
 
 ---
 
-## 🔄 One-Time MongoDB to SQLite Migration
+## 🔄 Bidirectional Database Migration Tools
 
-To migrate an existing MongoDB Atlas deployment to SQLite:
+The system provides dedicated migration utilities for transitioning between databases in either direction with complete data integrity:
 
-1. Ensure `.env` has valid `MONGO_URI` and `SQLITE_PATH` settings.
-2. Run the migration tool:
+### 1. MongoDB Atlas ➔ SQLite (`cmd/migrate_mongo_to_sqlite`)
+Used when moving from MongoDB Atlas to SQLite:
 ```bash
+# Via Go directly:
 go run ./cmd/migrate_mongo_to_sqlite
+
+# Or using the pre-compiled binary on the server:
+./bin/migrate_mongo_to_sqlite
 ```
-The migration script:
-- Transfers all users and password hashes.
-- Transfers all EOD reports and normalizes embedded expenses into `report_expenses`.
-- Migrates notifications and audit logs with exact timestamp preservation.
-- Verifies integrity and row counts upon completion.
+- Transfers all users, active credentials, and roles.
+- Transfers all EOD reports and normalizes embedded expenses into `report_expenses` (SSOT).
+- Transfers store notifications and audit logs with microsecond timestamp fidelity.
+
+### 2. SQLite ➔ MongoDB Atlas (`cmd/migrate_sqlite_to_mongo`)
+Used when rolling back or syncing from SQLite back to MongoDB Atlas:
+```bash
+# Via Go directly:
+go run ./cmd/migrate_sqlite_to_mongo
+
+# Or using the pre-compiled binary on the server:
+./bin/migrate_sqlite_to_mongo
+```
+- Reads users, reports, itemized expenses, notifications, and audit logs from SQLite.
+- Performs idempotent upserts (`ReplaceOne` with `upsert: true`) into MongoDB collections.
+- Enables seamless, instantaneous fallback to MongoDB without any data loss.
 
 ---
 
