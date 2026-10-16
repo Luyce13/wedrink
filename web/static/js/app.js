@@ -790,6 +790,18 @@ document.addEventListener('DOMContentLoaded', () => {
   window.reportHistoryMinDate = null;
   window.reportHistoryMaxDate = null;
   const dashDateCache = new Map();
+  const MAX_HISTORY_STORE_SIZE = 500;
+  const MAX_DASH_HTML_CACHE_SIZE = 150;
+
+  function setRollingCache(map, key, val, maxSize) {
+    if (map.has(key)) map.delete(key);
+    map.set(key, val);
+    if (map.size > maxSize) {
+      const oldestKey = map.keys().next().value;
+      map.delete(oldestKey);
+    }
+  }
+
   let dashPendingDate = null;
   let dashNavTimer = null;
   let dashActiveReqId = 0;
@@ -846,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Array.isArray(data)) {
           data.forEach(rep => {
             if (rep && rep.report_date) {
-              window.reportHistoryStore.set(rep.report_date, rep);
+              setRollingCache(window.reportHistoryStore, rep.report_date, rep, MAX_HISTORY_STORE_SIZE);
               if (!window.reportHistoryMinDate || rep.report_date < window.reportHistoryMinDate) {
                 window.reportHistoryMinDate = rep.report_date;
               }
@@ -1186,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const rep = window.reportHistoryStore.get(newDateStr);
       const html = renderDashboardPanelFromReport(rep, newDateStr);
-      dashDateCache.set(newDateStr, html);
+      setRollingCache(dashDateCache, newDateStr, html, MAX_DASH_HTML_CACHE_SIZE);
       renderDashboardHTML(html, newDateStr, false);
       return;
     }
@@ -1200,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try { dashAbortController.abort(); } catch (_) {}
       }
       const html = renderDashboardPanelFromReport(null, newDateStr);
-      dashDateCache.set(newDateStr, html);
+      setRollingCache(dashDateCache, newDateStr, html, MAX_DASH_HTML_CACHE_SIZE);
       renderDashboardHTML(html, newDateStr, false);
       return;
     }
@@ -1240,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.reportHistoryStore && window.reportHistoryStore.has(targetDate)) {
       const html = renderDashboardPanelFromReport(window.reportHistoryStore.get(targetDate), targetDate);
-      dashDateCache.set(targetDate, html);
+      setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
       renderDashboardHTML(html, targetDate, isHistoryPush);
       return;
     }
@@ -1273,7 +1285,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Store in memory cache for 0ms future visits
-      dashDateCache.set(targetDate, html);
+      setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
 
       renderDashboardHTML(html, targetDate, isHistoryPush);
     } catch (err) {
@@ -1298,7 +1310,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.reportHistoryStore && window.reportHistoryStore.has(newVal)) {
       const html = renderDashboardPanelFromReport(window.reportHistoryStore.get(newVal), newVal);
-      dashDateCache.set(newVal, html);
+      setRollingCache(dashDateCache, newVal, html, MAX_DASH_HTML_CACHE_SIZE);
       renderDashboardHTML(html, newVal, false);
       return true;
     }
