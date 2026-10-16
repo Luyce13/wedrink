@@ -14,12 +14,12 @@ import (
 // DefaultFuncMap returns the canonical template functions for all HTML pages and components.
 func DefaultFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"toJson": func(v any) template.HTML {
+		"toJson": func(v any) template.JS {
 			b, err := json.Marshal(v)
 			if err != nil {
-				return template.HTML("[]")
+				return template.JS("[]")
 			}
-			return template.HTML(string(b))
+			return template.JS(b)
 		},
 		"mathAbs": func(val float64) float64 {
 			return math.Abs(val)

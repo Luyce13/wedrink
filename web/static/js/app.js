@@ -789,6 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.reportHistoryStore = new Map();
   window.reportHistoryMinDate = null;
   window.reportHistoryMaxDate = null;
+  window.reportsPrefetchPromise = null;
   const dashDateCache = new Map();
   const MAX_HISTORY_STORE_SIZE = 500;
   const MAX_DASH_HTML_CACHE_SIZE = 150;
@@ -840,12 +841,12 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
-  // Ingests report data payloads from /reports (initial load, HTMX swaps, or background pre-fetch)
+  // Ingests report data payloads from /reports or dashboard (initial load, HTMX swaps, or background pre-fetch)
   window.ingestReportsHistoryData = function(rootEl) {
     const root = rootEl || document;
-    const scripts = root.querySelectorAll ? root.querySelectorAll('#reports-history-data, script.appended-reports-data') : [];
+    const scripts = root.querySelectorAll ? root.querySelectorAll('#reports-history-data, #dash-initial-report-data, script.appended-reports-data') : [];
     if (!scripts || scripts.length === 0) {
-      const single = root.getElementById ? root.getElementById('reports-history-data') : null;
+      const single = root.getElementById ? (root.getElementById('reports-history-data') || root.getElementById('dash-initial-report-data')) : null;
       if (single) ingestScript(single);
       return;
     }
@@ -854,7 +855,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function ingestScript(scriptEl) {
       if (!scriptEl || !scriptEl.textContent) return;
       try {
-        const data = JSON.parse(scriptEl.textContent);
+        let data = JSON.parse(scriptEl.textContent.trim());
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (_) {}
+        }
+        if (data && typeof data === 'object' && !Array.isArray(data) && data.report_date) {
+          data = [data];
+        }
         if (Array.isArray(data)) {
           data.forEach(rep => {
             if (rep && rep.report_date) {
@@ -871,6 +878,24 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (_) {}
     }
   };
+
+  // Auto-ingest from document and cache initial dashboard panel immediately
+  function initDashboardDateStore() {
+    if (window.ingestReportsHistoryData) {
+      window.ingestReportsHistoryData(document);
+    }
+    const dataPanel = document.getElementById('dash-data-panel');
+    const dateInput = document.getElementById('reportDate');
+    if (dataPanel && dateInput && dateInput.value) {
+      setRollingCache(dashDateCache, dateInput.value, dataPanel.innerHTML, MAX_DASH_HTML_CACHE_SIZE);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboardDateStore);
+  } else {
+    initDashboardDateStore();
+  }
 
   // Generates complete innerHTML for #dash-data-panel matching server-rendered markup
   function renderDashboardPanelFromReport(report, targetDate) {
@@ -1255,6 +1280,37 @@ document.addEventListener('DOMContentLoaded', () => {
       setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
       renderDashboardHTML(html, targetDate, isHistoryPush);
       return;
+    }
+
+    // If /reports history prefetch is in flight, await it to reuse shared payload
+    if (window.reportsPrefetchPromise) {
+      try {
+        await window.reportsPrefetchPromise;
+      } catch (_) {}
+
+      // Discard stale response if a newer click or request occurred while awaiting prefetch
+      if (reqId !== dashActiveReqId || (dashPendingDate && dashPendingDate !== targetDate)) {
+        return;
+      }
+
+      if (dashDateCache.has(targetDate)) {
+        renderDashboardHTML(dashDateCache.get(targetDate), targetDate, isHistoryPush);
+        return;
+      }
+      if (window.reportHistoryStore && window.reportHistoryStore.has(targetDate)) {
+        const html = renderDashboardPanelFromReport(window.reportHistoryStore.get(targetDate), targetDate);
+        setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
+        renderDashboardHTML(html, targetDate, isHistoryPush);
+        return;
+      }
+      if (window.reportHistoryMinDate && window.reportHistoryMaxDate &&
+          targetDate >= window.reportHistoryMinDate && targetDate <= window.reportHistoryMaxDate &&
+          window.reportHistoryStore && !window.reportHistoryStore.has(targetDate)) {
+        const html = renderDashboardPanelFromReport(null, targetDate);
+        setRollingCache(dashDateCache, targetDate, html, MAX_DASH_HTML_CACHE_SIZE);
+        renderDashboardHTML(html, targetDate, isHistoryPush);
+        return;
+      }
     }
 
     if (dashAbortController) {
@@ -2060,10 +2116,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Background pre-fetch of tab pages for instant (0ms) switching
     function prefetchRoutes() {
       const navLinks = document.querySelectorAll('#mobile-nav-bar a.mobile-nav-item, nav a[href]');
-      navLinks.forEach(link => {
+      const linksArray = Array.from(navLinks).sort((a, b) => {
+        const hrefA = a.getAttribute('data-nav-href') || a.getAttribute('href');
+        const hrefB = b.getAttribute('data-nav-href') || b.getAttribute('href');
+        if (hrefA === '/reports') return -1;
+        if (hrefB === '/reports') return 1;
+        return 0;
+      });
+
+      linksArray.forEach(link => {
         const href = link.getAttribute('data-nav-href') || link.getAttribute('href');
         if (href && (href === '/' || href === '/submit' || href === '/reports' || href === '/admin/users' || href === '/admin/audit' || href === '/profile') && !pageCache.has(href)) {
-          fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          const fetchPromise = fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(res => res.text())
             .then(html => {
               const parser = new DOMParser();
@@ -2077,15 +2141,15 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             })
             .catch(() => {});
+
+          if (href === '/reports') {
+            window.reportsPrefetchPromise = fetchPromise;
+          }
         }
       });
     }
 
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(prefetchRoutes);
-    } else {
-      setTimeout(prefetchRoutes, 200);
-    }
+    setTimeout(prefetchRoutes, 30);
 
     // Instant Page Swap Function (0ms response)
     window.navigateToTabInstant = function(targetRoute, direction = 'left') {

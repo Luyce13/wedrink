@@ -93,6 +93,10 @@
 <div id="dash-data-panel">
 {{if .Report}}
   <span id="dash-date-val" class="hidden">{{.Report.ReportDate}}</span>
+  <!-- Initial report payload for immediate dashboard cache ingestion -->
+  <script id="dash-initial-report-data" type="application/json">
+  {{toJson .Report}}
+  </script>
 
   <!-- Resizable two-panel layout -->
   <div class="dash-panels">
