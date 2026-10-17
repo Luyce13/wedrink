@@ -9,7 +9,9 @@
   <div class="flex items-center gap-2">
     <a id="dash-prev-day"
        href="/?date={{.PrevDate}}"
-       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold select-none" title="Previous day (←)">◄</a>
+       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold select-none {{if and .OldestDate (le .ReportDate .OldestDate)}}opacity-30 cursor-not-allowed pointer-events-none{{end}}"
+       title="{{if and .OldestDate (le .ReportDate .OldestDate)}}Oldest available report ({{.OldestDate}}){{else}}Previous day (←){{end}}"
+       {{if and .OldestDate (le .ReportDate .OldestDate)}}aria-disabled="true"{{end}}>◄</a>
 
     <!-- Custom accessible date picker trigger for Dashboard -->
     <div class="relative input-wrap">
@@ -25,6 +27,8 @@
       </button>
 
       <input type="hidden" id="reportDate" name="date" value="{{.ReportDate}}">
+      <input type="hidden" id="dashOldestDate" value="{{.OldestDate}}">
+      <input type="hidden" id="dashTodayDate" value="{{.TodayStr}}">
 
       <!-- Dropdown panel -->
       <div id="dp-panel" class="date-panel hidden">
@@ -82,11 +86,13 @@
 
     <a id="dash-next-day"
        href="/?date={{.NextDate}}"
-       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold select-none" title="Next day (→)">►</a>
+       class="p-1.5 rounded bg-[#080e1e] border border-[#1e2d4a] text-slate-300 hover:text-white hover:border-[#2b3d63] transition text-xs font-bold select-none {{if ge .ReportDate .TodayStr}}opacity-30 cursor-not-allowed pointer-events-none{{end}}"
+       title="{{if ge .ReportDate .TodayStr}}Cannot navigate beyond today{{else}}Next day (→){{end}}"
+       {{if ge .ReportDate .TodayStr}}aria-disabled="true"{{end}}>►</a>
 
     <a id="dash-today-btn"
        href="/?date={{.TodayStr}}"
-       class="text-[11px] font-bold text-[#007C77] hover:underline px-1 select-none">Today</a>
+       class="text-[11px] font-bold text-[#007C77] hover:underline px-1 select-none {{if eq .ReportDate .TodayStr}}opacity-40 pointer-events-none{{end}}">Today</a>
   </div>
 </div>
 

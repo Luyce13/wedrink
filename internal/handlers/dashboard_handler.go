@@ -7,6 +7,7 @@ import (
 	"wedrink/internal/middleware"
 	"wedrink/internal/render"
 	"wedrink/internal/services"
+	"wedrink/internal/utils"
 )
 
 type DashboardHandler struct {
@@ -25,20 +26,44 @@ func (h *DashboardHandler) RenderDashboard(w http.ResponseWriter, r *http.Reques
 	user := middleware.GetUser(r)
 	ctx := r.Context()
 
+	todayStr := utils.PKTodayStr()
+	oldestDate, err := h.service.GetOldestReportDate(ctx)
+	if err != nil || oldestDate == "" {
+		oldestDate = utils.MinDateStr
+	}
+
 	dateStr := r.URL.Query().Get("date")
 	if dateStr == "" {
-		dateStr = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+		yesterday := utils.PKYesterdayStr()
+		if yesterday >= oldestDate {
+			dateStr = yesterday
+		} else {
+			dateStr = todayStr
+		}
+	}
+
+	// Boundary guards: clamp to [oldestDate, todayStr]
+	if utils.IsFutureDate(dateStr) {
+		dateStr = todayStr
+	} else if dateStr < oldestDate {
+		dateStr = oldestDate
 	}
 
 	targetDate, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		targetDate = time.Now().AddDate(0, 0, -1)
-		dateStr = targetDate.Format("2006-01-02")
+		targetDate, _ = time.Parse("2006-01-02", todayStr)
+		dateStr = todayStr
 	}
 
 	prevDate := targetDate.AddDate(0, 0, -1).Format("2006-01-02")
+	if prevDate < oldestDate {
+		prevDate = oldestDate
+	}
+
 	nextDate := targetDate.AddDate(0, 0, 1).Format("2006-01-02")
-	todayStr := time.Now().Format("2006-01-02")
+	if nextDate > todayStr {
+		nextDate = todayStr
+	}
 
 	report, _ := h.service.GetReportByDate(ctx, dateStr)
 
@@ -49,6 +74,7 @@ func (h *DashboardHandler) RenderDashboard(w http.ResponseWriter, r *http.Reques
 		"PrevDate":   prevDate,
 		"NextDate":   nextDate,
 		"TodayStr":   todayStr,
+		"OldestDate": oldestDate,
 		"Report":     report,
 		"ActiveTab":  "dashboard",
 	}

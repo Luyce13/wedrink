@@ -407,3 +407,20 @@ func (r *ReportRepository) CalculateMonthlySummary(ctx context.Context, yearMont
 
 	return summary, nil
 }
+
+func (r *ReportRepository) GetOldestReportDate(ctx context.Context) (string, error) {
+	opts := options.FindOne().
+		SetSort(bson.D{{Key: "report_date", Value: 1}}).
+		SetProjection(bson.D{{Key: "report_date", Value: 1}})
+	var result struct {
+		ReportDate string `bson:"report_date"`
+	}
+	err := r.collection.FindOne(ctx, bson.M{"is_deleted": bson.M{"$ne": true}}, opts).Decode(&result)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", nil
+		}
+		return "", err
+	}
+	return result.ReportDate, nil
+}

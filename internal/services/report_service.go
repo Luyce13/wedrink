@@ -259,4 +259,8 @@ func (s *ReportService) DeleteReport(ctx context.Context, idStr string, actorUse
 	return err
 }
 
+func (s *ReportService) GetOldestReportDate(ctx context.Context) (string, error) {
+	return s.repo.GetOldestReportDate(ctx)
+}
+
 

@@ -21,6 +21,7 @@ type ReportRepo interface {
 	FindAll(ctx context.Context, limit int) ([]models.EODReport, error)
 	Delete(ctx context.Context, idStr string, actor string) error
 	CalculateMonthlySummary(ctx context.Context, yearMonth string) (*models.MonthlySummary, error)
+	GetOldestReportDate(ctx context.Context) (string, error)
 }
 
 // UserRepo defines the contract for user persistence.

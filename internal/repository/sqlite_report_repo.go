@@ -704,3 +704,15 @@ func scanReport(scanner rowScanner) (*models.EODReport, error) {
 		UpdatedAt:       updatedAt,
 	}, nil
 }
+
+func (r *SQLiteReportRepository) GetOldestReportDate(ctx context.Context) (string, error) {
+	var dateStr string
+	err := r.db.QueryRowContext(ctx, "SELECT report_date FROM eod_reports WHERE is_deleted = 0 ORDER BY report_date ASC LIMIT 1").Scan(&dateStr)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return dateStr, nil
+}

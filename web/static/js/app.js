@@ -818,9 +818,79 @@ document.addEventListener('DOMContentLoaded', () => {
       window.reportHistoryStore.clear();
       window.reportHistoryMinDate = null;
       window.reportHistoryMaxDate = null;
+      window.dashboardOldestDate = null;
       if (typeof clearSubmittedDatesCache === 'function') clearSubmittedDatesCache();
     });
   });
+
+  function getDashboardTodayStr() {
+    const el = document.getElementById('dashTodayDate');
+    if (el && el.value) return el.value;
+    return getPKTodayStr();
+  }
+
+  function getDashboardOldestStr() {
+    const el = document.getElementById('dashOldestDate');
+    if (el && el.value) return el.value;
+    if (window.dashboardOldestDate) return window.dashboardOldestDate;
+    if (window.reportHistoryMinDate) return window.reportHistoryMinDate;
+    return getDashboardTodayStr();
+  }
+
+  function updateDashboardNavBounds(targetDate) {
+    const prevLink = document.getElementById('dash-prev-day');
+    const nextLink = document.getElementById('dash-next-day');
+    const todayLink = document.getElementById('dash-today-btn');
+    if (!prevLink && !nextLink) return;
+
+    const oldestStr = getDashboardOldestStr();
+    const todayStr = getDashboardTodayStr();
+
+    // 1. Prev day button bound to oldestStr
+    if (prevLink) {
+      if (oldestStr && targetDate <= oldestStr) {
+        prevLink.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+        prevLink.setAttribute('aria-disabled', 'true');
+        prevLink.setAttribute('title', 'Oldest available report (' + oldestStr + ')');
+        prevLink.setAttribute('href', '/?date=' + oldestStr);
+      } else {
+        prevLink.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+        prevLink.removeAttribute('aria-disabled');
+        prevLink.setAttribute('title', 'Previous day (←)');
+        const prevObj = parseDateYMD(targetDate);
+        prevObj.setDate(prevObj.getDate() - 1);
+        const prevIso = dpIso(prevObj);
+        prevLink.setAttribute('href', '/?date=' + (prevIso < oldestStr ? oldestStr : prevIso));
+      }
+    }
+
+    // 2. Next day button bound to todayStr
+    if (nextLink) {
+      if (targetDate >= todayStr) {
+        nextLink.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+        nextLink.setAttribute('aria-disabled', 'true');
+        nextLink.setAttribute('title', 'Cannot navigate beyond today');
+        nextLink.setAttribute('href', '/?date=' + todayStr);
+      } else {
+        nextLink.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+        nextLink.removeAttribute('aria-disabled');
+        nextLink.setAttribute('title', 'Next day (→)');
+        const nextObj = parseDateYMD(targetDate);
+        nextObj.setDate(nextObj.getDate() + 1);
+        const nextIso = dpIso(nextObj);
+        nextLink.setAttribute('href', '/?date=' + (nextIso > todayStr ? todayStr : nextIso));
+      }
+    }
+
+    // 3. Today button bound to todayStr
+    if (todayLink) {
+      if (targetDate === todayStr) {
+        todayLink.classList.add('opacity-40', 'pointer-events-none');
+      } else {
+        todayLink.classList.remove('opacity-40', 'pointer-events-none');
+      }
+    }
+  }
 
   function parseDateYMD(str) {
     if (!str || typeof str !== 'string') return new Date();
@@ -866,7 +936,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (Array.isArray(data)) {
           const isFullHistoryBatch = scriptEl.id === 'reports-history-data';
-          const todayIso = dpIso(new Date());
+          const todayIso = getDashboardTodayStr();
+
+          let batchMinDate = null;
+          let batchMaxDate = null;
+
+          data.forEach(rep => {
+            if (rep && rep.report_date) {
+              setRollingCache(window.reportHistoryStore, rep.report_date, rep, MAX_HISTORY_STORE_SIZE);
+              if (!batchMinDate || rep.report_date < batchMinDate) {
+                batchMinDate = rep.report_date;
+              }
+              if (!batchMaxDate || rep.report_date > batchMaxDate) {
+                batchMaxDate = rep.report_date;
+              }
+            }
+          });
+
+          if (batchMinDate) {
+            if (!window.reportHistoryMinDate || batchMinDate < window.reportHistoryMinDate) {
+              window.reportHistoryMinDate = batchMinDate;
+            }
+            if (!window.dashboardOldestDate || batchMinDate < window.dashboardOldestDate) {
+              window.dashboardOldestDate = batchMinDate;
+            }
+          }
+          if (batchMaxDate) {
+            if (!window.reportHistoryMaxDate || batchMaxDate > window.reportHistoryMaxDate) {
+              window.reportHistoryMaxDate = batchMaxDate;
+            }
+          }
 
           if (isFullHistoryBatch) {
             // /reports is ordered by date DESC starting from today.
@@ -874,23 +973,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!window.reportHistoryMaxDate || todayIso > window.reportHistoryMaxDate) {
               window.reportHistoryMaxDate = todayIso;
             }
-          }
-
-          data.forEach(rep => {
-            if (rep && rep.report_date) {
-              setRollingCache(window.reportHistoryStore, rep.report_date, rep, MAX_HISTORY_STORE_SIZE);
-              if (!window.reportHistoryMinDate || rep.report_date < window.reportHistoryMinDate) {
-                window.reportHistoryMinDate = rep.report_date;
-              }
-              if (!window.reportHistoryMaxDate || rep.report_date > window.reportHistoryMaxDate) {
-                window.reportHistoryMaxDate = rep.report_date;
-              }
-            }
-          });
-
-          // If the batch returned fewer than 100 items (the server limit), all historical reports have been loaded!
-          if (isFullHistoryBatch && data.length < 100) {
-            window.reportHistoryMinDate = '2020-01-01';
           }
         }
       } catch (_) {}
@@ -900,6 +982,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Helper to check if a date is known to have NO report submitted (0ms instant placeholder)
   function isDateKnownEmpty(dateStr) {
     if (!dateStr) return false;
+    const oldestStr = getDashboardOldestStr();
+    const todayStr = getDashboardTodayStr();
+    // Cannot be a navigable empty date if outside valid range [oldestStr, todayStr]
+    if (dateStr < oldestStr || dateStr > todayStr) return false;
+
     if (window.reportHistoryStore && window.reportHistoryStore.has(dateStr)) return false;
 
     // Check 1: Monthly submitted dates cache (from /reports/submitted-dates)
@@ -928,11 +1015,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const dataPanel = document.getElementById('dash-data-panel');
     const dateInput = document.getElementById('reportDate');
-    if (dataPanel && dateInput && dateInput.value) {
-      setRollingCache(dashDateCache, dateInput.value, dataPanel.innerHTML, MAX_DASH_HTML_CACHE_SIZE);
-      const monthStr = dateInput.value.substring(0, 7);
-      if (typeof fetchSubmittedDates === 'function') {
-        fetchSubmittedDates(monthStr);
+    if (dateInput && dateInput.value) {
+      updateDashboardNavBounds(dateInput.value);
+      if (dataPanel) {
+        setRollingCache(dashDateCache, dateInput.value, dataPanel.innerHTML, MAX_DASH_HTML_CACHE_SIZE);
+        const monthStr = dateInput.value.substring(0, 7);
+        if (typeof fetchSubmittedDates === 'function') {
+          fetchSubmittedDates(monthStr);
+        }
       }
     }
   }
@@ -942,6 +1032,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     initDashboardDateStore();
   }
+  document.body.addEventListener('htmx:afterSwap', initDashboardDateStore);
 
   // Generates complete innerHTML for #dash-data-panel matching server-rendered markup
   function renderDashboardPanelFromReport(report, targetDate) {
@@ -1162,15 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dpSelected = new Date(targetDateObj);
     dpUpdateTrigger();
 
-    const prevDateObj = new Date(targetDateObj);
-    prevDateObj.setDate(prevDateObj.getDate() - 1);
-    const nextDateObj = new Date(targetDateObj);
-    nextDateObj.setDate(nextDateObj.getDate() + 1);
-
-    const prevLink = document.getElementById('dash-prev-day');
-    const nextLink = document.getElementById('dash-next-day');
-    if (prevLink) prevLink.setAttribute('href', '/?date=' + dpIso(prevDateObj));
-    if (nextLink) nextLink.setAttribute('href', '/?date=' + dpIso(nextDateObj));
+    updateDashboardNavBounds(targetDate);
 
     // Restore side panel width preference if present
     try {
@@ -1209,8 +1292,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dashContainer) return;
 
     const dpHidden = document.getElementById('reportDate');
-    const prevLink = document.getElementById('dash-prev-day');
-    const nextLink = document.getElementById('dash-next-day');
 
     const now = Date.now();
     const isRapidClick = (now - dashLastClickTime) < 300;
@@ -1225,11 +1306,35 @@ document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       baseStr = urlParams.get('date');
     }
-    const currDate = parseDateYMD(baseStr);
+    if (!baseStr) {
+      baseStr = getDashboardTodayStr();
+    }
 
-    // 2. Step date by direction (-1 for prev, +1 for next)
+    const oldestStr = getDashboardOldestStr();
+    const todayStr = getDashboardTodayStr();
+
+    // Bounds check: cannot step earlier than oldest, cannot step later than today
+    if (direction < 0 && baseStr <= oldestStr) {
+      updateDashboardNavBounds(baseStr);
+      return;
+    }
+    if (direction > 0 && baseStr >= todayStr) {
+      updateDashboardNavBounds(baseStr);
+      return;
+    }
+
+    const currDate = parseDateYMD(baseStr);
     currDate.setDate(currDate.getDate() + direction);
-    const newDateStr = dpIso(currDate);
+    let newDateStr = dpIso(currDate);
+
+    // Hard clamp to bounds
+    if (newDateStr < oldestStr) newDateStr = oldestStr;
+    if (newDateStr > todayStr) newDateStr = todayStr;
+    if (newDateStr === baseStr) {
+      updateDashboardNavBounds(baseStr);
+      return;
+    }
+
     dashPendingDate = newDateStr;
 
     // 3. Instant 0ms visual feedback
@@ -1238,15 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     dpSelected = new Date(currDate);
     dpUpdateTrigger();
-
-    // Update fallback hrefs
-    const prevDateObj = new Date(currDate);
-    prevDateObj.setDate(prevDateObj.getDate() - 1);
-    const nextDateObj = new Date(currDate);
-    nextDateObj.setDate(nextDateObj.getDate() + 1);
-
-    if (prevLink) prevLink.setAttribute('href', '/?date=' + dpIso(prevDateObj));
-    if (nextLink) nextLink.setAttribute('href', '/?date=' + dpIso(nextDateObj));
+    updateDashboardNavBounds(newDateStr);
 
     // Update browser URL immediately without page reload
     history.replaceState({ path: '/?date=' + newDateStr, date: newDateStr }, '', '/?date=' + newDateStr);
@@ -1308,6 +1405,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.fetchDashboardDate = async function(targetDate, isHistoryPush, existingReqId) {
+    const oldestStr = getDashboardOldestStr();
+    const todayStr = getDashboardTodayStr();
+    if (targetDate < oldestStr) targetDate = oldestStr;
+    if (targetDate > todayStr) targetDate = todayStr;
+
     const reqId = existingReqId || (++dashActiveReqId);
     if (dashNavTimer) {
       clearTimeout(dashNavTimer);
@@ -1408,7 +1510,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function dpHandleDashboardNav(newVal, oldVal) {
     const dashContainer = document.getElementById('dashboard-content');
     if (!dashContainer || !newVal || !oldVal || oldVal === newVal) return false;
+    const oldestStr = getDashboardOldestStr();
+    const todayStr = getDashboardTodayStr();
+    if (newVal < oldestStr || newVal > todayStr) return false;
     dashPendingDate = null;
+    updateDashboardNavBounds(newVal);
     if (dashDateCache.has(newVal)) {
       renderDashboardHTML(dashDateCache.get(newVal), newVal, false);
       return true;
@@ -1430,6 +1536,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function dpSetDate(d, updateView) {
+    const isDashboard = !!document.getElementById('dashboard-content');
+    if (isDashboard && d) {
+      const iso = dpIso(new Date(d));
+      const oldestStr = getDashboardOldestStr();
+      const todayStr = getDashboardTodayStr();
+      if (iso < oldestStr || iso > todayStr) {
+        return;
+      }
+    }
+
     const dpHidden = document.getElementById('reportDate');
     const oldVal   = dpHidden ? dpHidden.value : '';
 
@@ -1473,8 +1589,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!dpGrid) return;
 
     try {
-      // Enforce lower month bound (July 2026 = 2026-06 index)
-      if (dpViewYear < 2026 || (dpViewYear === 2026 && dpViewMonth < 6)) {
+      // Enforce lower and upper month bounds for dashboard
+      const isDashboard = !!document.getElementById('dashboard-content');
+      if (isDashboard) {
+        const oldestStr = getDashboardOldestStr();
+        const todayStr = getDashboardTodayStr();
+        const oldestDate = parseDateYMD(oldestStr);
+        const todayDate = parseDateYMD(todayStr);
+        const oldestYear = oldestDate.getFullYear();
+        const oldestMonth = oldestDate.getMonth();
+        const todayYear = todayDate.getFullYear();
+        const todayMonth = todayDate.getMonth();
+
+        if (dpViewYear < oldestYear || (dpViewYear === oldestYear && dpViewMonth < oldestMonth)) {
+          dpViewYear = oldestYear;
+          dpViewMonth = oldestMonth;
+        } else if (dpViewYear > todayYear || (dpViewYear === todayYear && dpViewMonth > todayMonth)) {
+          dpViewYear = todayYear;
+          dpViewMonth = todayMonth;
+        }
+      } else if (dpViewYear < 2026 || (dpViewYear === 2026 && dpViewMonth < 6)) {
         dpViewYear = 2026;
         dpViewMonth = 6;
       }
@@ -1538,7 +1672,8 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (dow === 0 || dow === 6) cls += ' weekend';
 
     if (isDashboard) {
-      if (isBeforeMin || isFuture || !isSubmitted) cls += ' outside disabled no-report-disabled';
+      if (isBeforeMin || isFuture) cls += ' outside disabled future-disabled';
+      else if (!isSubmitted) cls += ' outside disabled no-report-disabled';
       else cls += ' has-report-selectable';
     } else {
       if (isBeforeMin || isFuture) cls += ' outside disabled future-disabled';
@@ -1552,9 +1687,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function dpBuildCellTitle(flags, submittedInfo) {
     const { isBeforeMin, isFuture, isSubmitted, isDashboard } = flags;
     if (isDashboard) {
+      if (isFuture)     return 'title="Cannot navigate beyond today"';
+      if (isBeforeMin)  return 'title="Earlier than oldest report"';
       if (isSubmitted)  return 'title="View EOD Report"';
-      if (isFuture)     return 'title="Future Date"';
-      if (isBeforeMin)  return 'title="Prior to July 2026"';
       return 'title="No report for this date"';
     }
     if (isSubmitted)    return submittedInfo.canEdit ? 'title="Report Submitted (Click to Edit)"' : 'title="Report Already Submitted"';
@@ -1569,8 +1704,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const iso = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
     const dow = cd.getDay();
     const isDashboard = !!document.getElementById('dashboard-content');
+    const oldestStr = isDashboard ? getDashboardOldestStr() : '2026-07-01';
     const flags = {
-      isBeforeMin:  iso < '2026-07-01',
+      isBeforeMin:  iso < oldestStr,
       isFuture:     iso > pkTodayStr,
       isSubmitted:  submittedInfo.dates.has(iso),
       isDashboard,
@@ -1594,9 +1730,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (nextMonth < 0)  { nextMonth = 11; nextYear--; }
     if (nextMonth > 11) { nextMonth = 0;  nextYear++; }
 
-    // Enforce July 2026 lower boundary
-    if (nextYear < 2026 || (nextYear === 2026 && nextMonth < 6)) {
-      return;
+    const isDashboard = !!document.getElementById('dashboard-content');
+    if (isDashboard) {
+      const oldestStr = getDashboardOldestStr();
+      const todayStr = getDashboardTodayStr();
+      const oldestDate = parseDateYMD(oldestStr);
+      const todayDate = parseDateYMD(todayStr);
+      const oldestYear = oldestDate.getFullYear();
+      const oldestMonth = oldestDate.getMonth();
+      const todayYear = todayDate.getFullYear();
+      const todayMonth = todayDate.getMonth();
+
+      if (nextYear < oldestYear || (nextYear === oldestYear && nextMonth < oldestMonth)) {
+        return;
+      }
+      if (nextYear > todayYear || (nextYear === todayYear && nextMonth > todayMonth)) {
+        return;
+      }
+    } else {
+      // Enforce July 2026 lower boundary
+      if (nextYear < 2026 || (nextYear === 2026 && nextMonth < 6)) {
+        return;
+      }
     }
 
     dpViewYear = nextYear;
@@ -2331,6 +2486,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (prevBtn) {
         e.preventDefault();
         e.stopPropagation();
+        if (prevBtn.classList.contains('pointer-events-none') || prevBtn.getAttribute('aria-disabled') === 'true') {
+          return;
+        }
         stepDashboardDate(-1);
         return;
       }
@@ -2339,6 +2497,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (nextBtn) {
         e.preventDefault();
         e.stopPropagation();
+        if (nextBtn.classList.contains('pointer-events-none') || nextBtn.getAttribute('aria-disabled') === 'true') {
+          return;
+        }
         stepDashboardDate(1);
         return;
       }
@@ -2347,9 +2508,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (todayBtn) {
         e.preventDefault();
         e.stopPropagation();
+        if (todayBtn.classList.contains('pointer-events-none')) {
+          return;
+        }
         if (dashNavTimer) clearTimeout(dashNavTimer);
         dashPendingDate = null;
-        const todayStr = dpIso(new Date());
+        const todayStr = getDashboardTodayStr();
         window.fetchDashboardDate(todayStr, false);
         return;
       }
